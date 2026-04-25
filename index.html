@@ -301,8 +301,7 @@ function fetchUserInfo(){
         accessToken=null;
         document.getElementById('app').style.display='none';
         document.getElementById('login-screen').style.display='flex';
-        alert('❌ אין הרשאה להתחבר לאפליקציה זו
-'+u.email);
+        alert('אין הרשאה: '+u.email);
         return;
       }
 
