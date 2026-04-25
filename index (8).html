@@ -11,7 +11,558 @@
 <title>אבי טל ושות׳ — לידים</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+:root {<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#c0392b">
+<link rel="manifest" href="manifest.json">
+<title>אבי טל ושות׳ — לידים</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 :root {
+  --bg:#f4f4f6;
+  --card:#ffffff;
+  --card2:#f8f8fa;
+  --accent:#c0392b;
+  --accent2:#e74c3c;
+  --dark:#1a1a1a;
+  --gray:#3d3d3d;
+  --muted:#999;
+  --border:#e8e8ec;
+  --green:#27ae60;
+  --text:#222;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);
+}
+body { font-family:-apple-system,'Segoe UI','Helvetica Neue',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, #c0392b 0%, #96281b 100%);
+  padding: 0 18px;
+  height: 62px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 16px rgba(192,57,43,0.35);
+}
+.logo-mark { background:rgba(255,255,255,0.2); color:#fff; font-size:11px; font-weight:900; padding:5px 9px; border-radius:6px; letter-spacing:1px; border:1px solid rgba(255,255,255,0.3); }
+.logo-text { font-size:15px; font-weight:800; color:#fff; }
+.logo-sub  { font-size:10px; color:rgba(255,255,255,0.7); }
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-right { display:flex; gap:8px; align-items:center; }
+.count-badge { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:4px 10px; font-size:12px; color:#fff; }
+.refresh-btn { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:20px; padding:7px 12px; font-size:13px; cursor:pointer; }
+.avatar { width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.3); border:2px solid rgba(255,255,255,0.5); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; cursor:pointer; overflow:hidden; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
+
+/* SEARCH */
+.search-wrap { background:#fff; padding:10px 14px; border-bottom:1px solid var(--border); }
+.search-inner { display:flex; align-items:center; background:var(--bg); border-radius:12px; padding:0 14px; gap:8px; border:1px solid var(--border); }
+.search-inner input { flex:1; padding:11px 0; background:transparent; border:none; outline:none; font-size:14px; color:var(--text); direction:rtl; }
+.search-inner input::placeholder { color:var(--muted); }
+
+/* STATS */
+.stats-bar { background:#fff; padding:8px 18px; display:flex; gap:16px; border-bottom:1px solid var(--border); font-size:12px; color:var(--muted); }
+.stat-item { display:flex; align-items:center; gap:5px; }
+.stat-dot { width:7px; height:7px; border-radius:50%; }
+
+/* LEADS */
+#leads-list { padding:10px 14px; display:flex; flex-direction:column; gap:8px; }
+
+.lead-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all 0.2s;
+}
+.lead-card.has-note { border-right: 3px solid var(--green); }
+.lead-card.expanded { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
+
+.lead-row { padding:14px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+.lead-info { flex:1; min-width:0; }
+.lead-name  { font-size:15px; font-weight:700; color:var(--dark); }
+.lead-phone { font-size:13px; color:var(--muted); margin-top:2px; direction:ltr; text-align:right; }
+.lead-tag { display:inline-flex; align-items:center; gap:3px; font-size:10px; color:var(--green); background:rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.25); border-radius:20px; padding:2px 8px; margin-top:4px; font-weight:600; }
+
+.call-btn { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#c0392b,#96281b); border:none; display:flex; align-items:center; justify-content:center; font-size:20px; cursor:pointer; flex-shrink:0; transition:all 0.15s; box-shadow:0 3px 10px rgba(192,57,43,0.3); }
+.call-btn:active { transform:scale(0.88); }
+.call-btn.done { background:linear-gradient(135deg,#27ae60,#1e8449); box-shadow:0 3px 10px rgba(39,174,96,0.3); }
+
+.lead-note-box { background:#f9fffe; border-top:1px solid rgba(39,174,96,0.15); padding:12px 16px; }
+.note-header { font-size:11px; color:var(--green); font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:4px; }
+.note-entry { margin-bottom:10px; }
+.note-ts { font-size:11px; color:var(--muted); font-weight:600; margin-bottom:3px; }
+.note-text { font-size:13px; color:#444; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+.note-sep { border:none; border-top:1px solid rgba(39,174,96,0.15); margin:8px 0; }
+
+/* LOADING */
+#loading { display:flex; flex-direction:column; align-items:center; padding:60px 20px; gap:14px; }
+.spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* LOGIN */
+#login-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 24px; gap:24px; text-align:center; background:#fff; }
+.login-logo { background:linear-gradient(135deg,#c0392b,#96281b); border-radius:20px; padding:28px 36px; color:#fff; box-shadow:0 8px 32px rgba(192,57,43,0.3); }
+.login-logo h1 { font-size:24px; font-weight:900; letter-spacing:1px; }
+.login-logo h2 { font-size:13px; opacity:0.85; font-weight:500; margin-top:4px; }
+.login-logo p  { font-size:11px; opacity:0.65; margin-top:6px; }
+.google-btn { background:#fff; color:#333; border:1px solid #ddd; padding:15px 28px; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:12px; box-shadow:0 2px 16px rgba(0,0,0,0.1); transition:all 0.15s; }
+.google-btn:active { transform:scale(0.97); box-shadow:0 1px 8px rgba(0,0,0,0.1); }
+.login-desc { color:var(--muted); font-size:14px; line-height:1.6; }
+
+/* MODAL */
+#note-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:300; align-items:flex-end; backdrop-filter:blur(4px); }
+#note-modal.open { display:flex; }
+.modal-sheet {
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  border-top: 3px solid var(--accent);
+  padding: 20px 18px 40px;
+  width: 100%;
+  display: flex; flex-direction: column; gap: 12px;
+  animation: slideUp 0.25s cubic-bezier(0.32,0.72,0,1);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal-handle { width:40px; height:4px; background:#ddd; border-radius:4px; margin:0 auto 4px; }
+.modal-title { font-size:18px; font-weight:800; color:var(--dark); }
+.modal-sub   { font-size:13px; color:var(--accent); font-weight:600; margin-top:-8px; }
+
+#note-input {
+  width:100%; min-height:110px; padding:13px 15px;
+  background:#f8f8fa; border:1.5px solid var(--border);
+  border-radius:12px; color:var(--dark); font-size:15px; resize:none; direction:rtl;
+  transition: border-color 0.2s;
+}
+#note-input:focus { outline:none; border-color:var(--accent); background:#fff; }
+#note-input::placeholder { color:#bbb; }
+
+.btn { padding:14px 18px; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; width:100%; transition:all 0.12s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn:active { transform:scale(0.97); }
+.btn-save { background:linear-gradient(135deg,#c0392b,#96281b); color:#fff; box-shadow:0 3px 12px rgba(192,57,43,0.3); }
+.btn-skip { background:#f0f0f0; color:#888; }
+
+.mic-btn { background:#f4f4f6; border:1.5px solid var(--border); border-radius:12px; padding:13px 16px; color:var(--dark); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; width:100%; font-weight:600; transition:all 0.15s; }
+.mic-btn:active { background:#ebebed; }
+.mic-btn.recording { background:#fef2f2; border-color:#c0392b; color:#c0392b; animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+
+.saving-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.85); z-index:400; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; backdrop-filter:blur(4px); }
+.saving-overlay.show { display:flex; }
+.saving-overlay p { font-size:15px; color:var(--dark); font-weight:600; }
+
+.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--dark); color:#fff; padding:11px 22px; border-radius:24px; font-size:14px; z-index:500; white-space:nowrap; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+
+/* empty state */
+.empty { text-align:center; padding:60px 20px; color:var(--muted); }
+.empty .icon { font-size:48px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:none">
+  <div class="login-logo">
+    <h1>אבי טל ושות׳</h1>
+    <h2>עורכי-דין | Advocates</h2>
+    <p>www.t-adv.co.il</p>
+  </div>
+  <p class="login-desc">מערכת ניהול לידים<br>התחבר עם חשבון Google שלך</p>
+  <button class="google-btn" onclick="doLogin()">
+    <svg width="20" height="20" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+    כניסה עם Google
+  </button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-mark">AT</div>
+      <div>
+        <div class="logo-text">אבי טל ושות׳</div>
+        <div class="logo-sub">עורכי-דין | לידים</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="count-badge" id="lead-count">טוען...</span>
+      <button class="refresh-btn" onclick="loadLeads()">🔄</button>
+      <div class="avatar" id="user-avatar" onclick="signOut()"></div>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-inner">
+      <span style="color:#bbb;font-size:16px">🔍</span>
+      <input type="search" id="search" placeholder="חיפוש שם או טלפון..." oninput="filterLeads()"/>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-dot" style="background:var(--green)"></div><span id="stat-notes">0 עם הערות</span></div>
+    <div class="stat-item"><div class="stat-dot" style="background:var(--accent)"></div><span id="stat-total">0 לידים</span></div>
+  </div>
+
+  <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:14px">טוען לידים...</div></div>
+  <div id="leads-list"></div>
+</div>
+
+<!-- NOTE MODAL -->
+<div id="note-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📝 סיכום שיחה</div>
+    <div class="modal-sub" id="modal-name"></div>
+    <textarea id="note-input" placeholder="מה היה בשיחה? הקלד או לחץ על המיקרופון..."></textarea>
+    <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤 הכתב (מיקרופון)</button>
+    <button class="btn btn-save" onclick="saveNote()">💾 שמור ב-Google Sheets</button>
+    <button class="btn btn-skip" onclick="closeModal()">סגור בלי לשמור</button>
+  </div>
+</div>
+
+<div class="saving-overlay" id="saving-overlay">
+  <div class="spinner"></div>
+  <p>שומר בגיליון...</p>
+</div>
+
+<script>
+const CLIENT_ID = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY   = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID  = '19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
+const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile';
+const TOKEN_TTL = 50 * 60 * 1000;
+const REDIRECT  = location.origin + location.pathname;
+
+let accessToken = null;
+let allLeads    = [];
+let currentLead = null;
+let recognition = null;
+let isRecording = false;
+let calledSet   = new Set();
+let expandedSet = new Set();
+let prevCount   = null;
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+function doLogin() {
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id: CLIENT_ID, redirect_uri: REDIRECT,
+    response_type: 'token', scope: SCOPES, prompt: 'select_account'
+  });
+}
+
+function signOut() {
+  if (!confirm('להתנתק?')) return;
+  ['leads_token','leads_token_exp','leads_pic','leads_name'].forEach(k => localStorage.removeItem(k));
+  accessToken = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Register service worker for PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // OAuth redirect
+  if (location.hash && location.hash.includes('access_token')) {
+    const p   = new URLSearchParams(location.hash.substring(1));
+    const tok = p.get('access_token');
+    const exp = parseInt(p.get('expires_in') || '3600');
+    if (tok) {
+      accessToken = tok;
+      localStorage.setItem('leads_token',     tok);
+      localStorage.setItem('leads_token_exp', (Date.now() + (exp - 120) * 1000).toString());
+      history.replaceState(null, '', location.pathname);
+      fetchUserInfo();
+      showApp(); loadLeads(); askNotif();
+      return;
+    }
+  }
+
+  // Saved token
+  const tok = localStorage.getItem('leads_token');
+  const exp = parseInt(localStorage.getItem('leads_token_exp') || '0');
+  if (tok && Date.now() < exp) {
+    accessToken = tok;
+    restoreAvatar();
+    showApp(); loadLeads(); askNotif();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+});
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ── USER INFO ─────────────────────────────────────────────────────────────────
+function fetchUserInfo() {
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + accessToken } })
+    .then(r => r.json()).then(u => {
+      localStorage.setItem('leads_pic',  u.picture || '');
+      localStorage.setItem('leads_name', u.name    || '');
+      setAvatar(u.picture, u.name);
+    }).catch(() => {});
+}
+function restoreAvatar() { setAvatar(localStorage.getItem('leads_pic'), localStorage.getItem('leads_name')); }
+function setAvatar(pic, name) {
+  const av = document.getElementById('user-avatar');
+  if (!av) return;
+  av.innerHTML = pic ? `<img src="${pic}">` : (name||'U')[0].toUpperCase();
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function askNotif() {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}
+function notifyNew(name, phone) {
+  if ('Notification' in window && Notification.permission === 'granted')
+    new Notification('ליד חדש — אבי טל ושות׳', { body: name + ' | ' + phone });
+}
+
+// ── LOAD LEADS ────────────────────────────────────────────────────────────────
+async function loadLeads() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('leads-list').innerHTML = '';
+  try {
+    const res  = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:C?key=${API_KEY}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    allLeads = (data.values || []).slice(1)
+      .map((row, i) => ({
+        index: i + 2,
+        name:  (row[0] || '').trim() || '(ללא שם)',
+        phone: (row[1] || '').toString().trim(),
+        note:  (row[2] || '').trim()
+      }))
+      .filter(l => l.phone)
+      .reverse();
+
+    if (prevCount !== null && allLeads.length > prevCount) notifyNew(allLeads[0].name, allLeads[0].phone);
+    prevCount = allLeads.length;
+
+    const withNotes = allLeads.filter(l => l.note).length;
+    document.getElementById('lead-count').textContent  = allLeads.length + ' לידים';
+    document.getElementById('stat-notes').textContent  = withNotes + ' עם הערות';
+    document.getElementById('stat-total').textContent  = allLeads.length + ' לידים';
+    document.getElementById('loading').style.display   = 'none';
+    renderLeads(allLeads);
+    setTimeout(loadLeads, 2 * 60 * 1000);
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('leads-list').innerHTML = `<div style="padding:20px;color:#e74c3c">❌ ${e.message}</div>`;
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function parseNotes(fullNote) {
+  if (!fullNote) return [];
+  // Split by double newline
+  const entries = fullNote.split(/\n\n+/).filter(e => e.trim());
+  return entries.slice(0, 3); // last 3
+}
+
+function renderLeads(leads) {
+  const list = document.getElementById('leads-list');
+  list.innerHTML = '';
+  if (!leads.length) {
+    list.innerHTML = '<div class="empty"><div class="icon">📋</div><div>אין לידים</div></div>';
+    return;
+  }
+  leads.forEach(l => {
+    const done     = calledSet.has(l.index);
+    const expanded = expandedSet.has(l.index);
+    const entries  = parseNotes(l.note);
+    const d = document.createElement('div');
+    d.className = 'lead-card' + (l.note ? ' has-note' : '') + (expanded ? ' expanded' : '');
+
+    let notesHtml = '';
+    if (expanded && entries.length) {
+      const items = entries.map(entry => {
+        const lines = entry.split('\n');
+        const ts    = /^\d{2}\/\d{2}\/\d{2}/.test(lines[0]) ? lines[0] : '';
+        const body  = ts ? lines.slice(1).join('\n') : entry;
+        return `<div class="note-entry">
+          ${ts ? `<div class="note-ts">📅 ${ts}</div>` : ''}
+          <div class="note-text">${esc(body.trim())}</div>
+        </div>`;
+      }).join('<hr class="note-sep">');
+      notesHtml = `<div class="lead-note-box">
+        <div class="note-header">📋 ${entries.length === 1 ? 'שיחה אחרונה' : entries.length + ' שיחות אחרונות'}</div>
+        ${items}
+      </div>`;
+    }
+
+    d.innerHTML = `
+      <div class="lead-row" onclick="toggleExpand(${l.index})">
+        <div class="lead-info">
+          <div class="lead-name">${esc(l.name)}</div>
+          <div class="lead-phone">${esc(l.phone)}</div>
+          ${l.note ? `<div class="lead-tag">💬 ${entries.length} שיחה</div>` : ''}
+        </div>
+        <button class="call-btn ${done?'done':''}"
+                onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">
+          ${done ? '✅' : '📞'}
+        </button>
+      </div>
+      ${notesHtml}
+    `;
+    list.appendChild(d);
+  });
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function ej(s)  { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+function toggleExpand(idx) {
+  if (expandedSet.has(idx)) expandedSet.delete(idx);
+  else expandedSet.add(idx);
+  filterLeads();
+}
+
+function filterLeads() {
+  const q = document.getElementById('search').value.toLowerCase();
+  renderLeads(allLeads.filter(l => l.name.toLowerCase().includes(q) || l.phone.includes(q)));
+}
+
+// ── CALL ─────────────────────────────────────────────────────────────────────
+function callLead(idx, name, phone) {
+  currentLead = { index: idx, name, phone };
+  calledSet.add(idx);
+  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+  setTimeout(() => openModal(name), 1800);
+}
+
+function openModal(name) {
+  document.getElementById('modal-name').textContent = name;
+  document.getElementById('note-input').value = '';
+  document.getElementById('note-modal').classList.add('open');
+  stopMic(); // reset mic
+  setTimeout(() => document.getElementById('note-input').focus(), 300);
+}
+
+function closeModal() {
+  document.getElementById('note-modal').classList.remove('open');
+  stopMic();
+  filterLeads();
+}
+
+// ── SAVE (prepend + timestamp) ────────────────────────────────────────────────
+function getTS() {
+  const n = new Date(), p = x => String(x).padStart(2,'0');
+  return `${p(n.getDate())}/${p(n.getMonth()+1)}/${String(n.getFullYear()).slice(2)} ${p(n.getHours())}:${p(n.getMinutes())}`;
+}
+
+async function saveNote() {
+  const note = document.getElementById('note-input').value.trim();
+  closeModal();
+  if (!note) return;
+
+  const row      = currentLead.index;
+  const lead     = allLeads.find(l => l.index === row);
+  const newEntry = getTS() + '\n' + note;
+  const prev     = lead ? lead.note : '';
+  const combined = prev ? newEntry + '\n\n' + prev : newEntry; // NEW ON TOP
+
+  if (lead) lead.note = combined;
+  document.getElementById('saving-overlay').classList.add('show');
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`,
+      { method:'PUT', headers:{ 'Authorization':'Bearer '+accessToken, 'Content-Type':'application/json' },
+        body: JSON.stringify({ values: [[combined]] }) }
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    expandedSet.add(row);
+    showToast('✅ נשמר!');
+    filterLeads();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    document.getElementById('saving-overlay').classList.remove('show');
+  }
+}
+
+// ── MIC (fixed - no duplicates) ───────────────────────────────────────────────
+let finalTranscript = '';
+
+function toggleMic() {
+  if (isRecording) { stopMic(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('הדפדפן לא תומך בהכתבה'); return; }
+
+  finalTranscript = document.getElementById('note-input').value; // keep existing text
+  recognition = new SR();
+  recognition.lang = 'he-IL';
+  recognition.continuous = false; // ONE utterance at a time — no duplicates
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = e => {
+    let interim = '';
+    for (let i = 0; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        finalTranscript += e.results[i][0].transcript;
+      } else {
+        interim = e.results[i][0].transcript;
+      }
+    }
+    document.getElementById('note-input').value = finalTranscript + interim;
+  };
+
+  recognition.onend = () => {
+    // Auto-restart for continuous dictation
+    if (isRecording) {
+      recognition.start();
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== 'no-speech') stopMic();
+  };
+
+  recognition.start();
+  isRecording = true;
+  document.getElementById('mic-btn').classList.add('recording');
+  document.getElementById('mic-btn').innerHTML = '⏹ עצור הקלטה';
+}
+
+function stopMic() {
+  isRecording = false;
+  if (recognition) { try { recognition.abort(); } catch(e){} recognition = null; }
+  const b = document.getElementById('mic-btn');
+  if (b) { b.classList.remove('recording'); b.innerHTML = '🎤 הכתב (מיקרופון)'; }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
+
   --bg:#f4f4f6;
   --card:#ffffff;
   --card2:#f8f8fa;
