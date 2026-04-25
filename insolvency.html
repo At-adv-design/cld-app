@@ -110,8 +110,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
 .swipe-wrap{position:relative;overflow:hidden;}
 .swipe-bg{position:absolute;inset:0;display:flex;align-items:center;padding:0 20px;font-size:13px;font-weight:600;color:#fff;opacity:0;transition:opacity .15s;}
-.swipe-bg.left{background:var(--orange);justify-content:flex-end;}
-.swipe-bg.right{background:var(--orange);justify-content:flex-start;}
+.swipe-bg.left{background:var(--green);justify-content:flex-end;}
+.swipe-bg.right{background:var(--green);justify-content:flex-start;}
 .swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
 .restore-btn{width:40px;height:40px;border-radius:4px;background:var(--white);border:1px solid var(--green);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .12s;color:var(--green);}
 .restore-btn:active{transform:scale(.92);}
@@ -144,7 +144,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <!-- APP -->
 <div id="app" style="display:none">
   <div class="header">
-    <img src="logo.png" alt="אבי טל ושות׳" style="height:44px;object-fit:contain;" onerror="this.style.display='none'">
+    <img src="logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-right:auto;" onerror="this.style.display='none'">
     <div class="hdr-right">
       <span class="hdr-count" id="total-count">טוען...</span>
       <button class="hdr-btn" onclick="loadData()">↺</button>
@@ -496,22 +496,24 @@ function switchTab(tab){
 function moveToWaiting(rowNum){
   waitingIndices.add(rowNum);
   localStorage.setItem('ins_waiting',JSON.stringify([...waitingIndices]));
-  // עדכן מיידי — הסר מהרשימה
-  const card=document.querySelector('[data-row="'+rowNum+'"]');
-  if(card)card.parentElement.remove();
-  const active=allClients.filter(cl=>!waitingIndices.has(cl.rowNum));
-  document.getElementById('total-count').textContent=active.length+' תיקים';
-  // עדכן ממתינים count בטאב
-  const wCount=waitingIndices.size;
-  document.getElementById('tab-waiting').textContent='⏸ ממתינים'+(wCount>0?' ('+wCount+')':'');
-  showToast('תיק הועבר להמתנה');
+  updateTabCount();
+  applyFilters();
+  showToast('תיק הועבר להמתנה ⏸');
 }
 
 function restoreFromWaiting(rowNum){
   waitingIndices.delete(rowNum);
   localStorage.setItem('ins_waiting',JSON.stringify([...waitingIndices]));
+  updateTabCount();
   renderWaiting();
-  showToast('תיק שוחזר');
+  showToast('תיק שוחזר ✓');
+}
+
+function updateTabCount(){
+  const wCount=waitingIndices.size;
+  document.getElementById('tab-waiting').textContent='⏸ ממתינים'+(wCount>0?' ('+wCount+')':'');
+  const active=allClients.filter(cl=>!waitingIndices.has(cl.rowNum));
+  document.getElementById('total-count').textContent=active.length+' תיקים';
 }
 
 function renderWaiting(){
@@ -520,6 +522,10 @@ function renderWaiting(){
   if(!waiting.length){list.innerHTML='<div class="empty">אין תיקים בהמתנה</div>';return;}
   list.innerHTML='';
   waiting.forEach(cl=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML='<div class="swipe-bg left">חזור לפעילים ↩</div><div class="swipe-bg right">↩ חזור לפעילים</div><div class="swipe-content"></div>';
+    const content=wrap.querySelector('.swipe-content');
     const d=document.createElement('div');
     d.className='client-card';
     d.style.opacity='0.75';
@@ -531,46 +537,58 @@ function renderWaiting(){
       </div>
       <button class="restore-btn" onclick="restoreFromWaiting(${cl.rowNum})" title="החזר לרשימה">↩</button>
     </div>`;
-    list.appendChild(d);
+    content.appendChild(d);
+    list.appendChild(wrap);
+    initSwipe(wrap,cl.rowNum,true);
   });
 }
 
-function initSwipe(wrap,rowNum){
-  const content=wrap.querySelector('.swipe-content');
-  const bgL=wrap.querySelector('.swipe-bg.left');
-  const bgR=wrap.querySelector('.swipe-bg.right');
-  let startX=0,startY=0,currentX=0,swiping=false,axis=null;
-  const threshold=80;
-  function onStart(e){const t=e.touches?e.touches[0]:e;startX=t.clientX;startY=t.clientY;swiping=true;axis=null;currentX=0;}
-  function onMove(e){
-    if(!swiping)return;
-    const t=e.touches?e.touches[0]:e;
-    const dx=t.clientX-startX,dy=t.clientY-startY;
-    if(!axis){if(Math.abs(dx)>8||Math.abs(dy)>8)axis=Math.abs(dx)>Math.abs(dy)?'x':'y';}
-    if(axis!=='x')return;
-    e.preventDefault();
-    currentX=dx;
-    content.style.transform=`translateX(${dx}px)`;
-    content.style.transition='none';
-    const pct=Math.min(Math.abs(dx)/threshold,1);
-    if(dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
-    else{bgR.style.opacity=pct;bgL.style.opacity=0;}
+function initSwipe(wrap, rowNum, isWaiting){
+  const content = wrap.querySelector('.swipe-content');
+  const bgL = wrap.querySelector('.swipe-bg.left');
+  const bgR = wrap.querySelector('.swipe-bg.right');
+  let startX=0, startY=0, dx=0, axis=null, active=false;
+  const THRESHOLD = 90;
+
+  function start(e){
+    const t = e.touches ? e.touches[0] : e;
+    startX=t.clientX; startY=t.clientY; dx=0; axis=null; active=true;
   }
-  function onEnd(){
-    if(!swiping||axis!=='x'){swiping=false;return;}
-    swiping=false;
-    content.style.transition='';
-    if(Math.abs(currentX)>=threshold){
-      content.style.transform=`translateX(${currentX>0?'120%':'-120%'})`;
-      setTimeout(()=>moveToWaiting(rowNum),220);
-    }else{
+  function move(e){
+    if(!active) return;
+    const t = e.touches ? e.touches[0] : e;
+    const mx=t.clientX-startX, my=t.clientY-startY;
+    if(!axis){ axis = Math.abs(mx)>8||Math.abs(my)>8 ? (Math.abs(mx)>Math.abs(my)?'x':'y') : null; }
+    if(axis!=='x') return;
+    e.preventDefault();
+    dx=mx;
+    content.style.transition='none';
+    content.style.transform='translateX('+dx+'px)';
+    const pct=Math.min(Math.abs(dx)/THRESHOLD,1);
+    if(dx<0){ bgL.style.opacity=pct; bgR.style.opacity=0; }
+    else    { bgR.style.opacity=pct; bgL.style.opacity=0; }
+  }
+  function end(){
+    if(!active||axis!=='x'){ active=false; return; }
+    active=false;
+    content.style.transition='transform .25s ease';
+    if(Math.abs(dx)>=THRESHOLD){
+      content.style.transform='translateX('+(dx>0?'110%':'-110%')+')';
+      setTimeout(()=>{
+        if(isWaiting){ restoreFromWaiting(rowNum); }
+        else         { moveToWaiting(rowNum); }
+      }, 260);
+    } else {
       content.style.transform='';
-      bgL.style.opacity=0;bgR.style.opacity=0;
+      bgL.style.opacity=0; bgR.style.opacity=0;
     }
   }
-  wrap.addEventListener('touchstart',onStart,{passive:true});
-  wrap.addEventListener('touchmove',onMove,{passive:false});
-  wrap.addEventListener('touchend',onEnd);
+  wrap.addEventListener('touchstart', start, {passive:true});
+  wrap.addEventListener('touchmove',  move,  {passive:false});
+  wrap.addEventListener('touchend',   end);
+  wrap.addEventListener('mousedown',  start);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup',   end);
 }
 
 function renderCards(clients){
