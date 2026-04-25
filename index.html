@@ -29,7 +29,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lm-red{color:var(--red);}
 
 /* HEADER */
-.header{background:var(--white);height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.header{background:var(--white);height:68px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
 .hdr-right{display:flex;gap:8px;align-items:center;}
 .hdr-count{font-size:11px;color:var(--muted);font-weight:500;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 9px;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s;}
@@ -170,7 +170,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <!-- APP -->
 <div id="app" style="display:none">
   <div class="header">
-    <img src="logo.png" alt="אבי טל ושות׳" style="height:38px;object-fit:contain;">
+    <img src="logo.png" alt="אבי טל ושות׳" style="height:52px;object-fit:contain;">
     <div class="hdr-right">
       <span class="hdr-count" id="lead-count">טוען...</span>
       <button class="hdr-btn" onclick="loadLeads()">↺</button>
@@ -277,10 +277,10 @@ function fetchUserInfo(){
     .then(r=>r.json()).then(u=>{
 
       const ALLOWED = [
-  'avi@t-adv.co.il',
-  'office@t-adv.co.il',
-  'avi.t.razr@gmail.com'
-
+        'avi@t-adv.co.il',
+        'office@t-adv.co.il',
+        'tal.adv.offc2@gmail.com',
+        'avi.t.razr@gmail.com'
       ];
 
       if(!ALLOWED.includes((u.email||'').toLowerCase())){
