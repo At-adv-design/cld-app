@@ -1,0 +1,15 @@
+{
+  "name": "אבי טל ושות׳ — לידים",
+  "short_name": "לידים AT",
+  "description": "מערכת ניהול לידים",
+  "start_url": "/cld-app/",
+  "scope": "/cld-app/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c0392b",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
