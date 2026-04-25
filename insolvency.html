@@ -107,6 +107,16 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 @keyframes spin{to{transform:rotate(360deg);}}
 
 .empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
+.swipe-wrap{position:relative;overflow:hidden;}
+.swipe-bg{position:absolute;inset:0;display:flex;align-items:center;padding:0 20px;font-size:13px;font-weight:600;color:#fff;opacity:0;transition:opacity .15s;}
+.swipe-bg.left{background:var(--orange);justify-content:flex-end;}
+.swipe-bg.right{background:var(--orange);justify-content:flex-start;}
+.swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
+.restore-btn{width:40px;height:40px;border-radius:4px;background:var(--white);border:1px solid var(--green);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .12s;color:var(--green);}
+.restore-btn:active{transform:scale(.92);}
+.waiting-badge{font-size:10px;font-weight:700;color:var(--orange);background:rgba(212,105,30,0.1);border:1px solid rgba(212,105,30,0.25);border-radius:3px;padding:2px 6px;margin-top:4px;display:inline-block;}
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;}
 </style>
 </head>
@@ -143,6 +153,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     </div>
   </div>
 
+  <div style="background:var(--white);border-bottom:1px solid var(--border);display:flex;">
+    <div class="tab active" id="tab-main" onclick="switchTab('main')" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;">תיקים פעילים</div>
+    <div class="tab" id="tab-waiting" onclick="switchTab('waiting')" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;">⏸ ממתינים</div>
+  </div>
+
+  <div id="main-section">
   <div class="filters-wrap">
     <div class="search-box">
       <span style="color:var(--muted);font-size:13px">⌕</span>
@@ -196,6 +212,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
   <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:13px">טוען תיקים...</div></div>
   <div id="cards-list"></div>
+  </div>
+
+  <div id="waiting-section" style="display:none">
+    <div style="padding:10px 14px;font-size:12px;color:var(--muted);font-weight:500">לידים שהועברו להמתנה — גרור ימינה לשחזור</div>
+    <div id="waiting-list" style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
 </div>
 
 <script>
@@ -228,6 +250,8 @@ const COL_BG      = 58; // BG — 7 ימים מסירה
 const COL_BH      = 59; // BH — 45 ימים מסירה דחוף
 
 let accessToken=null,allClients=[],expandedSet=new Set();
+let waitingIndices=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
+let currentTab='main';
 let reportFilter='all',docsFilter='all',injFilter='all',srvFilter='all';
 
 function doLogin(){
@@ -301,7 +325,7 @@ async function loadData(){
     document.getElementById('total-count').textContent=allClients.length+' תיקים';
     document.getElementById('loading').style.display='none';
     updateStats();
-    renderCards(allClients);
+    renderCards(allClients.filter(cl=>!waitingIndices.has(cl.rowNum)));
     setTimeout(loadData,3*60*1000);
   }catch(e){
     document.getElementById('loading').style.display='none';
@@ -340,45 +364,49 @@ function parseClient(row,rowNum){
   const overdueCount=reportStatus.filter(s=>s==='overdue').length;
   const reminder=g(COL_AZ)==='TRUE'||g(COL_AZ)===true||g(COL_AZ)==='true';
 
-  // DOCUMENTS AC:AI
+  // DOCUMENTS AC:AH:AI
+  // AC=רשימה, AE=בטיפול, AG=דחוף(7ימים), AH=בוצע→הסתיים, AI=checkbox תזכורת
+  const COL_AH_DOCS = 33; // AH
+  const COL_BI_SRV  = 60; // BI — "בוצע" אישורי מסירה הסתיימו
   const docsList  = g(COL_DOCS_LIST);
   const agVal     = g(COL_DOCS_AG);
   const aeVal     = g(COL_DOCS_AE);
+  const ahVal     = (row[COL_AH_DOCS]||'').toString().trim();
   const aiVal     = g(COL_DOCS_AI);
+  const biVal     = (row[COL_BI_SRV-1]||'').toString().trim();
   const docsReminder = aiVal==='TRUE'||aiVal===true||aiVal==='true';
+  const docsDone  = ahVal==='בוצע';          // AH "בוצע" = הסתיים
+  const serviceDone = biVal==='בוצע';        // BI "בוצע" = אישורי מסירה הסתיימו
   const agDate    = parseIsraeliDate(agVal);
   const aeDate    = parseIsraeliDate(aeVal);
-  const now       = new Date(); now.setHours(0,0,0,0);
-  const in7days   = new Date(now); in7days.setDate(in7days.getDate()+7);
-  // AG דחוף: החל מ-7 ימים לפני התאריך ואילך
-  const docsHighUrgent = agDate && agDate <= in7days;
-  // AE בטיפול: תאריך שעבר
-  const docsLowUrgent  = aeDate && aeDate < now && !docsHighUrgent;
+  const today     = new Date(); today.setHours(0,0,0,0);
+  const in7days   = new Date(today); in7days.setDate(today.getDate()+7);
+  // AG דחוף: 7 ימים לפני/אחרי התאריך (אם לא הסתיים)
+  const docsHighUrgent = !docsDone && agDate && agDate <= in7days;
+  // AE בטיפול: תאריך שעבר (אם לא הסתיים)
+  const docsLowUrgent  = !docsDone && aeDate && aeDate < today && !docsHighUrgent;
 
-  // INJUNCTION (AJ:AM) — AL=col 37 = urgent
+    // INJUNCTION — AL דחוף: 7 ימים לפני/אחרי תאריך סיום
   const alVal=g(COL_AL);
   const alDate=parseIsraeliDate(alVal);
-  // AL: החל מ-7 ימים לפני התאריך ואילך (כולל אחרי)
-  const injunctionUrgent  = alDate && alDate <= in7days;
-  const injunctionOverdue = alDate && alDate < now;
+  const injunctionUrgent=alDate&&alDate<=in7days;
+  const injunctionOverdue=alDate&&alDate<today;
 
-  // SERVICE CONFIRMATION
-  // BG: תאריך שליחה בדואר שעבר = ממתין לאישורי מסירה = בטיפול
-  // BH: 45 ימים עברו מ-BG = דחוף
-  const bgVal  = g(COL_BG);
-  const bhVal  = g(COL_BH);
-  const bgDate = parseIsraeliDate(bgVal);
-  const bhDate = parseIsraeliDate(bhVal);
-  // BH נצבע אדום כאשר עברו 45 ימים מ-BG
-  const bg45   = bgDate ? new Date(bgDate.getTime()+45*24*60*60*1000) : null;
-  const serviceUrgent  = bg45 && bg45 < now;          // 45 ימים מ-BG עברו
+    // SERVICE CONFIRMATION
+  // BG=תאריך שליחה, 45ימים=דחוף, BI "בוצע"=הסתיים
+  const bgVal=g(COL_BG);
+  const bgDate=parseIsraeliDate(bgVal);
+  let bg45=null;
+  if(bgDate){bg45=new Date(bgDate);bg45.setDate(bgDate.getDate()+45);}
+  const serviceWarning=!serviceDone&&bgDate&&bgDate<today&&!(bg45&&bg45<today);
+  const serviceUrgent=!serviceDone&&bg45&&bg45<today;
   const serviceWarning = bgDate && bgDate < now && !serviceUrgent; // BG עבר אבל עדיין < 45 יום
 
   // Overall urgency
-  const isUrgent=overdueCount>0||serviceUrgent||injunctionUrgent||injunctionOverdue||docsHighUrgent;
-  const isWarning=!isUrgent&&(serviceWarning||reminder||docsLowUrgent||docsReminder);
+  const isUrgent=overdueCount>0||(serviceUrgent&&!serviceDone)||(injunctionUrgent||injunctionOverdue)||docsHighUrgent;
+  const isWarning=!isUrgent&&((serviceWarning&&!serviceDone)||docsLowUrgent||docsReminder||reminder);
 
-  return{rowNum,name,caseNum,reports,reportStatus,overdueCount,docsList,docsHighUrgent,docsLowUrgent,docsReminder,
+  return{rowNum,name,caseNum,reports,reportStatus,overdueCount,docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,serviceDone,
     reminder,injunctionUrgent,injunctionOverdue,
     serviceWarning,serviceUrgent,isUrgent,isWarning};
 }
@@ -458,6 +486,90 @@ function updateStats(){
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
+function switchTab(tab){
+  currentTab=tab;
+  document.getElementById('tab-main').className='tab'+(tab==='main'?' active':'');
+  document.getElementById('tab-waiting').className='tab'+(tab==='waiting'?' active':'');
+  document.getElementById('main-section').style.display=tab==='main'?'block':'none';
+  document.getElementById('waiting-section').style.display=tab==='waiting'?'block':'none';
+  if(tab==='waiting')renderWaiting();
+}
+
+function moveToWaiting(rowNum){
+  waitingIndices.add(rowNum);
+  localStorage.setItem('ins_waiting',JSON.stringify([...waitingIndices]));
+  const active=allClients.filter(cl=>!waitingIndices.has(cl.rowNum));
+  document.getElementById('total-count').textContent=active.length+' תיקים';
+  applyFilters();
+  showToast('תיק הועבר להמתנה');
+}
+
+function restoreFromWaiting(rowNum){
+  waitingIndices.delete(rowNum);
+  localStorage.setItem('ins_waiting',JSON.stringify([...waitingIndices]));
+  renderWaiting();
+  showToast('תיק שוחזר');
+}
+
+function renderWaiting(){
+  const list=document.getElementById('waiting-list');
+  const waiting=allClients.filter(cl=>waitingIndices.has(cl.rowNum));
+  if(!waiting.length){list.innerHTML='<div class="empty">אין תיקים בהמתנה</div>';return;}
+  list.innerHTML='';
+  waiting.forEach(cl=>{
+    const d=document.createElement('div');
+    d.className='client-card';
+    d.style.opacity='0.75';
+    d.innerHTML=`<div class="card-header" style="cursor:default">
+      <div class="client-info">
+        <div class="client-name">${esc(cl.name)}</div>
+        <div class="client-meta">${cl.caseNum?'תיק: '+esc(cl.caseNum):''}</div>
+        <div class="waiting-badge">⏸ בהמתנה</div>
+      </div>
+      <button class="restore-btn" onclick="restoreFromWaiting(${cl.rowNum})" title="החזר לרשימה">↩</button>
+    </div>`;
+    list.appendChild(d);
+  });
+}
+
+function initSwipe(wrap,rowNum){
+  const content=wrap.querySelector('.swipe-content');
+  const bgL=wrap.querySelector('.swipe-bg.left');
+  const bgR=wrap.querySelector('.swipe-bg.right');
+  let startX=0,startY=0,currentX=0,swiping=false,axis=null;
+  const threshold=80;
+  function onStart(e){const t=e.touches?e.touches[0]:e;startX=t.clientX;startY=t.clientY;swiping=true;axis=null;currentX=0;}
+  function onMove(e){
+    if(!swiping)return;
+    const t=e.touches?e.touches[0]:e;
+    const dx=t.clientX-startX,dy=t.clientY-startY;
+    if(!axis){if(Math.abs(dx)>8||Math.abs(dy)>8)axis=Math.abs(dx)>Math.abs(dy)?'x':'y';}
+    if(axis!=='x')return;
+    e.preventDefault();
+    currentX=dx;
+    content.style.transform=`translateX(${dx}px)`;
+    content.style.transition='none';
+    const pct=Math.min(Math.abs(dx)/threshold,1);
+    if(dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
+    else{bgR.style.opacity=pct;bgL.style.opacity=0;}
+  }
+  function onEnd(){
+    if(!swiping||axis!=='x'){swiping=false;return;}
+    swiping=false;
+    content.style.transition='';
+    if(Math.abs(currentX)>=threshold){
+      content.style.transform=`translateX(${currentX>0?'120%':'-120%'})`;
+      setTimeout(()=>moveToWaiting(rowNum),220);
+    }else{
+      content.style.transform='';
+      bgL.style.opacity=0;bgR.style.opacity=0;
+    }
+  }
+  wrap.addEventListener('touchstart',onStart,{passive:true});
+  wrap.addEventListener('touchmove',onMove,{passive:false});
+  wrap.addEventListener('touchend',onEnd);
+}
+
 function renderCards(clients){
   const list=document.getElementById('cards-list');
   if(!clients.length){list.innerHTML='<div class="empty">אין תיקים התואמים את הסינון</div>';return;}
@@ -494,11 +606,12 @@ function renderCards(clients){
       </div>`;
 
       // SERVICE
-      const srvHtml=`<div class="status-row ${c.serviceUrgent?'red':c.serviceWarning?'orange':'green'}">
+      const srvClass=c.serviceDone?'green':c.serviceUrgent?'red':c.serviceWarning?'orange':'green';
+      const srvBadge=c.serviceDone?'badge-green':c.serviceUrgent?'badge-red':c.serviceWarning?'badge-orange':'badge-green';
+      const srvText=c.serviceDone?'הסתיים ✓':c.serviceUrgent?'דחוף — 45+ יום':c.serviceWarning?'בטיפול — ממתין לאישורים':'תקין';
+      const srvHtml=`<div class="status-row ${srvClass}">
         <span class="status-label">אישורי מסירה</span>
-        <span class="status-badge ${c.serviceUrgent?'badge-red':c.serviceWarning?'badge-orange':'badge-green'}">
-          ${c.serviceUrgent?'דחיפות גבוהה (BG+BH)':c.serviceWarning?'דחיפות נמוכה (BG)':'תקין'}
-        </span>
+        <span class="status-badge ${srvBadge}">${srvText}</span>
       </div>`;
 
       // REMINDER
@@ -512,10 +625,10 @@ function renderCards(clients){
         <div class="section-title" style="color:${c.docsHighUrgent?'var(--red)':c.docsLowUrgent?'var(--orange)':'var(--slate)'}">השלמת מסמכים</div>
         ${c.docsList?`<div style="font-size:12px;color:var(--muted);margin-bottom:6px;padding:6px 10px;background:var(--bg);border-radius:4px;border:1px solid var(--border)">${esc(c.docsList)}</div>`:''}
         <div style="display:flex;flex-direction:column;gap:5px">
-          <div class="status-row ${c.docsHighUrgent?'red':c.docsLowUrgent?'orange':'green'}">
+          <div class="status-row ${c.docsDone?'green':c.docsHighUrgent?'red':c.docsLowUrgent?'orange':'green'}">
             <span class="status-label">סטטוס מסמכים</span>
-            <span class="status-badge ${c.docsHighUrgent?'badge-red':c.docsLowUrgent?'badge-orange':'badge-green'}">
-              ${c.docsHighUrgent?'דחיפות גבוהה':c.docsLowUrgent?'דחיפות נמוכה':'תקין'}
+            <span class="status-badge ${c.docsDone?'badge-green':c.docsHighUrgent?'badge-red':c.docsLowUrgent?'badge-orange':'badge-green'}">
+              ${c.docsDone?'הסתיים ✓':c.docsHighUrgent?'דחוף':c.docsLowUrgent?'בטיפול':'תקין'}
             </span>
           </div>
           ${c.docsReminder?`<div class="reminder-row"><span>🔔</span><span class="reminder-text">תזכורת מסמכים — נשלחת ב-5, 15 ו-25 לחודש</span></div>`:''}
@@ -553,7 +666,16 @@ function renderCards(clients){
         </div>
       </div>
       ${bodyHtml}`;
-    list.appendChild(d);
+    // wrap in swipe
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    const bgL=document.createElement('div');bgL.className='swipe-bg left';bgL.textContent='⏸ המתנה';
+    const bgR=document.createElement('div');bgR.className='swipe-bg right';bgR.textContent='המתנה ⏸';
+    const content=document.createElement('div');content.className='swipe-content';
+    content.appendChild(d);
+    wrap.appendChild(bgL);wrap.appendChild(bgR);wrap.appendChild(content);
+    list.appendChild(wrap);
+    initSwipe(wrap,cl.rowNum);
   });
 }
 
