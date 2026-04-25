@@ -211,7 +211,7 @@ const COL_BG      = 58; // BG — 7 ימים מסירה
 const COL_BH      = 59; // BH — 45 ימים מסירה דחוף
 
 let accessToken=null,allClients=[],expandedSet=new Set();
-let reportFilter='all',statusFilter='all';
+let reportFilter='all',docsFilter='all',injFilter='all',srvFilter='all';
 
 function doLogin(){
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
@@ -382,10 +382,28 @@ function setReportFilter(val,el){
   applyFilters();
 }
 
-function setStatusFilter(val){
-  statusFilter=val;
-  ['all','urgent','warning','reminder'].forEach(v=>{
-    const el=document.getElementById('f-'+v);
+function setDocsFilter(val){
+  docsFilter=val;
+  ['all','urgent','warning'].forEach(v=>{
+    const el=document.getElementById('fd-'+v);
+    if(el)el.classList.toggle('active',v===val);
+  });
+  applyFilters();
+}
+
+function setInjFilter(val){
+  injFilter=val;
+  ['all','urgent'].forEach(v=>{
+    const el=document.getElementById('fi-'+v);
+    if(el)el.classList.toggle('active',v===val);
+  });
+  applyFilters();
+}
+
+function setSrvFilter(val){
+  srvFilter=val;
+  ['all','urgent','warning'].forEach(v=>{
+    const el=document.getElementById('fs-'+v);
     if(el)el.classList.toggle('active',v===val);
   });
   applyFilters();
@@ -396,9 +414,11 @@ function applyFilters(){
   let filtered=allClients.filter(c=>{
     if(q&&!c.name.toLowerCase().includes(q)&&!c.caseNum.toLowerCase().includes(q))return false;
     if(reportFilter!=='all'&&c.overdueCount!==reportFilter)return false;
-    if(statusFilter==='urgent'&&!c.isUrgent)return false;
-    if(statusFilter==='warning'&&!c.isWarning)return false;
-    if(statusFilter==='reminder'&&!c.reminder)return false;
+    if(docsFilter==='urgent'&&!c.docsHighUrgent)return false;
+    if(docsFilter==='warning'&&!c.docsLowUrgent)return false;
+    if(injFilter==='urgent'&&!c.injunctionUrgent&&!c.injunctionOverdue)return false;
+    if(srvFilter==='urgent'&&!c.serviceUrgent)return false;
+    if(srvFilter==='warning'&&!c.serviceWarning)return false;
     return true;
   });
   renderCards(filtered);
