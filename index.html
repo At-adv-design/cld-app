@@ -291,13 +291,10 @@ function fetchUserInfo(){
   fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
     .then(r=>r.json()).then(u=>{
 
-      // ── רשימת אימיילים מורשים ──────────────────────────────
       const ALLOWED = [
         'avi@t-adv.co.il',
         'office@t-adv.co.il'
-        // הוסף כאן אימיילים נוספים
       ];
-      // ────────────────────────────────────────────────────────
 
       if(!ALLOWED.includes((u.email||'').toLowerCase())){
         ['lt','lte','lp','ln','le'].forEach(k=>localStorage.removeItem(k));
