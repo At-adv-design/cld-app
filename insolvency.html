@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#3a3a48">
 <title>חדלות פירעון | אבי טל ושות׳</title>
-<link rel="manifest" href="manifest-ins.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -400,7 +399,6 @@ function parseClient(row,rowNum){
   if(bgDate){bg45=new Date(bgDate);bg45.setDate(bgDate.getDate()+45);}
   const serviceWarning=!serviceDone&&bgDate&&bgDate<today&&!(bg45&&bg45<today);
   const serviceUrgent=!serviceDone&&bg45&&bg45<today;
-  const serviceWarning = bgDate && bgDate < now && !serviceUrgent; // BG עבר אבל עדיין < 45 יום
 
   // Overall urgency
   const isUrgent=overdueCount>0||(serviceUrgent&&!serviceDone)||(injunctionUrgent||injunctionOverdue)||docsHighUrgent;
