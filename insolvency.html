@@ -161,12 +161,26 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     </div>
 
     <div class="filter-row">
-      <span class="filter-label">סטטוס:</span>
+      <span class="filter-label">מסמכים:</span>
       <div class="filter-chips">
-        <div class="chip active" id="f-all" onclick="setStatusFilter('all')">הכל</div>
-        <div class="chip" id="f-urgent" onclick="setStatusFilter('urgent')">🔴 דחוף</div>
-        <div class="chip" id="f-warning" onclick="setStatusFilter('warning')">🟠 אזהרה</div>
-        <div class="chip" id="f-reminder" onclick="setStatusFilter('reminder')">🔔 תזכורת</div>
+        <div class="chip active" id="fd-all" onclick="setDocsFilter('all')">הכל</div>
+        <div class="chip red" id="fd-urgent" onclick="setDocsFilter('urgent')">דחוף</div>
+        <div class="chip orange" id="fd-warning" onclick="setDocsFilter('warning')">בטיפול</div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">עיכוב הליכים:</span>
+      <div class="filter-chips">
+        <div class="chip active" id="fi-all" onclick="setInjFilter('all')">הכל</div>
+        <div class="chip red" id="fi-urgent" onclick="setInjFilter('urgent')">AL אדום</div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">אישורי מסירה:</span>
+      <div class="filter-chips">
+        <div class="chip active" id="fs-all" onclick="setSrvFilter('all')">הכל</div>
+        <div class="chip red" id="fs-urgent" onclick="setSrvFilter('urgent')">דחוף</div>
+        <div class="chip orange" id="fs-warning" onclick="setSrvFilter('warning')">בטיפול</div>
       </div>
     </div>
   </div>
