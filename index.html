@@ -8,7 +8,628 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {<!DOCTYPE html>
+<html lang="he" dir="rtl"><!DOCTYPE html>
 <html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#2c2c2c">
+<link rel="manifest" href="manifest.json">
+<title>אבי טל ושות׳ — לידים</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg:      #1a1a1a;
+  --card:    #242424;
+  --card2:   #2e2e2e;
+  --accent:  #c0392b;
+  --accent2: #e74c3c;
+  --gray:    #3d3d3d;
+  --light:   #f5f5f5;
+  --muted:   #888;
+  --border:  #333;
+  --green:   #27ae60;
+  --text:    #f0f0f0;
+}
+body { font-family: -apple-system,'Segoe UI','Helvetica Neue',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+  padding: 0 18px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid var(--accent);
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.header-logo .logo-mark {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.header-logo .logo-text { font-size: 15px; font-weight: 700; color: var(--light); letter-spacing: 0.3px; }
+.header-logo .logo-sub  { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.header-right { display: flex; gap: 8px; align-items: center; }
+
+/* BUTTONS */
+.btn { padding:13px 18px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; width:100%; transition:all 0.12s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn:active { transform:scale(0.97); }
+.btn-save { background: var(--accent); color:#fff; }
+.btn-save:hover { background: var(--accent2); }
+.btn-skip { background:var(--card2); color:var(--muted); border:1px solid var(--border); }
+
+/* LOGIN */
+#login-screen {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh; padding:40px 30px; gap:24px; text-align:center;
+  background: linear-gradient(160deg, #1a1a1a 0%, #2c2c2c 100%);
+}
+.login-logo-box {
+  background: var(--gray);
+  border-radius: 16px;
+  padding: 24px 32px;
+  border: 1px solid var(--border);
+}
+.login-logo-box h1 { font-size: 22px; font-weight: 900; color: var(--light); letter-spacing: 1px; }
+.login-logo-box h2 { font-size: 14px; color: var(--accent); font-weight: 600; margin-top: 4px; }
+.login-logo-box p  { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.login-desc { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.google-btn {
+  background:#fff; color:#333; border:none; padding:15px 28px; border-radius:12px;
+  font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center;
+  gap:12px; box-shadow:0 4px 20px rgba(0,0,0,0.4); transition:all 0.15s;
+}
+.google-btn:active { transform:scale(0.97); }
+
+/* SEARCH */
+.search-bar { padding:10px 16px; background:var(--card); border-bottom:1px solid var(--border); }
+.search-bar input {
+  width:100%; padding:10px 14px;
+  background:#3a3a3a; border:2px solid var(--accent);
+  border-radius:10px; color:#fff; /* override */:var(--text); font-size:14px;
+}
+.search-bar input:focus { outline:none; border-color:var(--accent); }
+.search-bar input::placeholder { color:var(--muted); }
+
+/* STATS BAR */
+.stats-bar {
+  background: var(--gray);
+  padding: 8px 18px;
+  display: flex; gap: 16px; align-items: center;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--muted);
+}
+.stat-item { display: flex; align-items: center; gap: 5px; }
+.stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* LEADS */
+#leads-list { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+.lead-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.lead-card.has-note { border-color: var(--green); }
+.lead-card.expanded { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+
+.lead-row {
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+}
+.lead-info { flex: 1; min-width: 0; }
+.lead-name  { font-size: 15px; font-weight: 700; color: var(--light); }
+.lead-phone { font-size: 13px; color: var(--muted); margin-top: 2px; direction: ltr; text-align: right; }
+.lead-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--green);
+  background: rgba(39,174,96,0.12);
+  border: 1px solid rgba(39,174,96,0.3);
+  border-radius: 20px; padding: 2px 7px; margin-top: 4px;
+}
+
+.lead-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.call-btn {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--accent); border: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; flex-shrink: 0;
+  transition: all 0.15s;
+  box-shadow: 0 3px 10px rgba(192,57,43,0.4);
+}
+.call-btn:active { transform: scale(0.88); }
+.call-btn.done { background: var(--gray); box-shadow: none; }
+
+/* EXPANDED NOTE */
+.lead-note-expanded {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  background: rgba(39,174,96,0.05);
+}
+.note-label { font-size: 11px; color: var(--green); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.note-content { font-size: 13px; color: #ccc; line-height: 1.6; white-space: pre-wrap; }
+
+/* LOADING */
+#loading { display:flex; flex-direction:column; align-items:center; padding:50px 20px; gap:14px; }
+.spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* NOTE MODAL */
+#note-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:300; align-items:flex-end; }
+#note-modal.open { display:flex; }
+.modal-sheet {
+  background: #2a2a2a;
+  border-radius: 20px 20px 0 0;
+  border-top: 2px solid var(--accent);
+  padding: 20px 18px 44px;
+  width: 100%; gap: 12px;
+  display: flex; flex-direction: column;
+  animation: slideUp 0.22s ease;
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal-handle { width:40px; height:4px; background:var(--border); border-radius:4px; margin:0 auto 8px; }
+.modal-title { font-size:17px; font-weight:800; color:#ffffff; }
+.modal-sub   { font-size:13px; color:#e74c3c; margin-top:-6px; }
+
+#note-input {
+  width:100%; min-height:110px; padding:12px 14px;
+  background:#3a3a3a; border:2px solid var(--accent);
+  border-radius:10px; color:#fff; /* override */:var(--text); font-size:15px; resize:none; direction:rtl;
+}
+#note-input:focus { outline:none; border-color:var(--accent); }
+#note-input::placeholder { color:var(--muted); }
+
+.mic-btn {
+  background:var(--card2); border:1px solid var(--border); border-radius:10px;
+  padding:12px 16px; color:var(--text); font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+}
+.mic-btn.recording { background:#7b1a1a; border-color:#c0392b; color:#fff; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
+
+.saving-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:400; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+.saving-overlay.show { display:flex; }
+
+.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 22px; border-radius:20px; font-size:14px; z-index:500; white-space:nowrap; border:1px solid var(--accent); }
+
+.avatar { width:32px; height:32px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; cursor:pointer; overflow:hidden; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
+
+.count-badge { background:var(--gray); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:12px; color:var(--muted); }
+.refresh-btn { background:var(--gray); border:1px solid var(--border); color:var(--accent); border-radius:20px; padding:7px 12px; font-size:13px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:none">
+  <div class="login-logo-box">
+    <h1>אבי טל ושות׳</h1>
+    <h2>עורכי-דין | Advocates</h2>
+    <p>www.t-adv.co.il</p>
+  </div>
+  <p class="login-desc">מערכת ניהול לידים<br>התחבר עם חשבון Google שלך</p>
+  <button class="google-btn" onclick="doLogin()">
+    <svg width="20" height="20" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+    כניסה עם Google
+  </button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="header-logo">
+      <div>
+        <div class="logo-mark">AT&amp;co</div>
+      </div>
+      <div>
+        <div class="logo-text">אבי טל ושות׳</div>
+        <div class="logo-sub">עורכי-דין | לידים</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="count-badge" id="lead-count"></span>
+      <button class="refresh-btn" onclick="loadLeads()">🔄</button>
+      <div class="avatar" id="user-avatar" onclick="signOut()"></div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="search" id="search" placeholder="🔍 חיפוש שם או טלפון..." oninput="filterLeads()" />
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-dot" style="background:#27ae60"></div><span id="stat-notes">0 עם הערות</span></div>
+    <div class="stat-item"><div class="stat-dot" style="background:#c0392b"></div><span id="stat-new">0 חדשים היום</span></div>
+  </div>
+
+  <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:14px">טוען לידים...</div></div>
+  <div id="leads-list"></div>
+</div>
+
+<!-- NOTE MODAL -->
+<div id="note-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📝 סיכום שיחה</div>
+    <div class="modal-sub" id="modal-name"></div>
+    <textarea id="note-input" placeholder="מה היה בשיחה?&#10;הקלד או לחץ על המיקרופון..."></textarea>
+    <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤 הכתב (מיקרופון)</button>
+    <button class="btn btn-save" onclick="saveNote()">💾 שמור ב-Google Sheets</button>
+    <button class="btn btn-skip" onclick="closeModal()">סגור בלי לשמור</button>
+  </div>
+</div>
+
+<div class="saving-overlay" id="saving-overlay">
+  <div class="spinner"></div>
+  <div style="color:#fff;font-size:15px">שומר בגיליון...</div>
+</div>
+
+<script>
+const CLIENT_ID = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY   = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID  = '19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
+const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile';
+const TOKEN_TTL = 55 * 60 * 1000;
+const REDIRECT  = location.origin + location.pathname;
+
+let accessToken  = null;
+let allLeads     = [];
+let currentLead  = null;
+let recognition  = null;
+let isRecording  = false;
+let calledSet    = new Set();
+let expandedSet  = new Set();
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+function doLogin() {
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id:     CLIENT_ID,
+    redirect_uri:  REDIRECT,
+    response_type: 'token',
+    scope:         SCOPES,
+    prompt:        'select_account'
+  });
+  location.href = url;
+}
+
+function signOut() {
+  if (!confirm('להתנתק?')) return;
+  ['leads_token','leads_token_time','leads_user_pic','leads_user_name'].forEach(k => localStorage.removeItem(k));
+  accessToken = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Check OAuth redirect
+  const hash = location.hash;
+  if (hash && hash.includes('access_token')) {
+    const params = new URLSearchParams(hash.substring(1));
+    const token  = params.get('access_token');
+    if (token) {
+      accessToken = token;
+      localStorage.setItem('leads_token',      token);
+      localStorage.setItem('leads_token_time', Date.now().toString());
+      history.replaceState(null, '', location.pathname);
+      fetchUserInfo();
+      showApp();
+      loadLeads();
+      requestNotifPermission();
+      return;
+    }
+  }
+
+  // Check saved token
+  const saved = localStorage.getItem('leads_token');
+  const age   = Date.now() - parseInt(localStorage.getItem('leads_token_time') || '0');
+
+  if (saved && age < TOKEN_TTL) {
+    accessToken = saved;
+    restoreAvatar();
+    showApp();
+    loadLeads();
+    requestNotifPermission();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+});
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ── USER INFO ─────────────────────────────────────────────────────────────────
+function fetchUserInfo() {
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  }).then(r => r.json()).then(u => {
+    localStorage.setItem('leads_user_pic',  u.picture || '');
+    localStorage.setItem('leads_user_name', u.name    || '');
+    setAvatar(u.picture, u.name);
+  }).catch(() => {});
+}
+
+function restoreAvatar() {
+  setAvatar(localStorage.getItem('leads_user_pic'), localStorage.getItem('leads_user_name'));
+}
+
+function setAvatar(pic, name) {
+  const av = document.getElementById('user-avatar');
+  if (!av) return;
+  av.innerHTML = pic ? `<img src="${pic}">` : (name||'U')[0].toUpperCase();
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function notifyNewLead(name, phone) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('ליד חדש — אבי טל ושות׳', {
+      body: name + ' | ' + phone,
+      icon: 'https://at-adv-design.github.io/cld-app/icon.png'
+    });
+  }
+}
+
+// ── LOAD LEADS ────────────────────────────────────────────────────────────────
+let prevCount = null;
+
+async function loadLeads() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('leads-list').innerHTML = '';
+  try {
+    const res  = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:C?key=${API_KEY}`
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const rows = (data.values || []).slice(1)
+      .map((row, i) => ({
+        index: i + 2,
+        name:  (row[0] || '').trim() || '(ללא שם)',
+        phone: (row[1] || '').toString().trim(),
+        note:  (row[2] || '').trim()
+      }))
+      .filter(l => l.phone)
+      .reverse();
+
+    // Check for new leads
+    if (prevCount !== null && rows.length > prevCount) {
+      const newest = rows[0];
+      notifyNewLead(newest.name, newest.phone);
+    }
+    prevCount = rows.length;
+    allLeads  = rows;
+
+    // Stats
+    const withNotes = rows.filter(l => l.note).length;
+    const today     = new Date().toLocaleDateString('he-IL');
+    document.getElementById('stat-notes').textContent = withNotes + ' עם הערות';
+    document.getElementById('lead-count').textContent = rows.length + ' לידים';
+
+    document.getElementById('loading').style.display = 'none';
+    renderLeads(allLeads);
+
+    // Auto-refresh every 2 min
+    setTimeout(loadLeads, 2 * 60 * 1000);
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('leads-list').innerHTML =
+      `<div style="padding:20px;color:#e74c3c;font-size:14px">❌ ${e.message}</div>`;
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderLeads(leads) {
+  const list = document.getElementById('leads-list');
+  list.innerHTML = '';
+  if (!leads.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:50px">אין לידים</div>';
+    return;
+  }
+  leads.forEach(l => {
+    const done     = calledSet.has(l.index);
+    const expanded = expandedSet.has(l.index);
+    const d = document.createElement('div');
+    d.className = 'lead-card' + (l.note ? ' has-note' : '') + (expanded ? ' expanded' : '');
+    d.id = 'card-' + l.index;
+
+    // Get last note entry (after last timestamp line)
+    const lastNote = getLastNote(l.note);
+
+    d.innerHTML = `
+      <div class="lead-row" onclick="toggleExpand(${l.index})">
+        <div class="lead-info">
+          <div class="lead-name">${esc(l.name)}</div>
+          <div class="lead-phone">${esc(l.phone)}</div>
+          ${l.note ? '<div class="lead-tag">💬 שיחה קודמת</div>' : ''}
+        </div>
+        <div class="lead-actions">
+          <button class="call-btn ${done?'done':''}"
+                  onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">
+            ${done ? '✓' : '📞'}
+          </button>
+        </div>
+      </div>
+      ${(expanded && l.note) ? `
+        <div class="lead-note-expanded">
+          <div class="note-label">📋 3 סיכומי שיחה אחרונים</div>
+          <div class="note-content">${esc(lastNote)}</div>
+        </div>` : ''}
+    `;
+    list.appendChild(d);
+  });
+}
+
+function getLastNote(fullNote) {
+  if (!fullNote) return '';
+  // Split into blocks separated by double newline
+  const blocks = fullNote.split(/\n\n+/);
+  // First 3 blocks are most recent (we prepend new notes)
+  return blocks.slice(0, 3).join('\n\n');
+}
+
+function toggleExpand(idx) {
+  if (expandedSet.has(idx)) expandedSet.delete(idx);
+  else expandedSet.add(idx);
+  filterLeads();
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ej(s)  { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+function filterLeads() {
+  const q = document.getElementById('search').value.toLowerCase();
+  renderLeads(allLeads.filter(l =>
+    l.name.toLowerCase().includes(q) || l.phone.includes(q)
+  ));
+}
+
+// ── CALL ─────────────────────────────────────────────────────────────────────
+function callLead(idx, name, phone) {
+  currentLead = { index: idx, name, phone };
+  calledSet.add(idx);
+  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+  setTimeout(() => openModal(name), 1800);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(name) {
+  document.getElementById('modal-name').textContent = name;
+  document.getElementById('note-input').value = '';
+  document.getElementById('note-modal').classList.add('open');
+  if (recognition) stopMic(); // reset mic state
+  setTimeout(() => document.getElementById('note-input').focus(), 300);
+}
+
+function closeModal() {
+  document.getElementById('note-modal').classList.remove('open');
+  stopMic();
+  filterLeads();
+}
+
+// ── SAVE NOTE (append with timestamp) ────────────────────────────────────────
+function getTimestamp() {
+  const now = new Date();
+  const dd  = String(now.getDate()).padStart(2,'0');
+  const mm  = String(now.getMonth()+1).padStart(2,'0');
+  const yy  = String(now.getFullYear()).slice(2);
+  const hh  = String(now.getHours()).padStart(2,'0');
+  const min = String(now.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} ${hh}:${min}`;
+}
+
+async function saveNote() {
+  const note = document.getElementById('note-input').value.trim();
+  closeModal();
+  if (!note) return;
+
+  const row  = currentLead.index;
+  const lead = allLeads.find(l => l.index === row);
+
+  // Build new entry with timestamp
+  const ts      = getTimestamp();
+  const newEntry = `${ts}\n${note}`;
+  const existing = lead ? lead.note : '';
+  const combined = existing ? newEntry + '\n\n' + existing : newEntry;
+
+  if (lead) lead.note = combined;
+
+  document.getElementById('saving-overlay').classList.add('show');
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[combined]] })
+      }
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    showToast('✅ נשמר בגיליון!');
+    expandedSet.add(row);
+    filterLeads();
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    document.getElementById('saving-overlay').classList.remove('show');
+  }
+}
+
+// ── MIC ───────────────────────────────────────────────────────────────────────
+function toggleMic() {
+  if (isRecording) { stopMic(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('הדפדפן לא תומך בהכתבה'); return; }
+  recognition = new SR();
+  recognition.lang = 'he-IL';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = e => {
+    let finalTxt = '';
+    let interimTxt = '';
+    for (let i = 0; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript;
+      else interimTxt += e.results[i][0].transcript;
+    }
+    document.getElementById('note-input').value = finalTxt + interimTxt;
+  };
+  recognition.DUMMY = e => { let x = e.results[0][0].transcript;
+    document.getElementById('note-input').value = txt;
+  };
+  recognition.onerror = () => stopMic();
+  recognition.onend   = () => stopMic();
+  recognition.start();
+  isRecording = true;
+  document.getElementById('mic-btn').classList.add('recording');
+  document.getElementById('mic-btn').textContent = '⏹ עצור הקלטה';
+}
+
+function stopMic() {
+  if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+  isRecording = false;
+  const b = document.getElementById('mic-btn');
+  if (b) { b.classList.remove('recording'); b.textContent = '🎤 הכתב (מיקרופון)'; }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
