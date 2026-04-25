@@ -141,7 +141,7 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
   <div style="color:#fff;font-size:15px">שומר בגיליון...</div>
 </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client"></script>
 <script>
 const CLIENT_ID = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY   = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
@@ -238,24 +238,13 @@ function showApp() {
 }
 
 function signIn() {
-  if (tokenClient) {
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+  if (!window.google || !google.accounts) {
+    showToast('⏳ טוען... נסה שוב');
+    setTimeout(signIn, 1000);
     return;
   }
-  // SDK not ready yet — wait and retry
-  showToast('מתחבר...');
-  const wait = setInterval(() => {
-    if (window.google && google.accounts) {
-      clearInterval(wait);
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        prompt: 'consent',
-        callback: handleTokenResponse
-      });
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    }
-  }, 300);
+  if (!tokenClient) initTokenClient();
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function signOut() {
