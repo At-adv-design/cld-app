@@ -496,9 +496,14 @@ function switchTab(tab){
 function moveToWaiting(rowNum){
   waitingIndices.add(rowNum);
   localStorage.setItem('ins_waiting',JSON.stringify([...waitingIndices]));
+  // עדכן מיידי — הסר מהרשימה
+  const card=document.querySelector('[data-row="'+rowNum+'"]');
+  if(card)card.parentElement.remove();
   const active=allClients.filter(cl=>!waitingIndices.has(cl.rowNum));
   document.getElementById('total-count').textContent=active.length+' תיקים';
-  applyFilters();
+  // עדכן ממתינים count בטאב
+  const wCount=waitingIndices.size;
+  document.getElementById('tab-waiting').textContent='⏸ ממתינים'+(wCount>0?' ('+wCount+')':'');
   showToast('תיק הועבר להמתנה');
 }
 
@@ -577,6 +582,7 @@ function renderCards(clients){
     const d=document.createElement('div');
     const urgClass=c.isUrgent?'urgent':c.isWarning?'warning':'';
     d.className='client-card'+(urgClass?' '+urgClass:'');
+    d.setAttribute('data-row',c.rowNum);
 
     // Status dots for quick view
     const dot1=c.isUrgent?'var(--red)':c.isWarning?'var(--orange)':'var(--green)';
