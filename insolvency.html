@@ -195,11 +195,17 @@ const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com',
 // COLUMN INDICES (0-based)
 const COL_NAME    = 22; // W
 const COL_CASE    = 66; // BO
-const COL_REPORTS_START = 39; // AN (0-based: 39)
-const COL_REPORTS_END   = 44; // AY (0-based: 44) — 6 cols
-const COL_AZ      = 51; // AZ — reminder checkbox
-const COL_AJ      = 35; // AJ — עיכוב הליכים start
+// מסמכים AC:AI = cols 28-34
+const COL_DOCS_LIST = 28; // AC — רשימת מסמכים
+const COL_DOCS_AG   = 32; // AG — אדום = דחיפות גבוהה
+const COL_DOCS_AI   = 34; // AI — אדום = דחיפות נמוכה / תזכורת
+// דוחות AN:AY = cols 39-50
+const COL_REPORTS_START = 39; // AN
+const COL_REPORTS_END   = 44; // AY — 6 cols
+const COL_AZ      = 51; // AZ — תזכורת דוחות ב-10/20
+// עיכוב הליכים AJ:AM = cols 35-38
 const COL_AL      = 37; // AL — אדום = 7 ימים לסיום
+// אישורי מסירה BD:BJ = cols 55-61
 const COL_BG      = 58; // BG — 7 ימים מסירה
 const COL_BH      = 59; // BH — 45 ימים מסירה דחוף
 
@@ -316,6 +322,19 @@ function parseClient(row,rowNum){
   const overdueCount=reportStatus.filter(s=>s==='overdue').length;
   const reminder=g(COL_AZ)==='TRUE'||g(COL_AZ)===true||g(COL_AZ)==='true';
 
+  // DOCUMENTS AC:AI
+  const docsList=g(COL_DOCS_LIST);
+  const agVal=g(COL_DOCS_AG);
+  const aiVal=g(COL_DOCS_AI);
+  // We check presence of values as proxy for red (colors not available via API)
+  // AI reminder checkbox
+  const docsReminder=aiVal==='TRUE'||aiVal===true||aiVal==='true';
+  // For urgency we rely on structure: AG has a date that passed = high urgency
+  const agDate=parseIsraeliDate(agVal);
+  const aiDate=parseIsraeliDate(aiVal);
+  const docsHighUrgent=agDate&&agDate<new Date();
+  const docsLowUrgent=aiDate&&aiDate<new Date()&&!docsHighUrgent;
+
   // INJUNCTION (AJ:AM) — AL=col 37 = urgent
   const alVal=g(COL_AL);
   const alDate=parseIsraeliDate(alVal);
@@ -323,18 +342,20 @@ function parseClient(row,rowNum){
   const injunctionOverdue=alDate&&alDate<new Date();
 
   // SERVICE CONFIRMATION (BG=col58, BH=col59)
+  // BG אדום = 7 ימים עברו = דחיפות נמוכה
+  // BG+BH אדום = 45 ימים עברו = דחיפות גבוהה
   const bgVal=g(COL_BG);
   const bhVal=g(COL_BH);
   const bgDate=parseIsraeliDate(bgVal);
   const bhDate=parseIsraeliDate(bhVal);
-  const serviceWarning=bgDate&&bgDate<new Date();  // 7 days passed
-  const serviceUrgent=bhDate&&bhDate<new Date();   // 45 days — urgent
+  const serviceWarning=bgDate&&bgDate<new Date()&&!(bhDate&&bhDate<new Date()); // BG בלבד = נמוכה
+  const serviceUrgent=bgDate&&bgDate<new Date()&&bhDate&&bhDate<new Date();    // BG+BH = גבוהה
 
   // Overall urgency
-  const isUrgent=overdueCount>0||serviceUrgent||injunctionUrgent||injunctionOverdue;
-  const isWarning=!isUrgent&&(serviceWarning||reminder);
+  const isUrgent=overdueCount>0||serviceUrgent||injunctionUrgent||injunctionOverdue||docsHighUrgent;
+  const isWarning=!isUrgent&&(serviceWarning||reminder||docsLowUrgent||docsReminder);
 
-  return{rowNum,name,caseNum,reports,reportStatus,overdueCount,
+  return{rowNum,name,caseNum,reports,reportStatus,overdueCount,docsList,docsHighUrgent,docsLowUrgent,docsReminder,
     reminder,injunctionUrgent,injunctionOverdue,
     serviceWarning,serviceUrgent,isUrgent,isWarning};
 }
@@ -433,7 +454,7 @@ function renderCards(clients){
       const srvHtml=`<div class="status-row ${c.serviceUrgent?'red':c.serviceWarning?'orange':'green'}">
         <span class="status-label">אישורי מסירה</span>
         <span class="status-badge ${c.serviceUrgent?'badge-red':c.serviceWarning?'badge-orange':'badge-green'}">
-          ${c.serviceUrgent?'45+ יום — דחוף':c.serviceWarning?'7+ ימים':'תקין'}
+          ${c.serviceUrgent?'דחיפות גבוהה (BG+BH)':c.serviceWarning?'דחיפות נמוכה (BG)':'תקין'}
         </span>
       </div>`;
 
@@ -443,14 +464,33 @@ function renderCards(clients){
         <span class="reminder-text">תזכורת מסמכים — נשלחת ב-10 וב-20 לחודש</span>
       </div>`:'';
 
+      // DOCS section
+      const docsHtml=`<div>
+        <div class="section-title" style="color:${c.docsHighUrgent?'var(--red)':c.docsLowUrgent?'var(--orange)':'var(--slate)'}">השלמת מסמכים</div>
+        ${c.docsList?`<div style="font-size:12px;color:var(--muted);margin-bottom:6px;padding:6px 10px;background:var(--bg);border-radius:4px;border:1px solid var(--border)">${esc(c.docsList)}</div>`:''}
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="status-row ${c.docsHighUrgent?'red':c.docsLowUrgent?'orange':'green'}">
+            <span class="status-label">סטטוס מסמכים</span>
+            <span class="status-badge ${c.docsHighUrgent?'badge-red':c.docsLowUrgent?'badge-orange':'badge-green'}">
+              ${c.docsHighUrgent?'דחיפות גבוהה':c.docsLowUrgent?'דחיפות נמוכה':'תקין'}
+            </span>
+          </div>
+          ${c.docsReminder?`<div class="reminder-row"><span>🔔</span><span class="reminder-text">תזכורת מסמכים — נשלחת ב-5, 15 ו-25 לחודש</span></div>`:''}
+        </div>
+      </div>`;
+
+      const remHtml2=c.reminder?`<div class="reminder-row"><span>🔔</span><span class="reminder-text">תזכורת דוחות — נשלחת ב-10 וב-20 לחודש</span></div>`:'';
+
       bodyHtml=`<div class="card-body">
+        ${docsHtml}
         <div>
           <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
           <div class="reports-grid">${reportCells}</div>
+          ${remHtml2}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">
           <div class="section-title" style="color:var(--slate)">סטטוס</div>
-          ${injHtml}${srvHtml}${remHtml}
+          ${injHtml}${srvHtml}
         </div>
       </div>`;
     }
@@ -463,6 +503,7 @@ function renderCards(clients){
         </div>
         <div class="status-dots">
           <div class="sdot-lg" style="background:${dot1}" title="סטטוס כללי"></div>
+          <div class="sdot-lg" style="background:${c.docsHighUrgent?'var(--red)':c.docsLowUrgent?'var(--orange)':'var(--muted)'}" title="מסמכים"></div>
           <div class="sdot-lg" style="background:${dot2}" title="דוחות"></div>
           <div class="sdot-lg" style="background:${dot3}" title="מסירה"></div>
           <div class="sdot-lg" style="background:${dot4}" title="עיכוב הליכים"></div>
