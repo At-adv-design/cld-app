@@ -78,7 +78,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
 
 /* REPORTS */
-.reports-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+.reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
 .report-cell{border-radius:3px;padding:5px 2px;text-align:center;font-size:9px;font-weight:700;border:1px solid var(--border);line-height:1.4;}
 .report-cell .rlabel{font-size:9px;font-weight:700;}
 .report-cell .rdate{font-size:8px;font-weight:500;margin-top:1px;}
@@ -223,8 +223,8 @@ const C_DOCS_LIST=28,C_DOCS_AE=30,C_DOCS_AG=32,C_DOCS_AH=33,C_DOCS_AI=34;
 const C_AL=37,C_AZ=51;
 const C_BG=58,C_BH=59,C_BI=60;
 const C_CE=82;
-const C_REP_DATES=[39,41,45,47,49];
-const C_REP_STATUS=[40,42,44,46,48];
+const C_REP_DATES=[39,41,43,45,47,49]; // AN AP AR AT AV AX
+const C_REP_STATUS=[40,42,44,46,48,50]; // AO AQ AS AU AW AY
 
 let accessToken=null,allClients=[],expandedSet=new Set();
 let waitingSet=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
@@ -330,13 +330,19 @@ function parseClient(row,rowNum){
 
   // REPORTS
   const reports=[],reportStatus=[];
-  for(let i=0;i<5;i++){
+  for(let i=0;i<6;i++){
     const dv=g(C_REP_DATES[i]),sv=g(C_REP_STATUS[i]).toLowerCase();
     reports.push(dv);
     if(sv==='הוגש') reportStatus.push('done');
     else if(sv==='בתהליך') reportStatus.push('progress');
     else if(!dv) reportStatus.push('empty');
-    else{const d=parseDate(dv);reportStatus.push(d?(d<today?'overdue':'future'):'empty');}
+    else{
+      const d=parseDate(dv);
+      if(!d) reportStatus.push('empty');
+      else if(d.getFullYear()<2025) reportStatus.push('empty'); // לפני 2025 — לא רלוונטי
+      else if(d<today) reportStatus.push('overdue');
+      else reportStatus.push('future');
+    }
   }
   const overdueCount=parseInt(g(C_CE))||reportStatus.filter(s=>s==='overdue').length;
 
@@ -442,7 +448,7 @@ function renderCards(clients){
     // Report cells - show date for ALL
     const reportCells=c.reportStatus.map((s,i)=>{
       const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':'empty';
-      const lbl=['ד1','ד2','ד3','ד4','ד5'][i];
+      const lbl=['ד1','ד2','ד3','ד4','ד5','ד6'][i];
       let disp;
       if(s==='done') disp='✓';
       else if(s==='progress') disp='⋯';
