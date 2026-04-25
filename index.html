@@ -20,10 +20,8 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
 
 .btn { padding:14px 18px; border:none; border-radius:14px; font-size:15px; font-weight:700; cursor:pointer; width:100%; transition:all 0.12s; display:flex; align-items:center; justify-content:center; gap:8px; }
 .btn:active { transform:scale(0.96); }
-.btn-primary { background:var(--accent); color:#fff; }
-.btn-save    { background:var(--accent); color:#fff; }
-.btn-skip    { background:var(--card2); color:var(--muted); border:1px solid var(--border); }
-.btn-sm      { width:auto; padding:9px 14px; font-size:13px; }
+.btn-save { background:var(--accent); color:#fff; }
+.btn-skip { background:var(--card2); color:var(--muted); border:1px solid var(--border); }
 
 #login-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:30px; gap:20px; text-align:center; }
 #login-screen h1 { font-size:32px; color:var(--accent); }
@@ -43,6 +41,9 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
 .lead-name  { font-size:15px; font-weight:700; }
 .lead-phone { font-size:13px; color:var(--muted); margin-top:2px; direction:ltr; text-align:right; }
 .lead-note-preview { font-size:12px; color:var(--green); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lead-note-box { background:rgba(39,193,122,0.08); border-top:1px solid rgba(39,193,122,0.2); padding:10px 16px; display:flex; align-items:flex-start; gap:8px; }
+.note-icon { font-size:14px; flex-shrink:0; margin-top:1px; }
+.note-text  { font-size:13px; color:#7be0aa; line-height:1.5; word-break:break-word; }
 .call-btn-circle { width:52px; height:52px; border-radius:50%; background:var(--green); border:none; display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; flex-shrink:0; transition:all 0.15s; box-shadow:0 4px 12px rgba(39,193,122,0.3); }
 .call-btn-circle:active { transform:scale(0.9); }
 .call-btn-circle.done { background:var(--card2); box-shadow:none; }
@@ -76,11 +77,20 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
 .avatar { width:32px; height:32px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; cursor:pointer; overflow:hidden; }
 .avatar img { width:100%; height:100%; object-fit:cover; }
 .count-badge { background:var(--card2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:12px; color:var(--muted); }
+
+#init-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; gap:16px; }
 </style>
 </head>
 <body>
 
-<div id="login-screen">
+<!-- INIT LOADING -->
+<div id="init-loading">
+  <div class="spinner"></div>
+  <div style="color:var(--muted);font-size:14px">מתחבר...</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none">
   <div style="font-size:56px">📋</div>
   <h1>לידים</h1>
   <p>התחבר עם חשבון Google<br>כדי לגשת לרשימת הלידים</p>
@@ -95,6 +105,7 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
   </button>
 </div>
 
+<!-- MAIN APP -->
 <div id="app" style="display:none">
   <div class="header">
     <h1>📋 לידים</h1>
@@ -111,6 +122,7 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
   <div id="leads-list"></div>
 </div>
 
+<!-- NOTE MODAL -->
 <div id="note-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -123,6 +135,7 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
   </div>
 </div>
 
+<!-- SAVING -->
 <div class="saving-overlay" id="saving-overlay">
   <div class="spinner"></div>
   <div style="color:#fff;font-size:15px">שומר בגיליון...</div>
@@ -133,83 +146,188 @@ body { font-family: -apple-system,'Segoe UI',sans-serif; background:var(--bg); c
 const CLIENT_ID = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY   = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID  = '19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
-const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets';
+const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile';
+const TOKEN_TTL = 45 * 60 * 1000; // 45 min
 
 let accessToken = null;
+let tokenClient = null;
 let allLeads    = [];
 let currentLead = null;
 let recognition = null;
 let isRecording = false;
 let calledSet   = new Set();
 
-function signIn() {
-  google.accounts.oauth2.initTokenClient({
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Wait for Google SDK to load
+  const wait = setInterval(() => {
+    if (window.google && google.accounts) {
+      clearInterval(wait);
+      initApp();
+    }
+  }, 200);
+  // Timeout after 5s → show login
+  setTimeout(() => {
+    clearInterval(wait);
+    showLogin();
+  }, 5000);
+});
+
+function initApp() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
-    callback: (resp) => {
-      if (resp.error) { showToast('❌ שגיאת כניסה'); return; }
-      accessToken = resp.access_token;
-      fetchUserInfo();
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      loadLeads();
+    prompt: '',
+    callback: handleTokenResponse
+  });
+
+  // Try auto-login with saved token
+  const saved     = localStorage.getItem('leads_access_token');
+  const savedTime = parseInt(localStorage.getItem('leads_token_time') || '0');
+  const age       = Date.now() - savedTime;
+
+  if (saved && age < TOKEN_TTL) {
+    // Token still valid
+    accessToken = saved;
+    restoreUserAvatar();
+    showApp();
+    loadLeads();
+    scheduleRefresh();
+  } else {
+    // Try silent refresh
+    try {
+      tokenClient.requestAccessToken({ prompt: '' });
+    } catch(e) {
+      showLogin();
     }
-  }).requestAccessToken();
+  }
 }
 
-function fetchUserInfo() {
-  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  }).then(r => r.json()).then(u => {
-    const av = document.getElementById('user-avatar');
-    if (u.picture) av.innerHTML = `<img src="${u.picture}">`;
-    else av.textContent = (u.name||'U')[0];
-  });
+function handleTokenResponse(resp) {
+  if (resp.error) {
+    showLogin();
+    return;
+  }
+  accessToken = resp.access_token;
+  localStorage.setItem('leads_access_token', accessToken);
+  localStorage.setItem('leads_token_time', Date.now().toString());
+  fetchUserInfo();
+  showApp();
+  loadLeads();
+  scheduleRefresh();
+}
+
+function scheduleRefresh() {
+  // Refresh token every 44 minutes silently
+  setTimeout(() => {
+    tokenClient.requestAccessToken({ prompt: '' });
+    scheduleRefresh();
+  }, 44 * 60 * 1000);
+}
+
+function showLogin() {
+  document.getElementById('init-loading').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('init-loading').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+function signIn() {
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
 function signOut() {
   if (!confirm('להתנתק?')) return;
   google.accounts.oauth2.revoke(accessToken, () => {
     accessToken = null;
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
+    localStorage.removeItem('leads_access_token');
+    localStorage.removeItem('leads_token_time');
+    localStorage.removeItem('leads_user_pic');
+    localStorage.removeItem('leads_user_name');
+    showLogin();
   });
 }
 
+// ── USER INFO ─────────────────────────────────────────────────────────────────
+function fetchUserInfo() {
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  }).then(r => r.json()).then(u => {
+    localStorage.setItem('leads_user_pic',  u.picture || '');
+    localStorage.setItem('leads_user_name', u.name    || '');
+    setAvatar(u.picture, u.name);
+  }).catch(() => {});
+}
+
+function restoreUserAvatar() {
+  const pic  = localStorage.getItem('leads_user_pic');
+  const name = localStorage.getItem('leads_user_name');
+  setAvatar(pic, name);
+}
+
+function setAvatar(pic, name) {
+  const av = document.getElementById('user-avatar');
+  if (!av) return;
+  if (pic) av.innerHTML = `<img src="${pic}">`;
+  else av.textContent = (name || 'U')[0].toUpperCase();
+}
+
+// ── LOAD LEADS ────────────────────────────────────────────────────────────────
 async function loadLeads() {
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('leads-list').innerHTML = '';
   try {
-    const res  = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:C?key=${API_KEY}`);
+    const res  = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:C?key=${API_KEY}`
+    );
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    allLeads = (data.values||[]).slice(1)
-      .map((row,i) => ({ index:i+2, name:(row[0]||'').trim()||'(ללא שם)', phone:(row[1]||'').toString().trim(), note:(row[2]||'').trim() }))
-      .filter(l => l.phone);
+
+    allLeads = (data.values || []).slice(1)
+      .map((row, i) => ({
+        index: i + 2,
+        name:  (row[0] || '').trim() || '(ללא שם)',
+        phone: (row[1] || '').toString().trim(),
+        note:  (row[2] || '').trim()
+      }))
+      .filter(l => l.phone)
+      .reverse(); // חדש ראשון
+
     document.getElementById('lead-count').textContent = allLeads.length + ' לידים';
     document.getElementById('loading').style.display = 'none';
     renderLeads(allLeads);
   } catch(e) {
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('leads-list').innerHTML = `<div style="padding:20px;color:#ff8080">❌ ${e.message}</div>`;
+    document.getElementById('leads-list').innerHTML =
+      `<div style="padding:20px;color:#ff8080;font-size:14px">❌ ${e.message}</div>`;
   }
 }
 
+// ── RENDER ────────────────────────────────────────────────────────────────────
 function renderLeads(leads) {
   const list = document.getElementById('leads-list');
   list.innerHTML = '';
-  if (!leads.length) { list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:50px">אין לידים</div>'; return; }
+  if (!leads.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:50px">אין לידים</div>';
+    return;
+  }
   leads.forEach(l => {
     const done = calledSet.has(l.index);
-    const d = document.createElement('div');
+    const d    = document.createElement('div');
     d.className = 'lead-card' + (l.note ? ' has-note' : '');
     d.innerHTML = `<div class="lead-row">
       <div class="lead-info">
         <div class="lead-name">${esc(l.name)}</div>
         <div class="lead-phone">${esc(l.phone)}</div>
-        ${l.note ? `<div class="lead-note-preview">✅ ${esc(l.note)}</div>` : ''}
+        ${l.note ? `<div class="lead-note-preview">✅ שיחה קודמת</div>` : ''}
       </div>
-      <button class="call-btn-circle ${done?'done':''}" onclick="callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${done?'✓':'📞'}</button>
+      <button class="call-btn-circle ${done?'done':''}"
+              onclick="callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${done?'✓':'📞'}</button>
     </div>`;
     list.appendChild(d);
   });
@@ -218,18 +336,23 @@ function renderLeads(leads) {
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function ej(s)  { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
+// ── FILTER ────────────────────────────────────────────────────────────────────
 function filterLeads() {
   const q = document.getElementById('search').value.toLowerCase();
-  renderLeads(allLeads.filter(l => l.name.toLowerCase().includes(q) || l.phone.includes(q)));
+  renderLeads(allLeads.filter(l =>
+    l.name.toLowerCase().includes(q) || l.phone.includes(q)
+  ));
 }
 
+// ── CALL ─────────────────────────────────────────────────────────────────────
 function callLead(idx, name, phone) {
-  currentLead = { index:idx, name, phone };
+  currentLead = { index: idx, name, phone };
   calledSet.add(idx);
-  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g,'');
+  window.location.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
   setTimeout(() => openModal(name), 1800);
 }
 
+// ── MODAL ─────────────────────────────────────────────────────────────────────
 function openModal(name) {
   document.getElementById('modal-name').textContent = name;
   document.getElementById('note-input').value = '';
@@ -243,19 +366,25 @@ function closeModal() {
   filterLeads();
 }
 
+// ── SAVE ──────────────────────────────────────────────────────────────────────
 async function saveNote() {
   const note = document.getElementById('note-input').value.trim();
   closeModal();
   if (!note) return;
-  const row = currentLead.index;
+
+  const row  = currentLead.index;
   const lead = allLeads.find(l => l.index === row);
   if (lead) lead.note = note;
+
   document.getElementById('saving-overlay').classList.add('show');
   try {
     const res = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`,
-      { method:'PUT', headers:{ 'Authorization':'Bearer '+accessToken, 'Content-Type':'application/json' },
-        body: JSON.stringify({ values:[[note]] }) }
+      {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[note]] })
+      }
     );
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
@@ -268,6 +397,7 @@ async function saveNote() {
   }
 }
 
+// ── MIC ───────────────────────────────────────────────────────────────────────
 function toggleMic() {
   if (isRecording) { stopMic(); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -278,7 +408,7 @@ function toggleMic() {
   recognition.interimResults = true;
   recognition.onresult = e => {
     let txt = '';
-    for (let i=0;i<e.results.length;i++) txt += e.results[i][0].transcript;
+    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
     document.getElementById('note-input').value = txt;
   };
   recognition.onerror = () => stopMic();
@@ -290,12 +420,13 @@ function toggleMic() {
 }
 
 function stopMic() {
-  if (recognition) { try{recognition.stop();}catch(e){} recognition=null; }
+  if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
   isRecording = false;
   const b = document.getElementById('mic-btn');
   if (b) { b.classList.remove('recording'); b.textContent = '🎤 הכתב (מיקרופון)'; }
 }
 
+// ── TOAST ─────────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast';
