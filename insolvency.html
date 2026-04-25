@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#3a3a48">
+<title>חדלות פירעון | אבי טל ושות׳</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#fff2f2;--red-border:#f5c0c0;
+  --orange:#d4691e;--orange-bg:#fff8f0;--orange-border:#f5d5b0;
+  --green:#1a7a45;--green-bg:#f0fbf4;--green-border:#b0ddc0;
+  --bg:#f5f5f7;--white:#fff;--border:#e2e2e8;--muted:#9898a8;--text:#1a1a28;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* HEADER */
+.header{background:var(--white);height:60px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-count{font-size:11px;color:var(--muted);font-weight:500;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 9px;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;}
+.hdr-btn:active{background:var(--border);}
+.avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;gap:24px;text-align:center;background:var(--white);}
+.login-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:28px;display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:320px;}
+.google-btn{background:var(--white);color:var(--text);border:1px solid var(--border);padding:13px 20px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);width:100%;justify-content:center;font-family:inherit;}
+.google-btn:active{transform:scale(.98);}
+.login-title{font-size:15px;font-weight:600;color:var(--text);}
+.login-sub{font-size:13px;color:var(--muted);}
+
+/* FILTERS */
+.filters-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
+.search-box:focus-within{border-color:var(--slate);}
+.search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
+.search-box input::placeholder{color:var(--muted);}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.filter-label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.filter-chips{display:flex;gap:4px;flex-wrap:wrap;}
+.chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .12s;white-space:nowrap;}
+.chip.active{background:var(--slate);color:#fff;border-color:var(--slate);}
+.chip.red.active{background:var(--red);border-color:var(--red);}
+.chip.orange.active{background:var(--orange);border-color:var(--orange);}
+
+/* STATS BAR */
+.stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;font-size:11px;font-weight:500;color:var(--muted);overflow-x:auto;}
+.stat{display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.sdot{width:6px;height:6px;border-radius:2px;flex-shrink:0;}
+
+/* CARDS */
+#cards-list{padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+
+.client-card{background:var(--white);border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:var(--shadow);}
+.client-card.urgent{border-right:2px solid var(--red);}
+.client-card.warning{border-right:2px solid var(--orange);}
+
+.card-header{padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.client-info{flex:1;min-width:0;}
+.client-name{font-size:15px;font-weight:600;color:var(--text);}
+.client-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.status-dots{display:flex;gap:4px;flex-shrink:0;}
+.sdot-lg{width:10px;height:10px;border-radius:2px;}
+
+/* CARD BODY */
+.card-body{border-top:1px solid var(--border);padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+
+.section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
+
+/* REPORTS */
+.reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
+.report-cell{border-radius:3px;padding:4px 2px;text-align:center;font-size:9px;font-weight:600;border:1px solid var(--border);}
+.report-cell.red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);}
+.report-cell.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+.report-cell.progress{background:#fff8e6;border-color:#f5dfa0;color:#9a6800;}
+.report-cell.empty{background:var(--bg);color:var(--muted);}
+
+/* STATUS ROWS */
+.status-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);}
+.status-row.red{background:var(--red-bg);border-color:var(--red-border);}
+.status-row.orange{background:var(--orange-bg);border-color:var(--orange-border);}
+.status-row.green{background:var(--green-bg);border-color:var(--green-border);}
+.status-label{font-size:12px;font-weight:500;}
+.status-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;}
+.badge-red{background:var(--red);color:#fff;}
+.badge-orange{background:var(--orange);color:#fff;}
+.badge-green{background:var(--green);color:#fff;}
+.badge-gray{background:var(--muted);color:#fff;}
+
+/* REMINDER */
+.reminder-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;border:1px solid #f5dfa0;background:#fff8e6;}
+.reminder-text{font-size:12px;font-weight:500;color:#9a6800;flex:1;}
+
+/* LOADING */
+#loading{display:flex;flex-direction:column;align-items:center;padding:60px 20px;gap:12px;}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:none">
+  <div class="login-card">
+    <img src="logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;" onerror="this.style.display='none'">
+    <div>
+      <div class="login-title">חדלות פירעון</div>
+      <div class="login-sub" style="margin-top:4px">ניהול תיקים | כניסה עם Google</div>
+    </div>
+    <button class="google-btn" onclick="doLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      כניסה עם Google
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <img src="logo.png" alt="אבי טל ושות׳" style="height:44px;object-fit:contain;" onerror="this.style.display='none'">
+    <div class="hdr-right">
+      <span class="hdr-count" id="total-count">טוען...</span>
+      <button class="hdr-btn" onclick="loadData()">↺</button>
+      <div class="avatar" id="user-avatar" onclick="signOut()"></div>
+    </div>
+  </div>
+
+  <div class="filters-wrap">
+    <div class="search-box">
+      <span style="color:var(--muted);font-size:13px">⌕</span>
+      <input type="search" id="search" placeholder="חיפוש שם לקוח או מספר תיק..." oninput="applyFilters()"/>
+    </div>
+
+    <div class="filter-row">
+      <span class="filter-label">דוחות:</span>
+      <div class="filter-chips" id="report-chips">
+        <div class="chip active" onclick="setReportFilter('all',this)">הכל</div>
+        <div class="chip red" onclick="setReportFilter(1,this)">1</div>
+        <div class="chip red" onclick="setReportFilter(2,this)">2</div>
+        <div class="chip red" onclick="setReportFilter(3,this)">3</div>
+        <div class="chip red" onclick="setReportFilter(4,this)">4</div>
+        <div class="chip red" onclick="setReportFilter(5,this)">5</div>
+        <div class="chip red" onclick="setReportFilter(6,this)">6</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <span class="filter-label">סטטוס:</span>
+      <div class="filter-chips">
+        <div class="chip active" id="f-all" onclick="setStatusFilter('all')">הכל</div>
+        <div class="chip" id="f-urgent" onclick="setStatusFilter('urgent')">🔴 דחוף</div>
+        <div class="chip" id="f-warning" onclick="setStatusFilter('warning')">🟠 אזהרה</div>
+        <div class="chip" id="f-reminder" onclick="setStatusFilter('reminder')">🔔 תזכורת</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat"><div class="sdot" style="background:var(--red)"></div><span id="s-urgent">0 דחוף</span></div>
+    <div class="stat"><div class="sdot" style="background:var(--orange)"></div><span id="s-warning">0 אזהרה</span></div>
+    <div class="stat"><div class="sdot" style="background:var(--green)"></div><span id="s-ok">0 תקין</span></div>
+    <div class="stat"><div class="sdot" style="background:#9a6800"></div><span id="s-reminder">0 תזכורת</span></div>
+  </div>
+
+  <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:13px">טוען תיקים...</div></div>
+  <div id="cards-list"></div>
+</div>
+
+<script>
+const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const REDIRECT=location.origin+location.pathname;
+
+// ALLOWED USERS
+const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
+
+// COLUMN INDICES (0-based)
+const COL_NAME    = 22; // W
+const COL_CASE    = 66; // BO
+const COL_REPORTS_START = 39; // AN (0-based: 39)
+const COL_REPORTS_END   = 44; // AY (0-based: 44) — 6 cols
+const COL_AZ      = 51; // AZ — reminder checkbox
+const COL_AJ      = 35; // AJ — עיכוב הליכים start
+const COL_AL      = 37; // AL — אדום = 7 ימים לסיום
+const COL_BG      = 58; // BG — 7 ימים מסירה
+const COL_BH      = 59; // BH — 45 ימים מסירה דחוף
+
+let accessToken=null,allClients=[],expandedSet=new Set();
+let reportFilter='all',statusFilter='all';
+
+function doLogin(){
+  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+    client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',scope:SCOPES,prompt:'select_account'
+  });
+}
+function signOut(){
+  if(!confirm('להתנתק?'))return;
+  ['it','ite','ip','in'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+window.addEventListener('load',()=>{
+  if(location.hash&&location.hash.includes('access_token')){
+    const p=new URLSearchParams(location.hash.substring(1));
+    const tok=p.get('access_token'),exp=parseInt(p.get('expires_in')||'3600');
+    if(tok){
+      accessToken=tok;
+      localStorage.setItem('it',tok);
+      localStorage.setItem('ite',(Date.now()+(exp-120)*1000).toString());
+      history.replaceState(null,'',location.pathname);
+      fetchUserInfo();showApp();loadData();return;
+    }
+  }
+  const tok=localStorage.getItem('it'),exp=parseInt(localStorage.getItem('ite')||'0');
+  if(tok&&Date.now()<exp){accessToken=tok;restoreAvatar();showApp();loadData();}
+  else document.getElementById('login-screen').style.display='flex';
+});
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+function fetchUserInfo(){
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
+    .then(r=>r.json()).then(u=>{
+      if(!ALLOWED.includes((u.email||'').toLowerCase())){
+        ['it','ite','ip','in'].forEach(k=>localStorage.removeItem(k));
+        accessToken=null;
+        document.getElementById('app').style.display='none';
+        document.getElementById('login-screen').style.display='flex';
+        alert('אין הרשאה: '+u.email);return;
+      }
+      localStorage.setItem('ip',u.picture||'');localStorage.setItem('in',u.name||'');
+      setAvatar(u.picture,u.name);
+    }).catch(()=>{});
+}
+function restoreAvatar(){setAvatar(localStorage.getItem('ip'),localStorage.getItem('in'));}
+function setAvatar(pic,name){
+  const av=document.getElementById('user-avatar');if(!av)return;
+  av.innerHTML=pic?`<img src="${pic}">`:(name||'U')[0].toUpperCase();
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────────────────────
+async function loadData(){
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('cards-list').innerHTML='';
+  try{
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:BK?key=${API_KEY}`);
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+
+    const rows=(data.values||[]).slice(2); // skip header rows
+    allClients=rows
+      .map((row,i)=>parseClient(row,i+3))
+      .filter(c=>c.name&&c.name.trim());
+
+    document.getElementById('total-count').textContent=allClients.length+' תיקים';
+    document.getElementById('loading').style.display='none';
+    updateStats();
+    renderCards(allClients);
+    setTimeout(loadData,3*60*1000);
+  }catch(e){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('cards-list').innerHTML=`<div style="padding:20px;color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
+
+function parseClient(row,rowNum){
+  const g=i=>row[i]||'';
+  const name=g(COL_NAME);
+  const caseNum=g(COL_CASE);
+
+  // REPORTS — AN:AY (cols 39-44, 6 reports)
+  const reports=[];
+  for(let i=0;i<6;i++){
+    const val=g(COL_REPORTS_START+i);
+    reports.push(val);
+  }
+
+  // We can't read background colors via Sheets API v4 values endpoint
+  // Instead we check: if value is empty or looks like a date that has passed → needs filing
+  // The sheet colors red cells automatically — we'll use a heuristic:
+  // Empty = not yet scheduled, date string = scheduled, "הוגש" = done, "בתהליך" = in progress
+  const reportStatus=reports.map(v=>{
+    if(!v||v.trim()==='')return'empty';
+    const vl=v.trim().toLowerCase();
+    if(vl==='הוגש')return'done';
+    if(vl==='בתהליך')return'progress';
+    // Try parse date
+    const d=parseIsraeliDate(v);
+    if(d&&d<new Date())return'overdue';
+    if(d)return'future';
+    return'empty';
+  });
+
+  const overdueCount=reportStatus.filter(s=>s==='overdue').length;
+  const reminder=g(COL_AZ)==='TRUE'||g(COL_AZ)===true||g(COL_AZ)==='true';
+
+  // INJUNCTION (AJ:AM) — AL=col 37 = urgent
+  const alVal=g(COL_AL);
+  const alDate=parseIsraeliDate(alVal);
+  const injunctionUrgent=alDate&&(alDate-new Date())<7*24*60*60*1000&&(alDate>new Date()||(alDate<=new Date()&&alDate>new Date()-3*24*60*60*1000));
+  const injunctionOverdue=alDate&&alDate<new Date();
+
+  // SERVICE CONFIRMATION (BG=col58, BH=col59)
+  const bgVal=g(COL_BG);
+  const bhVal=g(COL_BH);
+  const bgDate=parseIsraeliDate(bgVal);
+  const bhDate=parseIsraeliDate(bhVal);
+  const serviceWarning=bgDate&&bgDate<new Date();  // 7 days passed
+  const serviceUrgent=bhDate&&bhDate<new Date();   // 45 days — urgent
+
+  // Overall urgency
+  const isUrgent=overdueCount>0||serviceUrgent||injunctionUrgent||injunctionOverdue;
+  const isWarning=!isUrgent&&(serviceWarning||reminder);
+
+  return{rowNum,name,caseNum,reports,reportStatus,overdueCount,
+    reminder,injunctionUrgent,injunctionOverdue,
+    serviceWarning,serviceUrgent,isUrgent,isWarning};
+}
+
+function parseIsraeliDate(str){
+  if(!str||typeof str!=='string')return null;
+  // formats: dd/mm/yyyy or dd/mm/yy or yyyy-mm-dd
+  let m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const y=m[3].length===2?2000+parseInt(m[3]):parseInt(m[3]);
+    return new Date(y,parseInt(m[2])-1,parseInt(m[1]));
+  }
+  m=str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m)return new Date(parseInt(m[1]),parseInt(m[2])-1,parseInt(m[3]));
+  return null;
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function setReportFilter(val,el){
+  reportFilter=val;
+  document.querySelectorAll('#report-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
+}
+
+function setStatusFilter(val){
+  statusFilter=val;
+  ['all','urgent','warning','reminder'].forEach(v=>{
+    const el=document.getElementById('f-'+v);
+    if(el)el.classList.toggle('active',v===val);
+  });
+  applyFilters();
+}
+
+function applyFilters(){
+  const q=document.getElementById('search').value.toLowerCase();
+  let filtered=allClients.filter(c=>{
+    if(q&&!c.name.toLowerCase().includes(q)&&!c.caseNum.toLowerCase().includes(q))return false;
+    if(reportFilter!=='all'&&c.overdueCount!==reportFilter)return false;
+    if(statusFilter==='urgent'&&!c.isUrgent)return false;
+    if(statusFilter==='warning'&&!c.isWarning)return false;
+    if(statusFilter==='reminder'&&!c.reminder)return false;
+    return true;
+  });
+  renderCards(filtered);
+}
+
+function updateStats(){
+  const urgent=allClients.filter(c=>c.isUrgent).length;
+  const warning=allClients.filter(c=>c.isWarning).length;
+  const ok=allClients.filter(c=>!c.isUrgent&&!c.isWarning).length;
+  const reminder=allClients.filter(c=>c.reminder).length;
+  document.getElementById('s-urgent').textContent=urgent+' דחוף';
+  document.getElementById('s-warning').textContent=warning+' אזהרה';
+  document.getElementById('s-ok').textContent=ok+' תקין';
+  document.getElementById('s-reminder').textContent=reminder+' תזכורת';
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderCards(clients){
+  const list=document.getElementById('cards-list');
+  if(!clients.length){list.innerHTML='<div class="empty">אין תיקים התואמים את הסינון</div>';return;}
+  list.innerHTML='';
+  clients.forEach(c=>{
+    const exp=expandedSet.has(c.rowNum);
+    const d=document.createElement('div');
+    const urgClass=c.isUrgent?'urgent':c.isWarning?'warning':'';
+    d.className='client-card'+(urgClass?' '+urgClass:'');
+
+    // Status dots for quick view
+    const dot1=c.isUrgent?'var(--red)':c.isWarning?'var(--orange)':'var(--green)';
+    const dot2=c.overdueCount>0?'var(--red)':c.overdueCount===0&&c.reports.some(r=>r)?'var(--green)':'var(--muted)';
+    const dot3=c.serviceUrgent?'var(--red)':c.serviceWarning?'var(--orange)':'var(--muted)';
+    const dot4=c.injunctionUrgent||c.injunctionOverdue?'var(--red)':'var(--muted)';
+
+    let bodyHtml='';
+    if(exp){
+      // REPORTS
+      const reportCells=c.reportStatus.map((s,i)=>{
+        const labels=['ד1','ד2','ד3','ד4','ד5','ד6'];
+        const val=c.reports[i]||'—';
+        const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':'empty';
+        const short=s==='done'?'✓':s==='progress'?'⋯':s==='overdue'?'!':val.substring(0,5);
+        return`<div class="report-cell ${cls}" title="${val}">${labels[i]}<br>${short}</div>`;
+      }).join('');
+
+      // INJUNCTION
+      const injHtml=`<div class="status-row ${c.injunctionUrgent||c.injunctionOverdue?'red':'green'}">
+        <span class="status-label">עיכוב הליכים (AL)</span>
+        <span class="status-badge ${c.injunctionUrgent||c.injunctionOverdue?'badge-red':'badge-green'}">
+          ${c.injunctionOverdue?'פג תוקף':c.injunctionUrgent?'7 ימים לסיום':'תקין'}
+        </span>
+      </div>`;
+
+      // SERVICE
+      const srvHtml=`<div class="status-row ${c.serviceUrgent?'red':c.serviceWarning?'orange':'green'}">
+        <span class="status-label">אישורי מסירה</span>
+        <span class="status-badge ${c.serviceUrgent?'badge-red':c.serviceWarning?'badge-orange':'badge-green'}">
+          ${c.serviceUrgent?'45+ יום — דחוף':c.serviceWarning?'7+ ימים':'תקין'}
+        </span>
+      </div>`;
+
+      // REMINDER
+      const remHtml=c.reminder?`<div class="reminder-row">
+        <span>🔔</span>
+        <span class="reminder-text">תזכורת מסמכים — נשלחת ב-10 וב-20 לחודש</span>
+      </div>`:'';
+
+      bodyHtml=`<div class="card-body">
+        <div>
+          <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
+          <div class="reports-grid">${reportCells}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="section-title" style="color:var(--slate)">סטטוס</div>
+          ${injHtml}${srvHtml}${remHtml}
+        </div>
+      </div>`;
+    }
+
+    d.innerHTML=`
+      <div class="card-header" onclick="toggleExpand(${c.rowNum})">
+        <div class="client-info">
+          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''} ${c.overdueCount>0?'• '+c.overdueCount+' דוחות פתוחים':''}</div>
+        </div>
+        <div class="status-dots">
+          <div class="sdot-lg" style="background:${dot1}" title="סטטוס כללי"></div>
+          <div class="sdot-lg" style="background:${dot2}" title="דוחות"></div>
+          <div class="sdot-lg" style="background:${dot3}" title="מסירה"></div>
+          <div class="sdot-lg" style="background:${dot4}" title="עיכוב הליכים"></div>
+        </div>
+      </div>
+      ${bodyHtml}`;
+    list.appendChild(d);
+  });
+}
+
+function toggleExpand(rowNum){
+  if(expandedSet.has(rowNum))expandedSet.delete(rowNum);else expandedSet.add(rowNum);
+  applyFilters();
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function showToast(msg){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+</script>
+</body>
+</html>
