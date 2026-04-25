@@ -82,6 +82,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .report-cell.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 .report-cell.progress{background:#fff8e6;border-color:#f5dfa0;color:#9a6800;}
 .report-cell.empty{background:var(--bg);color:var(--muted);}
+.report-cell.future{background:#f0f4ff;border-color:#c0d0f0;color:#4060a0;}
+.report-cell.future{background:#f0f4ff;border-color:#c0ccf0;color:#3050b0;}
 
 /* STATUS ROWS */
 .status-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);}
@@ -211,8 +213,9 @@ const COL_NAME    = 22; // W
 const COL_CASE    = 66; // BO
 // מסמכים AC:AI = cols 28-34
 const COL_DOCS_LIST = 28; // AC — רשימת מסמכים
-const COL_DOCS_AG   = 32; // AG — אדום = דחיפות גבוהה
-const COL_DOCS_AI   = 34; // AI — אדום = דחיפות נמוכה / תזכורת
+const COL_DOCS_AG   = 32; // AG — דחוף: 7 ימים לפני תאריך
+const COL_DOCS_AE   = 30; // AE — בטיפול: תאריך שעבר
+const COL_DOCS_AI   = 34; // AI — checkbox תזכורת (לא תאריך)
 // דוחות — עמודות תאריך: AN(39) AP(41) AR(43) AT(45) AV(47) AX(49)
 const COL_REPORT_DATES = [39, 41, 43, 45, 47, 49]; // AN AP AR AT AV AX
 // עמודות סטטוס: AO(40) AQ(42) AS(44) AU(46) AW(48) AY(50)
@@ -338,33 +341,38 @@ function parseClient(row,rowNum){
   const reminder=g(COL_AZ)==='TRUE'||g(COL_AZ)===true||g(COL_AZ)==='true';
 
   // DOCUMENTS AC:AI
-  const docsList=g(COL_DOCS_LIST);
-  const agVal=g(COL_DOCS_AG);
-  const aiVal=g(COL_DOCS_AI);
-  // We check presence of values as proxy for red (colors not available via API)
-  // AI reminder checkbox
-  const docsReminder=aiVal==='TRUE'||aiVal===true||aiVal==='true';
-  // For urgency we rely on structure: AG has a date that passed = high urgency
-  const agDate=parseIsraeliDate(agVal);
-  const aiDate=parseIsraeliDate(aiVal);
-  const docsHighUrgent=agDate&&agDate<new Date();
-  const docsLowUrgent=aiDate&&aiDate<new Date()&&!docsHighUrgent;
+  const docsList  = g(COL_DOCS_LIST);
+  const agVal     = g(COL_DOCS_AG);
+  const aeVal     = g(COL_DOCS_AE);
+  const aiVal     = g(COL_DOCS_AI);
+  const docsReminder = aiVal==='TRUE'||aiVal===true||aiVal==='true';
+  const agDate    = parseIsraeliDate(agVal);
+  const aeDate    = parseIsraeliDate(aeVal);
+  const now       = new Date(); now.setHours(0,0,0,0);
+  const in7days   = new Date(now); in7days.setDate(in7days.getDate()+7);
+  // AG דחוף: החל מ-7 ימים לפני התאריך ואילך
+  const docsHighUrgent = agDate && agDate <= in7days;
+  // AE בטיפול: תאריך שעבר
+  const docsLowUrgent  = aeDate && aeDate < now && !docsHighUrgent;
 
   // INJUNCTION (AJ:AM) — AL=col 37 = urgent
   const alVal=g(COL_AL);
   const alDate=parseIsraeliDate(alVal);
-  const injunctionUrgent=alDate&&(alDate-new Date())<7*24*60*60*1000&&(alDate>new Date()||(alDate<=new Date()&&alDate>new Date()-3*24*60*60*1000));
-  const injunctionOverdue=alDate&&alDate<new Date();
+  // AL: החל מ-7 ימים לפני התאריך ואילך (כולל אחרי)
+  const injunctionUrgent  = alDate && alDate <= in7days;
+  const injunctionOverdue = alDate && alDate < now;
 
-  // SERVICE CONFIRMATION (BG=col58, BH=col59)
-  // BG אדום = 7 ימים עברו = דחיפות נמוכה
-  // BG+BH אדום = 45 ימים עברו = דחיפות גבוהה
-  const bgVal=g(COL_BG);
-  const bhVal=g(COL_BH);
-  const bgDate=parseIsraeliDate(bgVal);
-  const bhDate=parseIsraeliDate(bhVal);
-  const serviceWarning=bgDate&&bgDate<new Date()&&!(bhDate&&bhDate<new Date()); // BG בלבד = נמוכה
-  const serviceUrgent=bgDate&&bgDate<new Date()&&bhDate&&bhDate<new Date();    // BG+BH = גבוהה
+  // SERVICE CONFIRMATION
+  // BG: תאריך שליחה בדואר שעבר = ממתין לאישורי מסירה = בטיפול
+  // BH: 45 ימים עברו מ-BG = דחוף
+  const bgVal  = g(COL_BG);
+  const bhVal  = g(COL_BH);
+  const bgDate = parseIsraeliDate(bgVal);
+  const bhDate = parseIsraeliDate(bhVal);
+  // BH נצבע אדום כאשר עברו 45 ימים מ-BG
+  const bg45   = bgDate ? new Date(bgDate.getTime()+45*24*60*60*1000) : null;
+  const serviceUrgent  = bg45 && bg45 < now;          // 45 ימים מ-BG עברו
+  const serviceWarning = bgDate && bgDate < now && !serviceUrgent; // BG עבר אבל עדיין < 45 יום
 
   // Overall urgency
   const isUrgent=overdueCount>0||serviceUrgent||injunctionUrgent||injunctionOverdue||docsHighUrgent;
@@ -472,8 +480,8 @@ function renderCards(clients){
       const reportCells=c.reportStatus.map((s,i)=>{
         const labels=['ד1','ד2','ד3','ד4','ד5','ד6'];
         const val=c.reports[i]||'—';
-        const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':'empty';
-        const short=s==='done'?'✓':s==='progress'?'⋯':s==='overdue'?'!':val.substring(0,5);
+        const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':'empty';
+        const short=s==='done'?'✓':s==='progress'?'⋯':s==='overdue'?'!':s==='future'?val.substring(0,5):'—';
         return`<div class="report-cell ${cls}" title="${val}">${labels[i]}<br>${short}</div>`;
       }).join('');
 
