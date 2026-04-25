@@ -594,17 +594,9 @@ function stopMic(){
 function openWA(phone){
   let clean=phone.replace(/[^0-9]/g,'');
   if(clean.startsWith('0'))clean='972'+clean.substring(1);
-  // Try WhatsApp Business app first (Android intent)
-  const intentUrl='intent://send/'+clean+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end';
-  const fallback='https://wa.me/'+clean;
-  // On Android use intent, elsewhere use web fallback
-  if(/Android/i.test(navigator.userAgent)){
-    location.href=intentUrl;
-    // Fallback after 2s if app not installed
-    setTimeout(()=>window.open(fallback,'_blank'),2000);
-  } else {
-    window.open(fallback,'_blank');
-  }
+  // WhatsApp Business uses same wa.me URL — app selection depends on device default
+  // Use direct API URL which Android resolves to WA Business if set as default
+  window.open('https://api.whatsapp.com/send?phone='+clean,'_blank');
 }
 function showToast(msg){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
