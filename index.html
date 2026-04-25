@@ -238,7 +238,24 @@ function showApp() {
 }
 
 function signIn() {
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+  if (tokenClient) {
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+    return;
+  }
+  // SDK not ready yet — wait and retry
+  showToast('מתחבר...');
+  const wait = setInterval(() => {
+    if (window.google && google.accounts) {
+      clearInterval(wait);
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        prompt: 'consent',
+        callback: handleTokenResponse
+      });
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+  }, 300);
 }
 
 function signOut() {
