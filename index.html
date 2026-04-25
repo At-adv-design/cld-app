@@ -277,8 +277,10 @@ function fetchUserInfo(){
     .then(r=>r.json()).then(u=>{
 
       const ALLOWED = [
-        'avi@t-adv.co.il',
-        'avi.t.razr@gmail.com'
+  'avi@t-adv.co.il',
+  'office@t-adv.co.il',
+  'avi.t.razr@gmail.com'
+
       ];
 
       if(!ALLOWED.includes((u.email||'').toLowerCase())){
