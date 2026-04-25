@@ -81,6 +81,8 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 
 /* RESTORE BUTTON */
 .restore-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--green);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;color:var(--green);}
+.wa-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.wa-btn:active{transform:scale(.92);background:var(--bg);}
 .restore-btn:active{transform:scale(.92);}
 
 /* NOTES */
@@ -405,7 +407,12 @@ function renderLeadCard(l,isRemoved){
       ${l.note?`<div class="lead-badge">${entries.length} שיחות</div>`:''}
       ${isRemoved?'<div class="removed-lbl">הוסר</div>':''}
     </div>
-    ${actionBtn}
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      ${actionBtn}
+      ${!isRemoved ? `<button class="wa-btn" onclick="event.stopPropagation();openWA('${ej(l.phone)}')" title="WhatsApp">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.524 5.847L.057 23.5l5.797-1.522A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.034-1.378l-.361-.214-3.741.981.999-3.648-.235-.374A9.861 9.861 0 012.118 12C2.118 6.981 6.981 2.118 12 2.118c5.018 0 9.882 4.863 9.882 9.882 0 5.018-4.864 9.882-9.882 9.882z"/></svg>
+      </button>` : ''}
+    </div>
   </div>${notesHtml}`;
 }
 
@@ -514,7 +521,7 @@ function toggleShowAll(idx){
 function filterLeads(){
   const q=document.getElementById('search').value.toLowerCase();
   const active=allLeads.filter(l=>!removedIndices.has(l.index));
-  renderLeads(active.filter(l=>l.name.toLowerCase().includes(q)||l.phone.includes(q)));
+  renderLeads(active.filter(l=>l.name.toLowerCase().includes(q)||l.phone.includes(q)||l.note.toLowerCase().includes(q)));
 }
 
 function callLead(idx,name,phone){
@@ -583,6 +590,11 @@ function stopMic(){
   if(recognition){try{recognition.abort();}catch(e){}recognition=null;}
   const b=document.getElementById('mic-btn');
   if(b){b.classList.remove('recording');b.textContent='🎤 הכתב (מיקרופון)';}
+}
+function openWA(phone){
+  let clean=phone.replace(/[^0-9]/g,'');
+  if(clean.startsWith('0'))clean='972'+clean.substring(1);
+  window.open('https://wa.me/'+clean,'_blank');
 }
 function showToast(msg){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
