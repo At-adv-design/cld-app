@@ -199,9 +199,10 @@ const COL_CASE    = 66; // BO
 const COL_DOCS_LIST = 28; // AC — רשימת מסמכים
 const COL_DOCS_AG   = 32; // AG — אדום = דחיפות גבוהה
 const COL_DOCS_AI   = 34; // AI — אדום = דחיפות נמוכה / תזכורת
-// דוחות AN:AY = cols 39-50
-const COL_REPORTS_START = 39; // AN
-const COL_REPORTS_END   = 44; // AY — 6 cols
+// דוחות — עמודות תאריך: AN(39) AP(41) AR(43) AT(45) AV(47) AX(49)
+const COL_REPORT_DATES = [39, 41, 43, 45, 47, 49]; // AN AP AR AT AV AX
+// עמודות סטטוס: AO(40) AQ(42) AS(44) AU(46) AW(48) AY(50)
+const COL_REPORT_STATUS = [40, 42, 44, 46, 48, 50]; // AO AQ AS AU AW AY
 const COL_AZ      = 51; // AZ — תזכורת דוחות ב-10/20
 // עיכוב הליכים AJ:AM = cols 35-38
 const COL_AL      = 37; // AL — אדום = 7 ימים לסיום
@@ -296,28 +297,28 @@ function parseClient(row,rowNum){
   const name=g(COL_NAME);
   const caseNum=g(COL_CASE);
 
-  // REPORTS — AN:AY (cols 39-44, 6 reports)
+  // REPORTS — תאריכי הגשה: AN AP AT AV AX
+  // סטטוס: AO AQ AS AU AW (הוגש / בתהליך)
   const reports=[];
+  const reportStatus=[];
   for(let i=0;i<6;i++){
-    const val=g(COL_REPORTS_START+i);
-    reports.push(val);
+    const dateVal=g(COL_REPORT_DATES[i]);
+    const statusVal=g(COL_REPORT_STATUS[i]);
+    reports.push(dateVal);
+    const sl=(statusVal||'').trim().toLowerCase();
+    if(sl==='הוגש'){
+      reportStatus.push('done');
+    } else if(sl==='בתהליך'){
+      reportStatus.push('progress');
+    } else if(!dateVal||dateVal.trim()===''){
+      reportStatus.push('empty');
+    } else {
+      const d=parseIsraeliDate(dateVal);
+      if(d&&d<new Date()) reportStatus.push('overdue');
+      else if(d) reportStatus.push('future');
+      else reportStatus.push('empty');
+    }
   }
-
-  // We can't read background colors via Sheets API v4 values endpoint
-  // Instead we check: if value is empty or looks like a date that has passed → needs filing
-  // The sheet colors red cells automatically — we'll use a heuristic:
-  // Empty = not yet scheduled, date string = scheduled, "הוגש" = done, "בתהליך" = in progress
-  const reportStatus=reports.map(v=>{
-    if(!v||v.trim()==='')return'empty';
-    const vl=v.trim().toLowerCase();
-    if(vl==='הוגש')return'done';
-    if(vl==='בתהליך')return'progress';
-    // Try parse date
-    const d=parseIsraeliDate(v);
-    if(d&&d<new Date())return'overdue';
-    if(d)return'future';
-    return'empty';
-  });
 
   const overdueCount=reportStatus.filter(s=>s==='overdue').length;
   const reminder=g(COL_AZ)==='TRUE'||g(COL_AZ)===true||g(COL_AZ)==='true';
