@@ -122,7 +122,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <body>
 
 <!-- LOGIN -->
-<div id="login-screen" style="display:none">
+<div id="login-screen" style="display:flex">
   <div class="login-card">
     <img src="logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;" onerror="this.style.display='none'">
     <div>
@@ -476,11 +476,11 @@ function updateStats(){
   const urgent=allClients.filter(c=>c.isUrgent).length;
   const warning=allClients.filter(c=>c.isWarning).length;
   const ok=allClients.filter(c=>!c.isUrgent&&!c.isWarning).length;
-  const reminder=allClients.filter(c=>c.reminder).length;
+  const reminderCount=allClients.filter(c=>c.reminder).length;
   document.getElementById('s-urgent').textContent=urgent+' דחוף';
   document.getElementById('s-warning').textContent=warning+' אזהרה';
   document.getElementById('s-ok').textContent=ok+' תקין';
-  document.getElementById('s-reminder').textContent=reminder+' תזכורת';
+  document.getElementById('s-reminder').textContent=reminderCount+' תזכורת';
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -673,7 +673,7 @@ function renderCards(clients){
     content.appendChild(d);
     wrap.appendChild(bgL);wrap.appendChild(bgR);wrap.appendChild(content);
     list.appendChild(wrap);
-    initSwipe(wrap,cl.rowNum);
+    initSwipe(wrap,c.rowNum);
   });
 }
 
