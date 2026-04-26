@@ -505,9 +505,11 @@ function renderCards(clients){
     if(exp){
       bodyHtml=`<div class="card-body">
         <div>
-          <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
-          <div class="reports-grid">${reportCells}</div>
-          ${c.reminder?'<div class="reminder-row" style="margin-top:6px"><span>🔔</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span></div>':''}
+          <div class="status-row ${c.overdueCount>0?'red':''}">
+            <span class="status-label">דוחות</span>
+            <span class="status-badge ${c.overdueCount>0?'badge-red':'badge-gray'}">${c.overdueCount>0?c.overdueCount+' לא הוגשו':'הכל הוגש ✓'}</span>
+          </div>
+          ${c.reminder?'<div class="reminder-row"><span>🔔</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span></div>':''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div class="section-title" style="color:var(--slate)">השלמת מסמכים</div>
