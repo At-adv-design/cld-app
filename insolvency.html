@@ -359,7 +359,7 @@ function parseClient(row,rowNum){
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
   const docsHighUrgent=!docsDone&&agDate&&agDate<=in7;
-  const docsLowUrgent=!docsDone&&!docsHighUrgent&&aeDate&&aeDate<today;
+  const docsLowUrgent=!docsDone&&!docsHighUrgent&&aeDate&&aeDate<today&&(!agDate||agDate>in7days);
 
   // INJUNCTION
   const alDate=parseDate(g(C_AL));
@@ -516,7 +516,7 @@ function renderCards(clients){
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div class="section-title" style="color:var(--slate)">עיכוב הליכים ואישורי מסירה</div>
-          <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים (AL)</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${injText}</span></div>
+          <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${injText}</span></div>
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${srvText}</span></div>
         </div>
       </div>`;
