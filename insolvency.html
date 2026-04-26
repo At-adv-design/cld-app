@@ -505,7 +505,7 @@ function renderCards(clients){
       bodyHtml=`<div class="card-body">
         <div>
           <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
-          <div class="reports-grid">${reportCells}</div>
+          <div style="height:30px;overflow:hidden"><div class="reports-grid">${reportCells}</div></div>
           ${c.reminder?'<div class="reminder-row" style="margin-top:6px"><span>🔔</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span></div>':''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
