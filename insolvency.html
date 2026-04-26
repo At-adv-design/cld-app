@@ -327,6 +327,7 @@ function parseClient(row,rowNum){
   const name=g(C_NAME);if(!name)return null;
 
   const today=new Date();today.setHours(0,0,0,0);
+  const in7days=new Date(today);in7days.setDate(today.getDate()+7);
   const in7=new Date(today);in7.setDate(today.getDate()+7);
 
   // REPORTS
@@ -359,7 +360,7 @@ function parseClient(row,rowNum){
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
   const docsHighUrgent=!docsDone&&agDate&&agDate<=in7;
-  const docsLowUrgent=!docsDone&&!docsHighUrgent&&aeDate&&aeDate<today&&(!agDate||agDate>in7days);
+  const docsLowUrgent=!docsDone&&!docsHighUrgent&&aeDate&&aeDate<today&&(!agDate||agDate>in7);
 
   // INJUNCTION
   const alDate=parseDate(g(C_AL));
