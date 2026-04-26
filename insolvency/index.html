@@ -121,6 +121,38 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;}
 .empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+
+/* LOG ICON */
+.log-btn{width:38px;height:38px;border-radius:6px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);position:relative;}
+.log-btn:active{transform:scale(.92);background:var(--bg);}
+.log-btn.has-log{border-color:var(--slate);background:#fafafd;}
+.log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
+
+/* LOG MODAL — viewer */
+#log-modal,#log-edit-modal,#log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:flex-end;backdrop-filter:blur(4px);}
+#log-modal.open,#log-edit-modal.open,#log-add-modal.open{display:flex;}
+.log-sheet{background:var(--white);border-top:2px solid var(--slate);padding:16px 16px 20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;display:flex;flex-direction:column;gap:10px;animation:slideUp .25s cubic-bezier(.32,.72,0,1);box-shadow:0 -4px 28px rgba(0,0,0,0.1);max-height:100dvh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.log-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 4px;}
+.log-title{font-size:16px;font-weight:700;color:var(--text);}
+.log-sub{font-size:13px;color:var(--muted);font-weight:500;margin-top:-4px;}
+.log-actions{display:flex;gap:8px;margin-top:6px;}
+.log-action-btn{flex:1;padding:11px;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
+.log-action-btn:active{transform:scale(.97);}
+.log-action-add{background:var(--slate);color:#fff;}
+.log-action-edit{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+.log-content{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow-y:auto;}
+.log-empty{text-align:center;padding:24px 12px;color:var(--muted);font-size:13px;}
+.log-textarea{width:100%;min-height:160px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;color:var(--text);font-family:'Courier New',monospace;direction:rtl;resize:vertical;}
+.log-textarea:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.log-add-input{width:100%;min-height:110px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:15px;color:var(--text);direction:rtl;font-family:inherit;resize:none;}
+.log-add-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.log-mic-btn{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:11px 14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:inherit;}
+.log-mic-btn.recording{background:#fff2f2;border-color:#e08080;color:var(--red);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.75}}
+.log-btn-row{display:flex;gap:8px;}
+.log-btn-primary{flex:1;padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;background:var(--slate);color:#fff;font-family:inherit;}
+.log-btn-secondary{flex:1;padding:12px;border:1px solid var(--border);border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--muted);font-family:inherit;}
 </style>
 </head>
 <body>
@@ -146,7 +178,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <!-- APP -->
 <div id="app" style="display:none">
   <div class="header">
-    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-left:auto;" onerror="this.style.display='none'">
+    <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;margin-left:auto;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
     <div class="hdr-right">
       <span class="hdr-count" id="total-count">טוען...</span>
       <button class="hdr-btn" onclick="loadData()">↺</button>
@@ -209,6 +241,102 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     <div style="padding:12px 16px;font-size:12px;color:var(--muted);font-weight:500">גרור ימינה להחזרה לתיקים פעילים</div>
     <div id="waiting-list"></div>
   </div>
+
+  <!-- TASKS SECTION (hidden — entered via 4 taps on the logo) -->
+  <div id="tasks-section" style="display:none">
+    <div class="tabs" style="background:#fafafd">
+      <div class="tab active" id="tasks-tab-do" onclick="switchTaskTab('do')">בביצוע</div>
+      <div class="tab" id="tasks-tab-wait" onclick="switchTaskTab('wait')">בהמתנה</div>
+    </div>
+    <div class="filters-wrap" style="background:#fafafd">
+      <div class="search-box">
+        <span style="color:var(--muted);font-size:13px">⌕</span>
+        <input type="search" id="tasks-search" placeholder="חיפוש שם או מספר תיק..." oninput="renderTasks()"/>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">דדליין:</span>
+        <div class="chip active" onclick="setTaskRange('all',this)">הכל</div>
+        <div class="chip red" onclick="setTaskRange(5,this)">5 ימים</div>
+        <div class="chip orange" onclick="setTaskRange(10,this)">10 ימים</div>
+        <div class="chip" onclick="setTaskRange(20,this)">20 ימים</div>
+        <div class="chip" onclick="setTaskRange(30,this)">30 ימים</div>
+      </div>
+      <button class="hdr-btn" onclick="exitTasksSection()" style="align-self:flex-start;margin-top:2px">↩ חזרה</button>
+    </div>
+    <div id="tasks-list" style="padding:10px 14px;display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<!-- LOG VIEWER MODAL -->
+<div id="log-modal">
+  <div class="log-sheet">
+    <div class="log-handle"></div>
+    <div class="log-title">תיעוד תיק</div>
+    <div class="log-sub" id="log-modal-name"></div>
+    <div id="log-content-wrap"></div>
+    <div class="log-actions">
+      <button class="log-action-btn log-action-add" onclick="openAddLog()">➕ הוסף תיעוד</button>
+      <button class="log-action-btn log-action-edit" onclick="openEditLog()">✏️ ערוך</button>
+    </div>
+    <button class="log-btn-secondary" onclick="closeLogModal()">סגור</button>
+  </div>
+</div>
+
+<!-- LOG EDIT MODAL -->
+<div id="log-edit-modal">
+  <div class="log-sheet">
+    <div class="log-handle"></div>
+    <div class="log-title">עריכת תיעוד</div>
+    <div class="log-sub" id="log-edit-name"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:-4px">זהירות: עריכה ידנית של כל הלוג</div>
+    <textarea class="log-textarea" id="log-edit-textarea"></textarea>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveEditLog()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeEditLog()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG ADD MODAL -->
+<div id="log-add-modal">
+  <div class="log-sheet">
+    <div class="log-handle"></div>
+    <div class="log-title">הוספת תיעוד</div>
+    <div class="log-sub" id="log-add-name"></div>
+    <textarea class="log-add-input" id="log-add-textarea" placeholder="מה לתעד?"></textarea>
+    <button class="log-mic-btn" id="log-mic-btn" onclick="toggleLogMic()">🎤 הכתב (מיקרופון)</button>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveAddLog()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeAddLog()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPS EDIT MODAL — edit Y (start date) + Z (days). AA is auto-computed. -->
+<div id="ops-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:flex-end;backdrop-filter:blur(4px);">
+  <div class="log-sheet">
+    <div class="log-handle"></div>
+    <div class="log-title">עריכת דדליין</div>
+    <div class="log-sub" id="ops-edit-name"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">תאריך התחלה (Y)</label>
+        <input type="date" id="ops-edit-start" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;font-family:inherit"/>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">מספר ימים לביצוע (Z)</label>
+        <input type="number" id="ops-edit-days" min="0" placeholder="0" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;font-family:inherit;direction:ltr;text-align:right"/>
+      </div>
+      <div style="background:#f5f5f7;padding:9px 11px;border-radius:4px;border:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted)">דדליין מחושב (AA): </span>
+        <span id="ops-edit-deadline-preview" style="font-weight:700;color:var(--slate)">—</span>
+      </div>
+    </div>
+    <div class="log-btn-row" style="margin-top:8px">
+      <button class="log-btn-primary" onclick="saveOpsEdit()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeOpsEdit()">ביטול</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -220,23 +348,43 @@ if('serviceWorker' in navigator){
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
-const SCOPES='https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 const REDIRECT=location.origin+location.pathname;
 const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
 
 // Columns (0-based)
 const C_NAME=22,C_CASE=66;
+// New section "ביצועים" columns
+const C_TASK_LOG=23;        // X: log (cumulative summaries) — first 2 lines preserved
+const C_TASK_START=24;      // Y: start / received-instruction date
+const C_TASK_DAYS=25;       // Z: days to complete
+const C_TASK_DEADLINE=26;   // AA: deadline (Y + Z)
+const C_TASK_STATUS=27;     // AB: 'wait' if waiting tab, otherwise empty/active
+const COL_X='X';            // for write URL (log)
+const COL_AB='AB';          // for write URL (status)
 const C_DOCS_LIST=28,C_DOCS_AE=30,C_DOCS_AG=32,C_DOCS_AH=33,C_DOCS_AI=34;
 const C_AL=37,C_AZ=51;
 const C_BG=58,C_BH=59,C_BI=60;
 const C_CE=82;
+const C_CF=83;       // log column (CF) — main case log
+const COL_CF='CF';   // for write URL
+
 const C_REP_DATES=[39,41,43,45,47,49]; // AN AP AR AT AV AX
 const C_REP_STATUS=[40,42,44,46,48,50]; // AO AQ AS AU AW AY
 
 let accessToken=null,allClients=[],expandedSet=new Set();
 let waitingSet=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
 let curTab='main';
+// Tasks section (hidden by 4 logo taps)
+let logoTapCount=0;
+let logoTapTimer=null;
+let inTasksSection=false;
+let taskRangeDays='all';
+let taskTab='do'; // 'do' | 'wait'
 let fReport='all',fDocs='all',fInj='all',fSrv='all';
+let userName='',userEmail='';
+let currentLog=null;        // {rowNum, name, log, field, col, preserveLines}
+let logRecognition=null,logIsRecording=false,logFinalTranscript='';
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function doLogin(){
@@ -247,7 +395,7 @@ function doLogin(){
 }
 function signOut(){
   if(!confirm('להתנתק?'))return;
-  ['it','ite','ip','in'].forEach(k=>localStorage.removeItem(k));
+  ['it','ite','ip','in','ie'].forEach(k=>localStorage.removeItem(k));
   accessToken=null;
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -266,7 +414,12 @@ window.addEventListener('load',()=>{
     }
   }
   const tok=localStorage.getItem('it'),exp=parseInt(localStorage.getItem('ite')||'0');
-  if(tok&&Date.now()<exp){accessToken=tok;restoreAvatar();showApp();loadData();}
+  if(tok&&Date.now()<exp){
+    accessToken=tok;
+    userName=localStorage.getItem('in')||'';
+    userEmail=localStorage.getItem('ie')||'';
+    restoreAvatar();showApp();loadData();
+  }
   // else login screen already visible
 });
 
@@ -278,13 +431,16 @@ function fetchUserInfo(){
   fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
     .then(r=>r.json()).then(u=>{
       if(!ALLOWED.includes((u.email||'').toLowerCase())){
-        ['it','ite','ip','in'].forEach(k=>localStorage.removeItem(k));
+        ['it','ite','ip','in','ie'].forEach(k=>localStorage.removeItem(k));
         accessToken=null;
         document.getElementById('app').style.display='none';
         document.getElementById('login-screen').style.display='flex';
         alert('אין הרשאה: '+u.email);return;
       }
-      localStorage.setItem('ip',u.picture||'');localStorage.setItem('in',u.name||'');
+      localStorage.setItem('ip',u.picture||'');
+      localStorage.setItem('in',u.name||'');
+      localStorage.setItem('ie',u.email||'');
+      userName=u.name||'';userEmail=u.email||'';
       setAvatar(u.picture,u.name);
     }).catch(()=>{});
 }
@@ -292,6 +448,20 @@ function restoreAvatar(){setAvatar(localStorage.getItem('ip'),localStorage.getIt
 function setAvatar(pic,name){
   const av=document.getElementById('user-avatar');if(!av)return;
   av.innerHTML=pic?`<img src="${pic}">`:(name||'U')[0].toUpperCase();
+}
+
+// Tag = first 3 + last 3 letters of the email's local part (or name as fallback).
+// If the source is shorter than 6 chars, return it as-is (no padding).
+function getUserTag6(){
+  let src='';
+  if(userEmail) src=userEmail.split('@')[0];
+  else src=userName||'user';
+  if(src.length<=6) return src;
+  return src.slice(0,3)+src.slice(-3);
+}
+function getInsTS(){
+  const n=new Date(),p=x=>String(x).padStart(2,'0');
+  return `${p(n.getDate())}/${p(n.getMonth()+1)}/${String(n.getFullYear()).slice(2)} ${p(n.getHours())}:${p(n.getMinutes())}`;
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
@@ -309,17 +479,18 @@ async function loadData(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('cards-list').innerHTML='';
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CE?key=${API_KEY}`);
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CG?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const rows=(data.values||[]).slice(2);
     allClients=rows.map((row,i)=>parseClient(row,i+3)).filter(c=>c&&c.name&&c.name.trim());
     const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
-    document.getElementById('total-count').textContent=active.length+' תיקים';
+    document.getElementById('total-count').textContent=inTasksSection?'ביצועים':(active.length+' תיקים');
     updateWaitingTab();
     updateStats(active);
     document.getElementById('loading').style.display='none';
     renderCards(active);
+    if(inTasksSection) renderTasks();
     setTimeout(loadData,3*60*1000);
   }catch(e){
     document.getElementById('loading').style.display='none';
@@ -388,7 +559,15 @@ function parseClient(row,rowNum){
 
   return{rowNum,name,caseNum:g(C_CASE),reports,reportStatus,overdueCount,
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
-    injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning};
+    injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
+    log:g(C_CF),
+    // Operations section (columns X, Y, Z, AA, CG)
+    opsLog:g(C_X),
+    opsStartRaw:g(C_Y),
+    opsDaysRaw:g(C_Z),
+    opsDeadlineRaw:g(C_AA),
+    opsDeadline:parseDate(g(C_AA)),
+    opsStatus:(g(C_CG)||'').trim().toLowerCase()};
 }
 
 function parseDate(s){
@@ -560,13 +739,9 @@ function renderCards(clients){
             <div class="client-name">${esc(c.name)}</div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
           </div>
-          <div class="status-dots">
-            <div class="sdot-lg" style="background:${d1}" title="כללי"></div>
-            <div class="sdot-lg" style="background:${d2}" title="דוחות"></div>
-            <div class="sdot-lg" style="background:${d3}" title="מסמכים"></div>
-            <div class="sdot-lg" style="background:${d4}" title="מסירה"></div>
-            <div class="sdot-lg" style="background:${d5}" title="עיכוב הליכים"></div>
-          </div>
+          <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum})" title="תיעוד תיק">
+            📋${c.log?'<span class="log-dot"></span>':''}
+          </button>
         </div>
         ${bodyHtml}
       </div>`;
@@ -697,6 +872,587 @@ function showToast(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOG (column CF) — viewer + edit + add new entry
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// Format the raw log content for display: highlight timestamp/user lines.
+function renderLogContent(log){
+  if(!log||!log.trim()){
+    return '<div class="log-empty">אין תיעוד עדיין. לחץ "הוסף תיעוד" כדי להתחיל.</div>';
+  }
+  // Split into entries by blank line; keep order (newest is at top, as written).
+  const entries=log.split(/\n\n+/).filter(e=>e.trim());
+  return '<div class="log-content">'+entries.map(en=>{
+    const lines=en.split('\n');
+    const head=lines[0]||'';
+    const isHeader=/^\d{2}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}/.test(head.trim());
+    if(isHeader){
+      const body=lines.slice(1).join('\n');
+      return `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:3px">${esc(head)}</div><div>${esc(body)}</div></div>`;
+    }
+    return `<div style="margin-bottom:10px">${esc(en)}</div>`;
+  }).join('<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">')+'</div>';
+}
+
+// Open the viewer modal for a given client row.
+// kind: 'cf' (default — insolvency log column CF)
+//   or  'ops' (operations section log column X, with first 2 lines preserved)
+function openLogModal(rowNum,kind){
+  const client=allClients.find(c=>c.rowNum===rowNum);
+  if(!client){showToast('תיק לא נמצא');return;}
+  kind=kind||'cf';
+  if(kind==='ops'){
+    currentLog={rowNum,name:client.name,log:client.opsLog||'',
+      field:'opsLog',col:COL_X,preserveLines:2,kind:'ops'};
+  } else {
+    currentLog={rowNum,name:client.name,log:client.log||'',
+      field:'log',col:COL_CF,preserveLines:0,kind:'cf'};
+  }
+  document.getElementById('log-modal-name').textContent=client.name+(client.caseNum?' • תיק '+client.caseNum:'');
+  document.getElementById('log-content-wrap').innerHTML=renderLogContent(currentLog.log);
+  document.getElementById('log-modal').classList.add('open');
+  // history state — back button just closes the viewer
+  history.pushState({page:'log'},'');
+}
+
+function closeLogModal(){
+  document.getElementById('log-modal').classList.remove('open');
+  if(history.state&&history.state.page==='log')history.back();
+}
+
+/* ── EDIT existing log ────────────────────────────────────────────────────── */
+function openEditLog(){
+  if(!currentLog)return;
+  document.getElementById('log-edit-name').textContent=currentLog.name;
+  document.getElementById('log-edit-textarea').value=currentLog.log||'';
+  document.getElementById('log-edit-modal').classList.add('open');
+  history.pushState({page:'log-edit'},'');
+}
+function closeEditLog(){
+  document.getElementById('log-edit-modal').classList.remove('open');
+  if(history.state&&history.state.page==='log-edit')history.back();
+}
+async function saveEditLog(){
+  if(!currentLog)return;
+  const newVal=document.getElementById('log-edit-textarea').value;
+  // optimistic
+  currentLog.log=newVal;
+  const c=allClients.find(x=>x.rowNum===currentLog.rowNum);
+  if(c) c[currentLog.field]=newVal;
+  document.getElementById('log-content-wrap').innerHTML=renderLogContent(newVal);
+  closeEditLog();
+  showToast('שומר...');
+  try{
+    await writeLogToSheet(currentLog.rowNum,newVal,currentLog.col);
+    showToast('✓ נשמר');
+  }catch(e){
+    showToast('✗ '+e.message);
+  }
+}
+
+/* ── ADD new entry ────────────────────────────────────────────────────────── */
+function openAddLog(){
+  if(!currentLog)return;
+  document.getElementById('log-add-name').textContent=currentLog.name;
+  // Restore any draft for this row+column
+  const draftKey='ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col;
+  const draft=localStorage.getItem(draftKey)||'';
+  document.getElementById('log-add-textarea').value=draft;
+  logFinalTranscript=draft;
+  document.getElementById('log-add-modal').classList.add('open');
+  history.pushState({page:'log-add'},'');
+  stopLogMic();
+  setTimeout(()=>document.getElementById('log-add-textarea').focus(),300);
+}
+function closeAddLog(){
+  // user clicked סגור → drop the draft
+  if(currentLog)localStorage.removeItem('ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col);
+  _closeAddLogCore();
+}
+function saveDraftAndCloseAddLog(){
+  // back button → keep the draft
+  if(currentLog){
+    const draftKey='ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col;
+    const txt=document.getElementById('log-add-textarea').value;
+    if(txt&&txt.trim()) localStorage.setItem(draftKey,txt);
+    else localStorage.removeItem(draftKey);
+    if(txt&&txt.trim()) showToast('טיוטה נשמרה');
+  }
+  _closeAddLogCore();
+}
+function _closeAddLogCore(){
+  stopLogMic();
+  document.getElementById('log-add-modal').classList.remove('open');
+}
+async function saveAddLog(){
+  if(!currentLog)return;
+  const newText=document.getElementById('log-add-textarea').value.trim();
+  if(!newText){closeAddLog();return;}
+  const ts=getInsTS();
+  const tag=getUserTag6();
+  const header=ts+(tag?` | ${tag}`:'');
+  const entry=header+'\n'+newText;
+  const prev=currentLog.log||'';
+  // If preserveLines>0 (e.g. the X column keeps the first 2 lines as headings),
+  // we insert the new entry AFTER those lines and push the rest of the log down.
+  let combined;
+  const preserve=currentLog.preserveLines||0;
+  if(preserve>0 && prev){
+    const allLines=prev.split('\n');
+    const head=allLines.slice(0,preserve).join('\n');
+    const rest=allLines.slice(preserve).join('\n').replace(/^\n+/,''); // trim leading blanks
+    combined=head+'\n'+entry+(rest?'\n\n'+rest:'');
+  } else {
+    combined=prev?entry+'\n\n'+prev:entry;
+  }
+  // optimistic update
+  currentLog.log=combined;
+  const c=allClients.find(x=>x.rowNum===currentLog.rowNum);
+  if(c) c[currentLog.field]=combined;
+  // refresh viewer behind
+  document.getElementById('log-content-wrap').innerHTML=renderLogContent(combined);
+  // also refresh the card so the "has-log" dot appears immediately
+  applyFilters();
+  if(typeof renderTasks==='function' && document.getElementById('tasks-section').style.display!=='none') renderTasks();
+  // pop add-modal history without triggering popstate logic
+  if(history.state&&history.state.page==='log-add')history.replaceState({page:'log'},'');
+  // clear draft (we are saving)
+  localStorage.removeItem('ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col);
+  _closeAddLogCore();
+  showToast('שומר...');
+  try{
+    await writeLogToSheet(currentLog.rowNum,combined,currentLog.col);
+    showToast('✓ נשמר');
+  }catch(e){
+    showToast('✗ '+e.message);
+  }
+}
+
+/* ── Sheet write ─────────────────────────────────────────────────────────── */
+async function writeLogToSheet(rowNum,value,col){
+  if(!accessToken) throw new Error('אין הרשאה — התחבר מחדש');
+  const c=col||COL_CF;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${c}${rowNum}?valueInputOption=RAW`;
+  const res=await fetch(url,{
+    method:'PUT',
+    headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+    body:JSON.stringify({values:[[value]]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message);
+  return data;
+}
+
+/* ── Mic for the add-log modal ──────────────────────────────────────────── */
+function toggleLogMic(){
+  if(logIsRecording){stopLogMic();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('הדפדפן לא תומך בהכתבה');return;}
+  logFinalTranscript=document.getElementById('log-add-textarea').value;
+  logRecognition=new SR();
+  logRecognition.lang='he-IL';logRecognition.continuous=false;logRecognition.interimResults=true;
+  logRecognition.onresult=e=>{
+    let interim='';
+    for(let i=0;i<e.results.length;i++){
+      if(e.results[i].isFinal) logFinalTranscript+=e.results[i][0].transcript;
+      else interim=e.results[i][0].transcript;
+    }
+    document.getElementById('log-add-textarea').value=logFinalTranscript+interim;
+  };
+  logRecognition.onend=()=>{if(logIsRecording)logRecognition.start();};
+  logRecognition.onerror=e=>{if(e.error!=='no-speech')stopLogMic();};
+  logRecognition.start();
+  logIsRecording=true;
+  const b=document.getElementById('log-mic-btn');
+  b.classList.add('recording');b.textContent='⏹ עצור הקלטה';
+}
+function stopLogMic(){
+  logIsRecording=false;
+  if(logRecognition){try{logRecognition.abort();}catch(e){}logRecognition=null;}
+  const b=document.getElementById('log-mic-btn');
+  if(b){b.classList.remove('recording');b.textContent='🎤 הכתב (מיקרופון)';}
+}
+
+/* ── Back button: close the topmost log modal ─────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   TASKS SECTION (hidden, accessed by 4 taps on the logo)
+   Backed by columns X (log), Y (start date), Z (days), AA (deadline), AB (status)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function onLogoTap(){
+  logoTapCount++;
+  if(logoTapTimer) clearTimeout(logoTapTimer);
+  logoTapTimer=setTimeout(()=>{logoTapCount=0;},1200);
+  if(logoTapCount>=4){
+    logoTapCount=0;
+    if(logoTapTimer)clearTimeout(logoTapTimer);
+    if(inTasksSection) exitTasksSection();
+    else enterTasksSection();
+  }
+}
+
+function enterTasksSection(){
+  inTasksSection=true;
+  document.getElementById('main-section').style.display='none';
+  document.getElementById('waiting-section').style.display='none';
+  document.getElementById('tasks-section').style.display='block';
+  // Hide top tabs while in tasks section
+  document.querySelector('#app > .tabs').style.display='none';
+  document.getElementById('total-count').textContent='ביצועים';
+  history.pushState({page:'tasks'},'');
+  renderTasks();
+}
+
+function exitTasksSection(){
+  inTasksSection=false;
+  document.getElementById('tasks-section').style.display='none';
+  document.querySelector('#app > .tabs').style.display='flex';
+  // Restore previous main tab view
+  if(curTab==='waiting'){
+    document.getElementById('waiting-section').style.display='block';
+  } else {
+    document.getElementById('main-section').style.display='block';
+  }
+  // Pop the tasks history entry
+  if(history.state&&history.state.page==='tasks')history.back();
+  // Refresh counter
+  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  document.getElementById('total-count').textContent=active.length+' תיקים';
+}
+
+function switchTaskTab(t){
+  taskTab=t;
+  document.getElementById('tasks-tab-do').className='tab'+(t==='do'?' active':'');
+  document.getElementById('tasks-tab-wait').className='tab'+(t==='wait'?' active':'');
+  renderTasks();
+}
+
+function setTaskRange(val,el){
+  taskRangeDays=val;
+  document.querySelectorAll('#tasks-section .filter-row .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function daysFromToday(date){
+  if(!date)return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=new Date(date);d.setHours(0,0,0,0);
+  return Math.round((d-today)/86400000);
+}
+
+function renderTasks(){
+  const list=document.getElementById('tasks-list');
+  if(!list)return;
+  const q=(document.getElementById('tasks-search').value||'').toLowerCase();
+  // Filter by tab status
+  const wantedStatus=(taskTab==='wait')?'wait':'';
+  let arr=allClients.filter(c=>{
+    const st=(c.opsStatus||'').toLowerCase();
+    if(wantedStatus==='wait') return st==='wait';
+    return st!=='wait';
+  });
+  // Search
+  if(q){
+    arr=arr.filter(c=>(c.name||'').toLowerCase().includes(q)||(c.caseNum||'').toLowerCase().includes(q));
+  }
+  // Date range filter (only matters when not 'all'; only items WITH a deadline qualify
+  // and only those within range remain).
+  if(taskRangeDays!=='all'){
+    const max=parseInt(taskRangeDays,10);
+    arr=arr.filter(c=>{
+      if(!c.opsDeadline) return false;
+      const d=daysFromToday(c.opsDeadline);
+      return d!==null && d<=max;
+    });
+  }
+  // Sort: by deadline ascending, items with no deadline last
+  arr.sort((a,b)=>{
+    const da=a.opsDeadline?a.opsDeadline.getTime():null;
+    const db=b.opsDeadline?b.opsDeadline.getTime():null;
+    if(da===null && db===null) return 0;
+    if(da===null) return 1;
+    if(db===null) return -1;
+    return da-db;
+  });
+
+  list.innerHTML='';
+  if(!arr.length){
+    list.innerHTML='<div class="empty">אין משימות'+(taskTab==='wait'?' בהמתנה':'')+'</div>';
+    return;
+  }
+
+  arr.forEach(c=>{
+    const dl=c.opsDeadline;
+    const dleft=dl?daysFromToday(dl):null;
+    let dlBadge='';
+    if(dl){
+      const cls=dleft<0?'badge-red':(dleft<=5?'badge-red':(dleft<=10?'badge-orange':'badge-gray'));
+      const label=dleft<0?`באיחור ${Math.abs(dleft)} ימים`:(dleft===0?'היום':`עוד ${dleft} ימים`);
+      dlBadge=`<span class="status-badge ${cls} ops-edit-trigger" data-row="${c.rowNum}" style="margin-right:auto;cursor:pointer">${label} ✎</span>`;
+    } else {
+      dlBadge=`<span class="status-badge badge-gray ops-edit-trigger" data-row="${c.rowNum}" style="margin-right:auto;cursor:pointer">ללא דדליין ✎</span>`;
+    }
+
+    const startTxt=c.opsStartRaw?`התחלה: ${esc(c.opsStartRaw)}`:'';
+    const daysTxt=c.opsDaysRaw?`${esc(c.opsDaysRaw)} ימים`:'';
+    const dlTxt=c.opsDeadlineRaw?`דדליין: ${esc(c.opsDeadlineRaw)}`:'';
+    const meta=[startTxt,daysTxt,dlTxt].filter(Boolean).join(' • ');
+
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    if(taskTab==='do'){
+      wrap.innerHTML='<div class="swipe-bg left">⏸ להמתנה</div><div class="swipe-bg right"></div>';
+    } else {
+      wrap.innerHTML='<div class="swipe-bg left"></div><div class="swipe-bg right">↩ החזר לביצוע</div>';
+    }
+    const content=document.createElement('div');
+    content.className='swipe-content';
+    content.innerHTML=`<div class="client-card${dleft!==null&&dleft<=5?' urgent':(dleft!==null&&dleft<=10?' warning':'')}" data-row="${c.rowNum}">
+      <div class="card-header">
+        <div class="client-info">
+          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${meta?(c.caseNum?' • ':'')+meta:''}</div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px">${dlBadge}</div>
+        </div>
+        <button class="log-btn ${c.opsLog?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'ops')" title="תיעוד משימה">
+          📋${c.opsLog?'<span class="log-dot"></span>':''}
+        </button>
+      </div>
+    </div>`;
+    wrap.appendChild(content);
+    list.appendChild(wrap);
+    initTaskSwipe(wrap,c.rowNum,taskTab);
+  });
+
+  // Hook up the deadline-badge click → open Y/Z editor
+  list.querySelectorAll('.ops-edit-trigger').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const row=parseInt(el.getAttribute('data-row'),10);
+      openOpsEditModal(row);
+    });
+  });
+}
+
+// Swipe handler for the tasks section
+function initTaskSwipe(wrap,rowNum,tab){
+  const content=wrap.querySelector('.swipe-content');
+  const bgL=wrap.querySelector('.swipe-bg.left');
+  const bgR=wrap.querySelector('.swipe-bg.right');
+  let sx=0,sy=0,dx=0,going=false,axis=null;
+  const THRESH=80;
+
+  wrap.addEventListener('touchstart',e=>{
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;going=true;axis=null;dx=0;
+  },{passive:true});
+
+  wrap.addEventListener('touchmove',e=>{
+    if(!going)return;
+    const t=e.touches[0];
+    const mx=t.clientX-sx,my=t.clientY-sy;
+    if(!axis)axis=Math.abs(mx)>8||Math.abs(my)>8?(Math.abs(mx)>Math.abs(my)?'x':'y'):null;
+    if(axis!=='x')return;
+    e.preventDefault();
+    dx=mx;
+    content.style.transition='none';
+    content.style.transform=`translateX(${dx}px)`;
+    const pct=Math.min(Math.abs(dx)/THRESH,1);
+    if(tab==='do'&&dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
+    else if(tab==='wait'&&dx>0){bgR.style.opacity=pct;bgL.style.opacity=0;}
+    else{bgL.style.opacity=0;bgR.style.opacity=0;}
+  },{passive:false});
+
+  wrap.addEventListener('touchend',()=>{
+    if(!going||axis!=='x'){going=false;return;}
+    going=false;
+    content.style.transition='transform .2s';
+    const triggered=(tab==='do'&&dx<=-THRESH)||(tab==='wait'&&dx>=THRESH);
+    if(triggered){
+      content.style.transform=`translateX(${dx<0?'-110%':'110%'})`;
+      setTimeout(()=>{
+        if(tab==='do') setTaskStatus(rowNum,'wait');
+        else setTaskStatus(rowNum,'');
+      },200);
+    } else {
+      content.style.transform='';
+      bgL.style.opacity=0;bgR.style.opacity=0;
+    }
+  });
+}
+
+async function setTaskStatus(rowNum,status){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(c) c.opsStatus=status;
+  renderTasks();
+  showToast(status==='wait'?'הועבר להמתנה':'הוחזר לביצוע');
+  try{
+    await writeLogToSheet(rowNum,status,COL_CG);
+  } catch(e){
+    showToast('✗ שמירה נכשלה: '+e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OPS DEADLINE EDITOR — edit Y (start date) and Z (days);
+   AA is computed automatically and saved.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let currentOpsEdit=null; // {rowNum, name}
+
+// Convert various date strings into YYYY-MM-DD for the <input type="date">
+function toIsoDate(s){
+  if(!s)return'';
+  let m=String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const dd=m[1].padStart(2,'0');
+    const mm=m[2].padStart(2,'0');
+    const yyyy=m[3].length===2?'20'+m[3]:m[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  m=String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return '';
+}
+// YYYY-MM-DD → DD/MM/YYYY for writing to the sheet
+function isoToDdmm(iso){
+  if(!iso)return'';
+  const m=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return iso;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function recomputeOpsDeadlinePreview(){
+  const startIso=document.getElementById('ops-edit-start').value;
+  const daysRaw=document.getElementById('ops-edit-days').value;
+  const days=parseInt(daysRaw,10);
+  const out=document.getElementById('ops-edit-deadline-preview');
+  if(!startIso||isNaN(days)){out.textContent='—';return null;}
+  const d=new Date(startIso+'T00:00:00');
+  if(isNaN(d.getTime())){out.textContent='—';return null;}
+  d.setDate(d.getDate()+days);
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yyyy=d.getFullYear();
+  const ddmm=`${dd}/${mm}/${yyyy}`;
+  out.textContent=ddmm;
+  return ddmm;
+}
+
+function openOpsEditModal(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c){showToast('תיק לא נמצא');return;}
+  currentOpsEdit={rowNum,name:c.name};
+  document.getElementById('ops-edit-name').textContent=c.name+(c.caseNum?' • תיק '+c.caseNum:'');
+  document.getElementById('ops-edit-start').value=toIsoDate(c.opsStartRaw);
+  document.getElementById('ops-edit-days').value=c.opsDaysRaw||'';
+  recomputeOpsDeadlinePreview();
+  document.getElementById('ops-edit-modal').style.display='flex';
+  history.pushState({page:'ops-edit'},'');
+  // Live preview
+  document.getElementById('ops-edit-start').oninput=recomputeOpsDeadlinePreview;
+  document.getElementById('ops-edit-days').oninput=recomputeOpsDeadlinePreview;
+}
+
+function closeOpsEdit(){
+  document.getElementById('ops-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='ops-edit')history.back();
+}
+
+async function saveOpsEdit(){
+  if(!currentOpsEdit)return;
+  const startIso=document.getElementById('ops-edit-start').value;
+  const daysRaw=document.getElementById('ops-edit-days').value.trim();
+  const days=parseInt(daysRaw,10);
+  if(!startIso&&!daysRaw){
+    // empty both — clear all three columns
+    return doOpsWrite('','','');
+  }
+  if(!startIso){showToast('בחר תאריך התחלה');return;}
+  if(isNaN(days)||days<0){showToast('הזן מספר ימים תקין');return;}
+  const deadline=recomputeOpsDeadlinePreview()||'';
+  const startDdMm=isoToDdmm(startIso);
+  doOpsWrite(startDdMm,String(days),deadline);
+}
+
+async function doOpsWrite(yVal,zVal,aaVal){
+  const rowNum=currentOpsEdit.rowNum;
+  // optimistic update
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(c){
+    c.opsStartRaw=yVal;
+    c.opsDaysRaw=zVal;
+    c.opsDeadlineRaw=aaVal;
+    c.opsDeadline=parseDate(aaVal);
+  }
+  closeOpsEdit();
+  if(typeof renderTasks==='function')renderTasks();
+  showToast('שומר...');
+  try{
+    if(!accessToken)throw new Error('אין הרשאה — התחבר מחדש');
+    // Single batchUpdate writes Y, Z, AA all at once
+    const body={
+      valueInputOption:'RAW',
+      data:[
+        {range:`Y${rowNum}`,values:[[yVal]]},
+        {range:`Z${rowNum}`,values:[[zVal]]},
+        {range:`AA${rowNum}`,values:[[aaVal]]}
+      ]
+    };
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    showToast('✓ נשמר');
+  }catch(e){
+    showToast('✗ '+e.message);
+  }
+}
+
+window.addEventListener('popstate',()=>{
+  const addOpen=document.getElementById('log-add-modal').classList.contains('open');
+  const editOpen=document.getElementById('log-edit-modal').classList.contains('open');
+  const viewOpen=document.getElementById('log-modal').classList.contains('open');
+  const opsEditOpen=document.getElementById('ops-edit-modal').style.display==='flex';
+  if(opsEditOpen){
+    document.getElementById('ops-edit-modal').style.display='none';
+    return;
+  }
+  if(addOpen){
+    saveDraftAndCloseAddLog();
+    history.replaceState({page:'log'},'');
+    return;
+  }
+  if(editOpen){
+    document.getElementById('log-edit-modal').classList.remove('open');
+    history.replaceState({page:'log'},'');
+    return;
+  }
+  if(viewOpen){
+    document.getElementById('log-modal').classList.remove('open');
+    return;
+  }
+  // No log modal — handle the secret tasks section
+  if(inTasksSection){
+    inTasksSection=false;
+    document.getElementById('tasks-section').style.display='none';
+    document.querySelector('#app > .tabs').style.display='flex';
+    if(curTab==='waiting'){
+      document.getElementById('waiting-section').style.display='block';
+    } else {
+      document.getElementById('main-section').style.display='block';
+    }
+    const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+    document.getElementById('total-count').textContent=active.length+' תיקים';
+    return;
+  }
+});
 </script>
 </body>
 </html>
