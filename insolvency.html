@@ -466,15 +466,16 @@ function renderCards(clients){
 
     // Report cells - show date for ALL
     const reportCells=c.reportStatus.map((s,i)=>{
-      const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':s==='old'?'empty':'empty';
+      const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':'empty';
       const lbl=['ד1','ד2','ד3','ד4','ד5','ד6'][i];
-      let disp;
-      if(s==='done') disp='✓';
-      else if(s==='progress') disp='⋯';
-      else disp=fmtDate(c.reports[i]);
+      const dateStr=fmtDate(c.reports[i]);
+      let topLine,botLine;
+      if(s==='done'){topLine=lbl+' ✓';botLine=dateStr;}
+      else if(s==='progress'){topLine=lbl;botLine=dateStr!=='—'?dateStr:'⋯';}
+      else{topLine=lbl;botLine=dateStr;}
       return`<div class="report-cell ${cls}" title="${c.reports[i]||''}">
-        <div class="rlabel">${lbl}</div>
-        <div class="rdate">${disp}</div>
+        <div style="font-size:7px;font-weight:700;line-height:1.2">${topLine}</div>
+        <div style="font-size:7px;font-weight:400;line-height:1.2">${botLine}</div>
       </div>`;
     }).join('');
 
