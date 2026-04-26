@@ -5,19 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#3a3a48">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <title>חדלות פירעון | אבי טל ושות׳</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+/* sharp-corner reset */
+button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
+.search-box,.confirm-card,.login-card,.hdr-btn,.hdr-count,.call-btn,.note-btn,
+.wa-btn,.restore-btn,.tab,.lead-badge,.removed-lbl,.continue-lbl,.btn,
+.mic-btn,.show-all-btn,.note-user,.confirm-btn,.google-btn,.chip,
+.report-cell,.status-row,.status-badge,.reminder-row,.waiting-badge,
+.log-btn,.log-action-btn,.log-textarea,.log-add-input,.log-mic-btn,
+.log-btn-primary,.log-btn-secondary,.log-content{
+  border-radius:0 !important;
+}
+
+/* dark-mode tweaks for the brand logo */
+[data-theme="dark"] img[alt*="טל"]{
+  filter:invert(.94) hue-rotate(180deg) brightness(.95);
+}
+
 :root{
-  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#fff2f2;--red-border:#f5c0c0;
-  --orange:#c8620a;--orange-bg:#fff8f0;--orange-border:#f5d0a0;
-  --green:#1a7a45;--green-bg:#f0fbf4;--green-border:#b0ddc0;
-  --blue:#2060c0;--blue-bg:#f0f4ff;--blue-border:#c0d0f0;
-  --bg:#f5f5f7;--white:#fff;--border:#e2e2e8;--muted:#9898a8;--text:#1a1a28;
-  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#FDECEC;--red-border:#f5c0c0;
+  --orange:#c8620a;--orange-bg:#FFF6EC;--orange-border:#f5d0a0;
+  --green:#1a7a45;--green-bg:#EFF7F1;--green-border:#b0ddc0;
+  --blue:#2060c0;--blue-bg:#EEF1FA;--blue-border:#c0d0f0;
+  --bg:#FAF9F5;--white:#FFFFFF;--border:#D9D6CA;--muted:#6B6A65;--text:#1F1E1B;
+  --shadow:0 1px 2px rgba(31,30,27,0.04),0 4px 16px rgba(31,30,27,0.05);
+}
+[data-theme="dark"]{
+  --slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;--red-bg:#3A2222;--red-border:#5C2D2D;
+  --orange:#E89B5C;--orange-bg:#3A2A1F;--orange-border:#5C4329;
+  --green:#48C77A;--green-bg:#1F3A2A;--green-border:#2D5C3F;
+  --blue:#6FA8E5;--blue-bg:#1F2A3A;--blue-border:#2D4359;
+  --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
+  --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
 }
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
@@ -128,13 +154,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .log-btn.has-log{border-color:var(--slate);background:#fafafd;}
 .log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
 
-/* LOG MODAL — viewer (fullscreen) and edit/add (bottom sheet) */
-#log-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
-#log-modal.open{display:flex;flex-direction:column;}
-#log-edit-modal,#log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:310;align-items:flex-end;backdrop-filter:blur(4px);}
-#log-edit-modal.open,#log-add-modal.open{display:flex;}
-/* Fullscreen sheet for the viewer */
-#log-modal .log-sheet{
+/* LOG MODAL — viewer + edit (fullscreen) and add (bottom sheet) */
+#log-modal,#log-edit-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
+#log-modal.open,#log-edit-modal.open{display:flex;flex-direction:column;}
+#log-edit-modal{z-index:310;}
+#log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);}
+#log-add-modal.open{display:flex;}
+/* Fullscreen sheet for the viewer + editor */
+#log-modal .log-sheet,#log-edit-modal .log-sheet{
   background:var(--white);
   border:none;
   padding:14px 16px 20px;
@@ -145,8 +172,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   animation:slideUp .25s cubic-bezier(.32,.72,0,1);
   overflow-y:auto;
 }
-/* Bottom-sheet style for edit / add modals */
-#log-edit-modal .log-sheet,#log-add-modal .log-sheet{
+/* Bottom-sheet style for add modal */
+#log-add-modal .log-sheet{
   background:var(--white);border-top:2px solid var(--slate);
   padding:16px 16px 20px;
   padding-bottom:calc(20px + env(safe-area-inset-bottom));
@@ -204,7 +231,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;margin-left:auto;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
     <div class="hdr-right">
       <span class="hdr-count" id="total-count">טוען...</span>
-      <button class="hdr-btn" onclick="loadData()">↺</button>
+      <button class="hdr-btn" onclick="loadData()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>
+      </button>
+      <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
       <div class="avatar" id="user-avatar" onclick="signOut()"></div>
     </div>
   </div>
@@ -309,13 +342,18 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </div>
 
 <!-- LOG EDIT MODAL -->
+<!-- LOG EDIT MODAL — fullscreen -->
 <div id="log-edit-modal">
   <div class="log-sheet">
-    <div class="log-handle"></div>
-    <div class="log-title">עריכת תיעוד</div>
-    <div class="log-sub" id="log-edit-name"></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:-4px">זהירות: עריכה ידנית של כל הלוג</div>
-    <textarea class="log-textarea" id="log-edit-textarea"></textarea>
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
+      <button onclick="closeEditLog()" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit">→ חזרה</button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">עריכת תיעוד</div>
+        <div class="log-sub" id="log-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">זהירות: עריכה ידנית של כל הלוג</div>
+    <textarea class="log-textarea" id="log-edit-textarea" style="flex:1;min-height:0"></textarea>
     <div class="log-btn-row">
       <button class="log-btn-primary" onclick="saveEditLog()">שמור</button>
       <button class="log-btn-secondary" onclick="closeEditLog()">ביטול</button>
@@ -339,9 +377,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </div>
 
 <!-- OPS EDIT MODAL — edit Y (start date) + Z (days). AA is auto-computed. -->
-<div id="ops-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:flex-end;backdrop-filter:blur(4px);">
-  <div class="log-sheet">
-    <div class="log-handle"></div>
+<div id="ops-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);">
+  <div class="log-sheet" style="border-radius:8px;border-top:none;width:100%;max-width:380px;max-height:90dvh;animation:none;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
     <div class="log-title">עריכת דדליין</div>
     <div class="log-sub" id="ops-edit-name"></div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
@@ -370,6 +407,29 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+
+// Theme toggle (shared with the rest of the brand pages)
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const m=document.getElementById('theme-moon'),s=document.getElementById('theme-sun');
+  if(m&&s){m.style.display=t==='dark'?'none':'block';s.style.display=t==='dark'?'block':'none';}
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>{
+    meta.setAttribute('content',t==='dark'?'#1F1E1C':'#FAF9F5');
+  });
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='light'?'dark':'light';
+  localStorage.setItem('at_theme',next);
+  applyTheme(next);
+}
+(function initTheme(){
+  let saved=localStorage.getItem('at_theme');
+  if(!saved){
+    saved=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  applyTheme(saved);
+})();
 
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
