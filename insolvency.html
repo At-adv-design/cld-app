@@ -79,7 +79,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 /* REPORTS */
 .reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
-.report-cell{border-radius:3px;padding:5px 2px;text-align:center;font-size:9px;font-weight:700;border:1px solid var(--border);line-height:1.4;}
+.report-cell{border-radius:3px;padding:5px 2px;text-align:center;font-size:9px;font-weight:700;border:1px solid var(--border);line-height:1.4;min-height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .report-cell .rlabel{font-size:9px;font-weight:700;}
 .report-cell .rdate{font-size:8px;font-weight:500;margin-top:1px;}
 .report-cell.red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);}
@@ -387,10 +387,27 @@ function parseDate(s){
 }
 
 function fmtDate(s){
-  if(!s)return'—';
-  const parts=s.split('/');
-  if(parts.length>=3)return parts[1]+'/'+parts[2].slice(-2); // mm/yy
-  if(parts.length===2)return parts[0]+'/'+parts[1];
+  if(!s||s==='')return'—';
+  // Google Sheets formats: dd/mm/yyyy, d/m/yyyy, yyyy-mm-dd, mm/dd/yyyy
+  let m;
+  // dd/mm/yyyy or d/m/yyyy or dd/mm/yy
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const mm=m[2].padStart(2,'0');
+    const yy=m[3].length===4?m[3].slice(2):m[3];
+    return mm+'/'+yy;
+  }
+  // yyyy-mm-dd
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return m[2]+'/'+m[1].slice(2);
+  // m/d/yyyy (US format from Sheets)
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){
+    const mm=m[1].padStart(2,'0');
+    return mm+'/'+m[3].slice(2);
+  }
+  // Already short like 03/26
+  if(s.length<=5) return s;
   return s.substring(0,5);
 }
 
