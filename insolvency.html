@@ -78,10 +78,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
 
 /* REPORTS */
-.reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;grid-auto-rows:36px;}
-.report-cell{border-radius:3px;padding:3px 1px;text-align:center;font-size:9px;font-weight:700;border:1px solid var(--border);height:36px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.report-cell .rlabel{font-size:8px;font-weight:700;line-height:1.2;}
-.report-cell .rdate{font-size:7px;font-weight:500;line-height:1.2;}
+.reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;}
+.report-cell{border-radius:3px;padding:3px 1px;text-align:center;font-size:9px;font-weight:700;border:1px solid var(--border);height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+.report-cell .rlabel{font-size:9px;font-weight:700;line-height:1;}
+.report-cell .rdate{font-size:8px;font-weight:500;line-height:1;}
 .report-cell.red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);}
 .report-cell.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 .report-cell.progress{background:#fff8e6;border-color:#f5dfa0;color:#9a6800;}
@@ -340,12 +340,18 @@ function parseClient(row,rowNum){
     else{
       const d=parseDate(dv);
       if(!d) reportStatus.push('empty');
-      else if(d.getFullYear()<2025) reportStatus.push('empty'); // לפני 2025 — לא רלוונטי
-      else if(d<today) reportStatus.push('overdue');
+      else if(d<today){
+        // לפני 2025 = לא נספר כפיגור בפילטר, אבל מוצג
+        if(d.getFullYear()<2025) reportStatus.push('old');
+        else reportStatus.push('overdue');
+      }
       else reportStatus.push('future');
     }
   }
-  const overdueCount=parseInt(g(C_CE))||reportStatus.filter(s=>s==='overdue').length;
+  // CE מעמודה (מחושב ע"י סקריפט) — אם 0 השתמש בחישוב מקומי
+  const ceVal=parseInt(g(C_CE))||0;
+  const calcCount=reportStatus.filter(s=>s==='overdue').length;
+  const overdueCount=ceVal>0?ceVal:calcCount;
 
   // DOCS
   const docsList=g(C_DOCS_LIST);
@@ -465,7 +471,7 @@ function renderCards(clients){
 
     // Report cells - show date for ALL
     const reportCells=c.reportStatus.map((s,i)=>{
-      const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':'empty';
+      const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':s==='old'?'empty':'empty';
       const lbl=['ד1','ד2','ד3','ד4','ד5','ד6'][i];
       let disp;
       if(s==='done') disp='✓';
