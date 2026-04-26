@@ -390,12 +390,12 @@ let logRecognition=null,logIsRecording=false,logFinalTranscript='';
 function doLogin(){
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
     client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',
-    scope:SCOPES,prompt:'select_account'
+    scope:SCOPES,prompt:'consent select_account',include_granted_scopes:'true'
   });
 }
 function signOut(){
   if(!confirm('להתנתק?'))return;
-  ['it','ite','ip','in','ie'].forEach(k=>localStorage.removeItem(k));
+  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
   accessToken=null;
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -405,20 +405,31 @@ window.addEventListener('load',()=>{
   if(location.hash&&location.hash.includes('access_token')){
     const p=new URLSearchParams(location.hash.substring(1));
     const tok=p.get('access_token'),exp=parseInt(p.get('expires_in')||'3600');
+    const scope=p.get('scope')||'';
     if(tok){
       accessToken=tok;
       localStorage.setItem('it',tok);
       localStorage.setItem('ite',(Date.now()+(exp-120)*1000).toString());
+      localStorage.setItem('isc',scope);
       history.replaceState(null,'',location.pathname);
       fetchUserInfo();showApp();loadData();return;
     }
   }
   const tok=localStorage.getItem('it'),exp=parseInt(localStorage.getItem('ite')||'0');
-  if(tok&&Date.now()<exp){
+  const savedScope=localStorage.getItem('isc')||'';
+  // Old tokens (saved before we added the spreadsheets scope) won't have it →
+  // force a fresh login so writes won't fail with "insufficient scopes".
+  const hasWriteScope=savedScope.includes('spreadsheets');
+  if(tok&&Date.now()<exp&&hasWriteScope){
     accessToken=tok;
     userName=localStorage.getItem('in')||'';
     userEmail=localStorage.getItem('ie')||'';
     restoreAvatar();showApp();loadData();
+  } else if(tok){
+    // we have a token but it's missing scopes — clear it and show login
+    ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+    accessToken=null;
+    document.getElementById('login-screen').style.display='flex';
   }
   // else login screen already visible
 });
@@ -431,7 +442,7 @@ function fetchUserInfo(){
   fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
     .then(r=>r.json()).then(u=>{
       if(!ALLOWED.includes((u.email||'').toLowerCase())){
-        ['it','ite','ip','in','ie'].forEach(k=>localStorage.removeItem(k));
+        ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
         accessToken=null;
         document.getElementById('app').style.display='none';
         document.getElementById('login-screen').style.display='flex';
@@ -644,6 +655,12 @@ function setF(type,val){
   applyFilters();
 }
 function applyFilters(){
+  // If the user is currently in the secret operations section, don't touch the
+  // main list at all — just refresh the tasks view.
+  if(inTasksSection){
+    if(typeof renderTasks==='function') renderTasks();
+    return;
+  }
   const q=document.getElementById('search').value.toLowerCase();
   const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
   const filtered=active.filter(c=>{
@@ -929,9 +946,21 @@ function openLogModal(rowNum,kind){
   history.pushState({page:'log'},'');
 }
 
+// When we close a modal "programmatically" (via Save / Cancel button), we still
+// want to pop the history entry we pushed when opening it — but the popstate
+// handler must NOT then do its own close logic (it would re-trigger and exit
+// the section). This flag tells popstate to ignore the next event.
+let _suppressPopstate=false;
+function popHistorySilently(){
+  _suppressPopstate=true;
+  history.back();
+  // safety reset in case popstate doesn't fire (e.g. no entry to pop)
+  setTimeout(()=>{_suppressPopstate=false;},120);
+}
+
 function closeLogModal(){
   document.getElementById('log-modal').classList.remove('open');
-  if(history.state&&history.state.page==='log')history.back();
+  if(history.state&&history.state.page==='log') popHistorySilently();
 }
 
 /* ── EDIT existing log ────────────────────────────────────────────────────── */
@@ -944,7 +973,7 @@ function openEditLog(){
 }
 function closeEditLog(){
   document.getElementById('log-edit-modal').classList.remove('open');
-  if(history.state&&history.state.page==='log-edit')history.back();
+  if(history.state&&history.state.page==='log-edit') popHistorySilently();
 }
 async function saveEditLog(){
   if(!currentLog)return;
@@ -1043,8 +1072,32 @@ async function saveAddLog(){
 }
 
 /* ── Sheet write ─────────────────────────────────────────────────────────── */
+// If a write call returns an "insufficient scopes" or invalid-token error,
+// we have to force the user to log in again so OAuth re-issues a token
+// with the spreadsheets scope.
+function isAuthError(err){
+  const msg=(err&&err.message||'').toLowerCase();
+  return msg.includes('insufficient authentication scopes')
+      || msg.includes('insufficient scopes')
+      || msg.includes('invalid_token')
+      || msg.includes('invalid credentials')
+      || msg.includes('unauthorized')
+      || msg.includes('the request is missing')
+      || msg.includes('access token');
+}
+function handleAuthError(){
+  // Clear stored token and bounce back to login screen
+  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;
+  showToast('צריך להתחבר מחדש כדי לקבל הרשאת כתיבה לגיליון');
+  setTimeout(()=>{
+    document.getElementById('app').style.display='none';
+    document.getElementById('login-screen').style.display='flex';
+  },1500);
+}
+
 async function writeLogToSheet(rowNum,value,col){
-  if(!accessToken) throw new Error('אין הרשאה — התחבר מחדש');
+  if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
   const c=col||COL_CF;
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${c}${rowNum}?valueInputOption=RAW`;
   const res=await fetch(url,{
@@ -1053,7 +1106,11 @@ async function writeLogToSheet(rowNum,value,col){
     body:JSON.stringify({values:[[value]]})
   });
   const data=await res.json();
-  if(data.error) throw new Error(data.error.message);
+  if(data.error){
+    const e=new Error(data.error.message);
+    if(isAuthError(e)) handleAuthError();
+    throw e;
+  }
   return data;
 }
 
@@ -1369,7 +1426,7 @@ function openOpsEditModal(rowNum){
 
 function closeOpsEdit(){
   document.getElementById('ops-edit-modal').style.display='none';
-  if(history.state&&history.state.page==='ops-edit')history.back();
+  if(history.state&&history.state.page==='ops-edit') popHistorySilently();
 }
 
 async function saveOpsEdit(){
@@ -1402,7 +1459,7 @@ async function doOpsWrite(yVal,zVal,aaVal){
   if(typeof renderTasks==='function')renderTasks();
   showToast('שומר...');
   try{
-    if(!accessToken)throw new Error('אין הרשאה — התחבר מחדש');
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
     // Single batchUpdate writes Y, Z, AA all at once
     const body={
       valueInputOption:'RAW',
@@ -1419,7 +1476,11 @@ async function doOpsWrite(yVal,zVal,aaVal){
       body:JSON.stringify(body)
     });
     const data=await res.json();
-    if(data.error)throw new Error(data.error.message);
+    if(data.error){
+      const e=new Error(data.error.message);
+      if(isAuthError(e)) handleAuthError();
+      throw e;
+    }
     showToast('✓ נשמר');
   }catch(e){
     showToast('✗ '+e.message);
@@ -1427,6 +1488,12 @@ async function doOpsWrite(yVal,zVal,aaVal){
 }
 
 window.addEventListener('popstate',()=>{
+  // If we triggered the popstate ourselves to close a modal, don't run the
+  // generic close logic (it would cascade and accidentally exit the section).
+  if(_suppressPopstate){
+    _suppressPopstate=false;
+    return;
+  }
   const addOpen=document.getElementById('log-add-modal').classList.contains('open');
   const editOpen=document.getElementById('log-edit-modal').classList.contains('open');
   const viewOpen=document.getElementById('log-modal').classList.contains('open');
