@@ -896,6 +896,25 @@ function toggleExpand(rowNum){
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+// Wrap phone-number-looking sequences in tel: links.
+// Accepts already-HTML-escaped input. Matches Israeli mobile/landline formats:
+//   050-1234567, 050 1234567, 0501234567, +972501234567, 02-1234567, 1-700-12-34-56 etc.
+// Looks for runs of 9-12 digits with optional separators, where the digit count is sane.
+function linkifyPhones(html){
+  if(!html)return html;
+  // Pattern: optional + or 0 prefix, then digits with optional separators (- . space)
+  return html.replace(/(\+?\d[\d\-\.\s]{7,16}\d)/g,(match)=>{
+    const digits=match.replace(/\D/g,'');
+    if(digits.length<9||digits.length>13) return match;
+    let tel=digits;
+    // Israeli local → international (+972) so it works on both Android and iOS
+    if(digits.startsWith('0')) tel='+972'+digits.substring(1);
+    else if(!match.startsWith('+')) tel=digits;
+    else tel='+'+digits;
+    return `<a href="tel:${tel}" style="color:var(--blue);text-decoration:underline;font-weight:600">${match}</a>`;
+  });
+}
+
 function showToast(msg){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
@@ -919,9 +938,9 @@ function renderLogContent(log){
     const isHeader=/^\d{2}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}/.test(head.trim());
     if(isHeader){
       const body=lines.slice(1).join('\n');
-      return `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:3px">${esc(head)}</div><div>${esc(body)}</div></div>`;
+      return `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:3px">${esc(head)}</div><div>${linkifyPhones(esc(body))}</div></div>`;
     }
-    return `<div style="margin-bottom:10px">${esc(en)}</div>`;
+    return `<div style="margin-bottom:10px">${linkifyPhones(esc(en))}</div>`;
   }).join('<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">')+'</div>';
 }
 
@@ -1255,19 +1274,26 @@ function renderTasks(){
   arr.forEach(c=>{
     const dl=c.opsDeadline;
     const dleft=dl?daysFromToday(dl):null;
-    let dlBadge='';
-    if(dl){
-      const cls=dleft<0?'badge-red':(dleft<=5?'badge-red':(dleft<=10?'badge-orange':'badge-gray'));
-      const label=dleft<0?`באיחור ${Math.abs(dleft)} ימים`:(dleft===0?'היום':`עוד ${dleft} ימים`);
-      dlBadge=`<span class="status-badge ${cls} ops-edit-trigger" data-row="${c.rowNum}" style="margin-right:auto;cursor:pointer">${label} ✎</span>`;
-    } else {
-      dlBadge=`<span class="status-badge badge-gray ops-edit-trigger" data-row="${c.rowNum}" style="margin-right:auto;cursor:pointer">ללא דדליין ✎</span>`;
+
+    // Late badge — only when actually late (negative days). Otherwise no badge.
+    let lateBadge='';
+    if(dleft!==null && dleft<0){
+      lateBadge=`<span class="status-badge badge-red" style="position:absolute;left:10px;bottom:10px;">⚠ באיחור ${Math.abs(dleft)} ימים</span>`;
     }
 
-    const startTxt=c.opsStartRaw?`התחלה: ${esc(c.opsStartRaw)}`:'';
-    const daysTxt=c.opsDaysRaw?`${esc(c.opsDaysRaw)} ימים`:'';
-    const dlTxt=c.opsDeadlineRaw?`דדליין: ${esc(c.opsDeadlineRaw)}`:'';
-    const meta=[startTxt,daysTxt,dlTxt].filter(Boolean).join(' • ');
+    // One-line meta: case # • start • days • deadline (deadline is the edit trigger)
+    const parts=[];
+    if(c.caseNum) parts.push('תיק '+esc(c.caseNum));
+    if(c.opsStartRaw) parts.push('התחלה '+esc(c.opsStartRaw));
+    if(c.opsDaysRaw) parts.push(esc(c.opsDaysRaw)+' ימים');
+    const dlPart=c.opsDeadlineRaw
+      ? `<span class="ops-edit-trigger" data-row="${c.rowNum}" style="cursor:pointer;color:var(--slate);font-weight:600">דדליין ${esc(c.opsDeadlineRaw)} ✎</span>`
+      : `<span class="ops-edit-trigger" data-row="${c.rowNum}" style="cursor:pointer;color:var(--muted)">ללא דדליין ✎</span>`;
+    parts.push(dlPart);
+    const metaLine=parts.join(' • ');
+
+    // Full content of column X — exactly as it sits in the sheet (phones clickable)
+    const logPreview=c.opsLog?linkifyPhones(esc(c.opsLog)):'';
 
     const wrap=document.createElement('div');
     wrap.className='swipe-wrap';
@@ -1278,17 +1304,21 @@ function renderTasks(){
     }
     const content=document.createElement('div');
     content.className='swipe-content';
-    content.innerHTML=`<div class="client-card${dleft!==null&&dleft<=5?' urgent':(dleft!==null&&dleft<=10?' warning':'')}" data-row="${c.rowNum}">
-      <div class="card-header">
+    const cardCls=dleft!==null&&dleft<0?' urgent'
+                 :dleft!==null&&dleft<=5?' urgent'
+                 :dleft!==null&&dleft<=10?' warning':'';
+    content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;">
+      <div class="card-header" style="padding-left:54px;${lateBadge?'padding-bottom:34px;':''}">
         <div class="client-info">
           <div class="client-name">${esc(c.name)}</div>
-          <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${meta?(c.caseNum?' • ':'')+meta:''}</div>
-          <div style="margin-top:6px;display:flex;align-items:center;gap:6px">${dlBadge}</div>
+          <div class="client-meta" style="margin-top:3px">${metaLine}</div>
+          ${logPreview?`<div style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
         </div>
-        <button class="log-btn ${c.opsLog?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'ops')" title="תיעוד משימה">
-          📋${c.opsLog?'<span class="log-dot"></span>':''}
-        </button>
       </div>
+      <button class="log-btn ${c.opsLog?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'ops')" title="תיעוד משימה" style="position:absolute;left:10px;top:10px;">
+        📋${c.opsLog?'<span class="log-dot"></span>':''}
+      </button>
+      ${lateBadge}
     </div>`;
     wrap.appendChild(content);
     list.appendChild(wrap);
