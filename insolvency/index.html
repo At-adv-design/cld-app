@@ -22,7 +22,7 @@
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
 /* HEADER */
-.header{background:var(--white);height:64px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
 .hdr-right{display:flex;gap:8px;align-items:center;}
 .hdr-count{font-size:11px;color:var(--muted);font-weight:500;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 9px;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;}
@@ -354,14 +354,14 @@ const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com',
 
 // Columns (0-based)
 const C_NAME=22,C_CASE=66;
-// New section "ביצועים" columns
-const C_TASK_LOG=23;        // X: log (cumulative summaries) — first 2 lines preserved
-const C_TASK_START=24;      // Y: start / received-instruction date
-const C_TASK_DAYS=25;       // Z: days to complete
-const C_TASK_DEADLINE=26;   // AA: deadline (Y + Z)
-const C_TASK_STATUS=27;     // AB: 'wait' if waiting tab, otherwise empty/active
-const COL_X='X';            // for write URL (log)
-const COL_AB='AB';          // for write URL (status)
+// Operations section ("ביצועים" — entered via 4 logo taps)
+const C_X=23;          // X: cumulative summary log (first 2 lines preserved)
+const C_Y=24;          // Y: start / received-instruction date
+const C_Z=25;          // Z: days to complete
+const C_AA=26;         // AA: deadline (Y + Z)
+const C_CG=84;         // CG: status — 'wait' or empty
+const COL_X='X';       // write URL for log
+const COL_CG='CG';     // write URL for status
 const C_DOCS_LIST=28,C_DOCS_AE=30,C_DOCS_AG=32,C_DOCS_AH=33,C_DOCS_AI=34;
 const C_AL=37,C_AZ=51;
 const C_BG=58,C_BH=59,C_BI=60;
@@ -475,9 +475,14 @@ function switchTab(tab){
 }
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
+let _firstLoadDone=false;
 async function loadData(){
-  document.getElementById('loading').style.display='flex';
-  document.getElementById('cards-list').innerHTML='';
+  // Show the spinner only on the very first load (or when actively viewing the main list and it's empty)
+  const showSpinner=!_firstLoadDone && !inTasksSection;
+  if(showSpinner){
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('cards-list').innerHTML='';
+  }
   try{
     const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CG?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
@@ -485,16 +490,23 @@ async function loadData(){
     const rows=(data.values||[]).slice(2);
     allClients=rows.map((row,i)=>parseClient(row,i+3)).filter(c=>c&&c.name&&c.name.trim());
     const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
-    document.getElementById('total-count').textContent=inTasksSection?'ביצועים':(active.length+' תיקים');
+    document.getElementById('total-count').textContent=active.length+' תיקים';
     updateWaitingTab();
     updateStats(active);
     document.getElementById('loading').style.display='none';
-    renderCards(active);
-    if(inTasksSection) renderTasks();
+    // Only re-render the section the user is currently looking at
+    if(inTasksSection){
+      renderTasks();
+    } else {
+      renderCards(active);
+    }
+    _firstLoadDone=true;
     setTimeout(loadData,3*60*1000);
   }catch(e){
     document.getElementById('loading').style.display='none';
-    document.getElementById('cards-list').innerHTML=`<div style="padding:20px;color:var(--red)">❌ ${e.message}</div>`;
+    if(!inTasksSection){
+      document.getElementById('cards-list').innerHTML=`<div style="padding:20px;color:var(--red)">❌ ${e.message}</div>`;
+    }
   }
 }
 
@@ -1100,7 +1112,6 @@ function enterTasksSection(){
   document.getElementById('tasks-section').style.display='block';
   // Hide top tabs while in tasks section
   document.querySelector('#app > .tabs').style.display='none';
-  document.getElementById('total-count').textContent='ביצועים';
   history.pushState({page:'tasks'},'');
   renderTasks();
 }
