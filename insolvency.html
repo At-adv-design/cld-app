@@ -335,7 +335,7 @@ function parseClient(row,rowNum){
     const dv=g(C_REP_DATES[i]),sv=g(C_REP_STATUS[i]).toLowerCase();
     reports.push(dv); // always store date from date column
     if(sv==='הוגש') reportStatus.push('done');
-    else if(sv==='בתהליך') reportStatus.push('progress');
+    else if(sv.includes('בתהליך')||sv.includes('בתהל')) reportStatus.push('progress');
     else if(!dv) reportStatus.push('empty');
     else{
       const d=parseDate(dv);
