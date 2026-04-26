@@ -362,7 +362,8 @@ function parseClient(row,rowNum){
 
   // DOCS
   const docsList=g(C_DOCS_LIST);
-  const agDate=parseDate(g(C_DOCS_AG)),aeDate=parseDate(g(C_DOCS_AE));
+  const docsAGRaw=g(C_DOCS_AG);
+  const agDate=parseDate(docsAGRaw),aeDate=parseDate(g(C_DOCS_AE));
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
   const docsHighUrgent=!docsDone&&agDate&&agDate<=in7;
@@ -386,7 +387,7 @@ function parseClient(row,rowNum){
   const isWarning=!isUrgent&&(docsLowUrgent||srvWarning||docsReminder||reminder);
 
   return{rowNum,name,caseNum:g(C_CASE),reports,reportStatus,overdueCount,
-    docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,
+    docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
     injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning};
 }
 
@@ -400,6 +401,21 @@ function parseDate(s){
   m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(m)return new Date(parseInt(m[1]),parseInt(m[2])-1,parseInt(m[3]));
   return null;
+}
+
+function fmtDateFull(s){
+  // Returns DD/MM/YY (or original if can't parse)
+  if(!s||s==='')return'';
+  let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const dd=m[1].padStart(2,'0');
+    const mm=m[2].padStart(2,'0');
+    const yy=m[3].length===4?m[3].slice(2):m[3].padStart(2,'0');
+    return dd+'/'+mm+'/'+yy;
+  }
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return m[3]+'/'+m[2]+'/'+m[1].slice(2);
+  return s;
 }
 
 function fmtDate(s){
@@ -509,6 +525,7 @@ function renderCards(clients){
 
     let bodyHtml='';
     if(exp){
+      const docsDeadline=c.docsHighUrgent&&c.docsAGRaw?fmtDateFull(c.docsAGRaw):'';
       bodyHtml=`<div class="card-body">
         <div>
           <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
@@ -516,15 +533,21 @@ function renderCards(clients){
           ${c.reminder?'<div class="reminder-row" style="margin-top:6px"><span>🔔</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span></div>':''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
-          <div class="section-title" style="color:var(--slate)">השלמת מסמכים</div>
-          ${c.docsList?`<div style="font-size:12px;color:var(--muted);padding:5px 8px;background:var(--bg);border-radius:4px;border:1px solid var(--border);margin-bottom:4px">${esc(c.docsList)}</div>`:''}
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+            <div class="section-title" style="color:var(--slate);margin-bottom:0">השלמת מסמכים</div>
+            ${docsDeadline?`<div style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${docsDeadline}</div>`:''}
+          </div>
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${docsText}</span></div>
+          ${c.docsList?`<div style="font-size:12px;color:var(--muted);padding:5px 8px;background:var(--bg);border-radius:4px;border:1px solid var(--border)">${esc(c.docsList)}</div>`:''}
           ${c.docsReminder?'<div class="reminder-row"><span>🔔</span><span class="reminder-text">תזכורת — ב-5, 15 ו-25 לחודש</span></div>':''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
-          <div class="section-title" style="color:var(--slate)">עיכוב הליכים ואישורי מסירה</div>
-          <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${injText}</span></div>
+          <div class="section-title" style="color:var(--slate)">אישורי מסירה</div>
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${srvText}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="section-title" style="color:var(--slate)">עיכוב הליכים</div>
+          <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${injText}</span></div>
         </div>
       </div>`;
     }
