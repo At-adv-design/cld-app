@@ -3,63 +3,174 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#3a3a48">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>אבי טל ושות׳</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
 :root{
-  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;
-  --bg:#f5f5f7;--white:#fff;--border:#e2e2e8;
-  --muted:#9898a8;--text:#1a1a28;--blue:#1a5f9e;
-  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+  --bg:#FAF9F5;
+  --surface:#FFFFFF;
+  --surface-2:#F2F1EA;
+  --border:#D9D6CA;
+  --border-soft:#E6E3D8;
+  --text:#1F1E1B;
+  --text-muted:#6B6A65;
+  --slate:#3a3a48;
+  --slate-2:#2c2c38;
+  --red:#b01010;
+  --red-soft:#fdecec;
+  --shadow:0 1px 2px rgba(31,30,27,0.04),0 4px 16px rgba(31,30,27,0.05);
+  --shadow-lg:0 8px 32px rgba(31,30,27,0.12);
 }
-body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:36px;}
-.brand{display:flex;flex-direction:column;align-items:center;gap:14px;}
-.brand img{width:200px;object-fit:contain;}
-.brand-tagline{font-size:13px;color:var(--muted);font-weight:500;letter-spacing:.5px;}
-.choose-title{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:-8px;letter-spacing:.4px;}
-.cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px;}
-.card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:20px 22px;display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--text);box-shadow:var(--shadow);transition:all .15s;cursor:pointer;}
-.card:active{transform:scale(.98);box-shadow:0 1px 4px rgba(0,0,0,0.08);}
-.card-icon{width:48px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;color:#fff;}
-.card-leads .card-icon{background:var(--slate);}
-.card-insolv .card-icon{background:var(--red);}
+[data-theme="dark"]{
+  --bg:#1F1E1C;
+  --surface:#2A2A28;
+  --surface-2:#34332F;
+  --border:#3A3A36;
+  --border-soft:#33332F;
+  --text:#F5F4EE;
+  --text-muted:#A8A6A0;
+  --slate:#9A9AAB;
+  --slate-2:#7B7B8A;
+  --red:#E04444;
+  --red-soft:#3A2222;
+  --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.5);
+}
+
+html,body{height:100%;}
+body{
+  font-family:'Inter','Segoe UI',-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px;gap:32px;
+  transition:background .25s,color .25s;
+}
+
+.theme-toggle{
+  position:fixed;top:16px;left:16px;
+  background:var(--surface);border:1px solid var(--border);
+  width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text);
+  box-shadow:var(--shadow);transition:all .15s;z-index:10;
+}
+.theme-toggle:active{transform:scale(.92);}
+.theme-toggle svg{width:18px;height:18px;}
+
+.brand{display:flex;flex-direction:column;align-items:center;gap:12px;}
+.brand img{width:210px;object-fit:contain;}
+[data-theme="dark"] .brand img{filter:invert(.94) hue-rotate(180deg) brightness(.95);}
+.brand-tagline{font-size:13px;color:var(--text-muted);font-weight:500;letter-spacing:.4px;}
+
+.choose-title{font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:-4px;letter-spacing:.6px;text-transform:uppercase;}
+
+.cards{display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  padding:18px 20px;
+  display:flex;align-items:center;gap:14px;
+  text-decoration:none;color:var(--text);
+  box-shadow:var(--shadow);transition:all .15s;cursor:pointer;
+}
+.card:hover{border-color:var(--slate);box-shadow:var(--shadow-lg);}
+.card:active{transform:scale(.99);}
+
+.card-icon{
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  color:var(--slate);
+}
+.card-icon svg{width:22px;height:22px;}
+.card-leads .card-icon{background:var(--slate);border-color:var(--slate);color:#fff;}
+.card-insolv .card-icon{background:var(--red-soft);border-color:var(--red);color:var(--red);}
+
 .card-info{flex:1;min-width:0;}
-.card-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:3px;}
-.card-sub{font-size:12px;color:var(--muted);font-weight:500;}
-.card-arrow{color:var(--muted);font-size:20px;flex-shrink:0;}
-.footer{margin-top:auto;padding-top:24px;font-size:11px;color:var(--muted);font-weight:500;}
+.card-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:2px;letter-spacing:-.1px;}
+.card-sub{font-size:12.5px;color:var(--text-muted);font-weight:400;line-height:1.4;}
+.card-arrow{color:var(--text-muted);flex-shrink:0;}
+.card-arrow svg{width:18px;height:18px;}
+
+.footer{margin-top:auto;padding-top:24px;font-size:11px;color:var(--text-muted);font-weight:500;}
 </style>
 </head>
 <body>
-  <div class="brand">
-    <img src="logo.png" alt="אבי טל ושות׳">
-    <div class="brand-tagline">משרד עורכי דין</div>
-  </div>
 
-  <div class="choose-title">בחר מערכת</div>
+<button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="החלף מצב">
+  <!-- moon (light mode shows moon to switch to dark) -->
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="theme-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+</button>
 
-  <div class="cards">
-    <a class="card card-leads" href="leads/">
-      <div class="card-icon">📋</div>
-      <div class="card-info">
-        <div class="card-title">ניהול לידים</div>
-        <div class="card-sub">פניות חדשות, סיכומי שיחה והעברות</div>
-      </div>
-      <div class="card-arrow">‹</div>
-    </a>
+<div class="brand">
+  <img src="logo.png" alt="אבי טל ושות׳">
+  <div class="brand-tagline">משרד עורכי דין</div>
+</div>
 
-    <a class="card card-insolv" href="insolvency/">
-      <div class="card-icon">⚖️</div>
-      <div class="card-info">
-        <div class="card-title">חדלות פירעון</div>
-        <div class="card-sub">תיקים פעילים, דוחות ומסמכים</div>
-      </div>
-      <div class="card-arrow">‹</div>
-    </a>
-  </div>
+<div class="choose-title">בחר מערכת</div>
 
-  <div class="footer">© אבי טל ושות׳</div>
+<div class="cards">
+  <a class="card card-leads" href="leads/">
+    <div class="card-icon">
+      <!-- users / leads icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div class="card-info">
+      <div class="card-title">ניהול לידים</div>
+      <div class="card-sub">פניות חדשות, סיכומי שיחה והעברות</div>
+    </div>
+    <div class="card-arrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+  </a>
+
+  <a class="card card-insolv" href="insolvency/">
+    <div class="card-icon">
+      <!-- scales of justice -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7h14M5 7l-3 7a4 4 0 0 0 6 0L5 7zM19 7l-3 7a4 4 0 0 0 6 0L19 7zM7 21h10"/></svg>
+    </div>
+    <div class="card-info">
+      <div class="card-title">חדלות פירעון</div>
+      <div class="card-sub">תיקים פעילים, דוחות ומסמכים</div>
+    </div>
+    <div class="card-arrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+  </a>
+</div>
+
+<div class="footer">© אבי טל ושות׳</div>
+
+<script>
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('theme-moon').style.display=t==='dark'?'none':'block';
+  document.getElementById('theme-sun').style.display=t==='dark'?'block':'none';
+  // Update theme-color meta
+  const c=t==='dark'?'#1F1E1C':'#FAF9F5';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute('content',c));
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='light'?'dark':'light';
+  localStorage.setItem('at_theme',next);
+  applyTheme(next);
+}
+// Initial
+(function(){
+  let saved=localStorage.getItem('at_theme');
+  if(!saved){
+    saved=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  applyTheme(saved);
+})();
+</script>
 </body>
 </html>
