@@ -128,10 +128,33 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .log-btn.has-log{border-color:var(--slate);background:#fafafd;}
 .log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
 
-/* LOG MODAL — viewer */
-#log-modal,#log-edit-modal,#log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:flex-end;backdrop-filter:blur(4px);}
-#log-modal.open,#log-edit-modal.open,#log-add-modal.open{display:flex;}
-.log-sheet{background:var(--white);border-top:2px solid var(--slate);padding:16px 16px 20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;display:flex;flex-direction:column;gap:10px;animation:slideUp .25s cubic-bezier(.32,.72,0,1);box-shadow:0 -4px 28px rgba(0,0,0,0.1);max-height:100dvh;overflow-y:auto;}
+/* LOG MODAL — viewer (fullscreen) and edit/add (bottom sheet) */
+#log-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
+#log-modal.open{display:flex;flex-direction:column;}
+#log-edit-modal,#log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:310;align-items:flex-end;backdrop-filter:blur(4px);}
+#log-edit-modal.open,#log-add-modal.open{display:flex;}
+/* Fullscreen sheet for the viewer */
+#log-modal .log-sheet{
+  background:var(--white);
+  border:none;
+  padding:14px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  padding-top:calc(14px + env(safe-area-inset-top));
+  width:100%;height:100%;max-height:100dvh;
+  display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+  overflow-y:auto;
+}
+/* Bottom-sheet style for edit / add modals */
+#log-edit-modal .log-sheet,#log-add-modal .log-sheet{
+  background:var(--white);border-top:2px solid var(--slate);
+  padding:16px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  width:100%;display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+  box-shadow:0 -4px 28px rgba(0,0,0,0.1);
+  max-height:100dvh;overflow-y:auto;
+}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .log-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 4px;}
 .log-title{font-size:16px;font-weight:700;color:var(--text);}
@@ -267,18 +290,21 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 </div>
 
-<!-- LOG VIEWER MODAL -->
+<!-- LOG VIEWER MODAL — fullscreen -->
 <div id="log-modal">
   <div class="log-sheet">
-    <div class="log-handle"></div>
-    <div class="log-title">תיעוד תיק</div>
-    <div class="log-sub" id="log-modal-name"></div>
-    <div id="log-content-wrap"></div>
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
+      <button onclick="closeLogModal()" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit">→ חזרה</button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">תיעוד תיק</div>
+        <div class="log-sub" id="log-modal-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div id="log-content-wrap" style="flex:1;overflow-y:auto;min-height:0"></div>
     <div class="log-actions">
       <button class="log-action-btn log-action-add" onclick="openAddLog()">➕ הוסף תיעוד</button>
       <button class="log-action-btn log-action-edit" onclick="openEditLog()">✏️ ערוך</button>
     </div>
-    <button class="log-btn-secondary" onclick="closeLogModal()">סגור</button>
   </div>
 </div>
 
@@ -911,7 +937,7 @@ function linkifyPhones(html){
     if(digits.startsWith('0')) tel='+972'+digits.substring(1);
     else if(!match.startsWith('+')) tel=digits;
     else tel='+'+digits;
-    return `<a href="tel:${tel}" style="color:var(--blue);text-decoration:underline;font-weight:600">${match}</a>`;
+    return `<a href="tel:${tel}" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:underline;font-weight:600">${match}</a>`;
   });
 }
 
@@ -1307,17 +1333,16 @@ function renderTasks(){
     const cardCls=dleft!==null&&dleft<0?' urgent'
                  :dleft!==null&&dleft<=5?' urgent'
                  :dleft!==null&&dleft<=10?' warning':'';
-    content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;">
-      <div class="card-header" style="padding-left:54px;${lateBadge?'padding-bottom:34px;':''}">
+    // Whole card is clickable → opens the log (full-screen). Inner buttons/links
+    // (deadline editor, tel: anchors) call stopPropagation so they don't bubble.
+    content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;cursor:pointer" onclick="openLogModal(${c.rowNum},'ops')">
+      <div class="card-header" style="${lateBadge?'padding-bottom:34px;':''}">
         <div class="client-info">
           <div class="client-name">${esc(c.name)}</div>
           <div class="client-meta" style="margin-top:3px">${metaLine}</div>
-          ${logPreview?`<div style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
+          ${logPreview?`<div class="log-preview-text" style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
         </div>
       </div>
-      <button class="log-btn ${c.opsLog?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'ops')" title="תיעוד משימה" style="position:absolute;left:10px;top:10px;">
-        📋${c.opsLog?'<span class="log-dot"></span>':''}
-      </button>
       ${lateBadge}
     </div>`;
     wrap.appendChild(content);
