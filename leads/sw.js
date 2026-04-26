@@ -1,5 +1,6 @@
 // Service worker for the LEADS app
-const CACHE_NAME = 'at-leads-v1';
+// IMPORTANT: bumping the cache name forces a refresh on every device.
+const CACHE_NAME = 'at-leads-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -26,9 +27,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Hosts whose responses must NEVER be cached — always fetch fresh from the network.
+function isLiveDataHost(url) {
+  return (
+    url.includes('googleapis.com') ||
+    url.includes('google.com/oauth') ||
+    url.includes('accounts.google.com') ||
+    url.includes('googleusercontent.com')
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  // Network-first for HTML so updates are picked up quickly
+  const url = req.url;
+
+  // 1) Live data — bypass cache entirely. Always go to the network.
+  if (isLiveDataHost(url)) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // 2) HTML navigations — network-first so code updates are picked up quickly.
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     event.respondWith(
       fetch(req)
@@ -41,7 +60,8 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  // Cache-first for everything else
+
+  // 3) Static assets (logo, icon, manifest) — cache-first.
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req).then((res) => {
       const copy = res.clone();
