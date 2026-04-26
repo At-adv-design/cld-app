@@ -6,6 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#3a3a48">
+<link rel="manifest" href="manifest.json">
 <title>חדלות פירעון | אבי טל ושות׳</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -127,7 +128,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <img src="logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;" onerror="this.style.display='none'">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;" onerror="this.style.display='none'">
     <div style="font-size:15px;font-weight:600;color:var(--text)">חדלות פירעון</div>
     <div style="font-size:13px;color:var(--muted)">ניהול תיקים | כניסה עם Google</div>
     <button class="google-btn" onclick="doLogin()">
@@ -145,7 +146,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <!-- APP -->
 <div id="app" style="display:none">
   <div class="header">
-    <img src="logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-left:auto;" onerror="this.style.display='none'">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-left:auto;" onerror="this.style.display='none'">
     <div class="hdr-right">
       <span class="hdr-count" id="total-count">טוען...</span>
       <button class="hdr-btn" onclick="loadData()">↺</button>
@@ -211,6 +212,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </div>
 
 <script>
+// Register the service worker for the insolvency PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
@@ -671,4 +677,3 @@ function showToast(msg){
 </script>
 </body>
 </html>
-
