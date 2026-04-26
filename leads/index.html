@@ -1,4 +1,4 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -333,7 +333,28 @@ function doSignOut(){
    APP INIT
    ========================= */
 window.addEventListener('load',()=>{
-  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // Register service worker and listen for updates so new versions apply automatically
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then((reg)=>{
+      // Check for an updated SW every 5 minutes
+      setInterval(()=>reg.update().catch(()=>{}), 5*60*1000);
+      // When a new SW is installed and waiting, activate it immediately
+      reg.addEventListener('updatefound',()=>{
+        const newSW=reg.installing;
+        if(!newSW)return;
+        newSW.addEventListener('statechange',()=>{
+          if(newSW.state==='installed' && navigator.serviceWorker.controller){
+            newSW.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+    }).catch(()=>{});
+    // When the controlling SW changes, reload to get the fresh page
+    let reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloaded)return;reloaded=true;location.reload();
+    });
+  }
 
   // seed history so back button has somewhere safe to go
   history.replaceState({page:'app'},'');
@@ -357,6 +378,21 @@ window.addEventListener('load',()=>{
     restoreAvatar();showApp();loadLeads();askNotif();
   } else document.getElementById('login-screen').style.display='flex';
 });
+
+// Reload data whenever the app comes back to the foreground.
+// This is what makes changes from other devices/users show up immediately.
+let lastReloadAt=Date.now();
+function maybeReload(){
+  // throttle: at most once every 5s, and only if we have a token
+  if(!accessToken)return;
+  const now=Date.now();
+  if(now-lastReloadAt<5000)return;
+  lastReloadAt=now;
+  loadLeads();
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) maybeReload(); });
+window.addEventListener('focus',maybeReload);
+window.addEventListener('pageshow',(e)=>{ if(e.persisted) maybeReload(); });
 
 /* =========================
    BACK BUTTON HANDLING
@@ -461,11 +497,19 @@ function switchTab(tab){
 /* =========================
    LOAD LEADS — now reads A:W (status in V, callers in W)
    ========================= */
+let loadingLeads=false;
+let loadTimer=null;
 async function loadLeads(){
-  document.getElementById('loading').style.display='flex';
-  document.getElementById('leads-list').innerHTML='';
+  if(loadingLeads)return;
+  loadingLeads=true;
+  // Only show the spinner for the very first load (when allLeads is empty)
+  const firstLoad=!allLeads||allLeads.length===0;
+  if(firstLoad){
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('leads-list').innerHTML='';
+  }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:W?key=${API_KEY}`);
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:W?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const all=(data.values||[]).slice(1)
@@ -490,10 +534,16 @@ async function loadLeads(){
     document.getElementById('st').textContent=active.length+' לידים';
     document.getElementById('loading').style.display='none';
     filterLeads();
-    setTimeout(loadLeads,2*60*1000);
   }catch(e){
     document.getElementById('loading').style.display='none';
-    document.getElementById('leads-list').innerHTML=`<div style="padding:20px;color:var(--red);font-size:14px">❌ ${e.message}</div>`;
+    if(firstLoad){
+      document.getElementById('leads-list').innerHTML=`<div style="padding:20px;color:var(--red);font-size:14px">❌ ${e.message}</div>`;
+    }
+  }finally{
+    loadingLeads=false;
+    // Schedule next refresh — clear any old timer so we don't end up with multiple
+    if(loadTimer)clearTimeout(loadTimer);
+    loadTimer=setTimeout(loadLeads,30*1000);
   }
 }
 
