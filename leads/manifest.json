@@ -1,0 +1,27 @@
+{
+  "name": "אבי טל ושות׳ - לידים",
+  "short_name": "לידים",
+  "description": "ניהול לידים - אבי טל ושות׳",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#3a3a48",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "../icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
