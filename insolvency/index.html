@@ -50,8 +50,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* HEADER */
 .header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
 .hdr-right{display:flex;gap:8px;align-items:center;}
-.hdr-count{font-size:11px;color:var(--muted);font-weight:500;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 9px;}
-.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;}
+.hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .hdr-btn:active{background:var(--border);}
 .avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
 .avatar img{width:100%;height:100%;object-fit:cover;}
@@ -317,7 +317,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
         <div class="chip" onclick="setTaskRange(20,this)">20 ימים</div>
         <div class="chip" onclick="setTaskRange(30,this)">30 ימים</div>
       </div>
-      <button class="hdr-btn" onclick="exitTasksSection()" style="align-self:flex-start;margin-top:2px">חזרה</button>
     </div>
     <div id="tasks-list" style="padding:10px 14px;display:flex;flex-direction:column;gap:8px"></div>
   </div>
@@ -796,7 +795,17 @@ function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase();
   const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
   const filtered=active.filter(c=>{
-    if(q&&!c.name.toLowerCase().includes(q)&&!c.caseNum.toLowerCase().includes(q))return false;
+    if(q){
+      // Search across name, case number, log (CF), docs list, and ops log (X).
+      const haystack=[
+        c.name,
+        c.caseNum,
+        c.log,
+        c.docsList,
+        c.opsLog
+      ].map(s=>(s||'').toLowerCase()).join('\n');
+      if(!haystack.includes(q)) return false;
+    }
     if(fReport!=='all'&&c.overdueCount!==fReport)return false;
     if(fDocs==='urgent'&&!c.docsHighUrgent)return false;
     if(fDocs==='warning'&&!c.docsLowUrgent)return false;
@@ -1380,9 +1389,12 @@ function renderTasks(){
     if(wantedStatus==='wait') return st==='wait';
     return st!=='wait';
   });
-  // Search
+  // Search across name, case number, ops log (X) and main log (CF)
   if(q){
-    arr=arr.filter(c=>(c.name||'').toLowerCase().includes(q)||(c.caseNum||'').toLowerCase().includes(q));
+    arr=arr.filter(c=>{
+      const haystack=[c.name,c.caseNum,c.opsLog,c.log].map(s=>(s||'').toLowerCase()).join('\n');
+      return haystack.includes(q);
+    });
   }
   // Date range filter (only matters when not 'all'; only items WITH a deadline qualify
   // and only those within range remain).
@@ -1684,18 +1696,11 @@ window.addEventListener('popstate',()=>{
     document.getElementById('log-modal').classList.remove('open');
     return;
   }
-  // No log modal — handle the secret tasks section
+  // We deliberately do NOT exit the tasks section here.
+  // The user explicitly asked: only 4 taps on the logo should leave it.
+  // Re-push the state so a subsequent back button stays harmless.
   if(inTasksSection){
-    inTasksSection=false;
-    document.getElementById('tasks-section').style.display='none';
-    document.querySelector('#app > .tabs').style.display='flex';
-    if(curTab==='waiting'){
-      document.getElementById('waiting-section').style.display='block';
-    } else {
-      document.getElementById('main-section').style.display='block';
-    }
-    const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
-    document.getElementById('total-count').textContent=active.length+' תיקים';
+    history.pushState({page:'tasks'},'');
     return;
   }
 });
