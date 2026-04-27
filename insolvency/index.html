@@ -367,11 +367,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
       <button onclick="closeLogModal()" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>חזרה</span></span></button>
       <div style="flex:1;min-width:0">
-        <div class="log-title" style="font-size:15px">תיעוד תיק</div>
+        <div class="log-title" id="log-modal-title" style="font-size:15px">תיעוד תיק</div>
         <div class="log-sub" id="log-modal-name" style="margin-top:2px"></div>
       </div>
     </div>
-    <div id="log-content-wrap" style="flex:1;overflow-y:auto;min-height:0"></div>
+    <div id="log-content-wrap" style="flex:1;overflow-y:auto;min-height:0;padding:14px 16px"></div>
     <div class="log-actions">
       <button class="log-action-btn log-action-add" onclick="openAddLog()"><span style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>הוסף תיעוד</span></span></button>
       <button class="log-action-btn log-action-edit" onclick="openEditLog()"><span style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg><span>ערוך</span></span></button>
@@ -1104,12 +1104,9 @@ function renderCards(clients){
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
           <div class="client-info">
-            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+            <div class="client-name-row">${phoneBtn(c)}<button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button><div class="client-name">${esc(c.name)}</div></div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
           </div>
-          <button class="log-btn ${c.callLog?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'ch')" title="סיכומי שיחות">
-            ${ICON.clipboard}${c.callLog?'<span class="log-dot"></span>':''}
-          </button>
         </div>
         ${bodyHtml}
       </div>`;
@@ -1290,20 +1287,19 @@ function renderLogContent(log){
   const header=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
     <button class="expand-all-btn" onclick="toggleLogContentExpandAll()">${ICON.plus}<span>${toggleLabel}</span></button>
   </div>`;
-  return '<div class="log-content">'+header+entries.map((en,i)=>{
+  const expandedCls=_logExpandAll?' expanded':'';
+  return header+entries.map((en,i)=>{
     const lines=en.split('\n');
     const head=lines[0]||'';
     const isHeader=/^\d{2}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}/.test(head.trim());
-    const editBtn=`<button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="position:absolute;left:8px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.pencil}</button>`;
     const body=isHeader?lines.slice(1).join('\n'):en;
     const tsHtml=isHeader?`<div class="entry-ts">${esc(head)}</div>`:'';
-    const expandedCls=_logExpandAll?' expanded':'';
     return `<div class="entry-card${expandedCls}" onclick="toggleEntryCard(this)">
       ${tsHtml}
-      <div class="entry-body">${linkifyPhones(esc(body))}</div>
-      ${editBtn}
+      <div class="entry-body">${linkifyPhones(esc(body.trim()))}</div>
+      <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="position:absolute;left:8px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.pencil}</button>
     </div>`;
-  }).join('')+'</div>';
+  }).join('');
 }
 function toggleEntryCard(el){
   if(!el)return;
@@ -1388,16 +1384,23 @@ function openLogModal(rowNum,kind){
   const client=allClients.find(c=>c.rowNum===rowNum);
   if(!client){showToast('תיק לא נמצא');return;}
   kind=kind||'cf';
+  let title='תיעוד תיק';
   if(kind==='ops'){
     currentLog={rowNum,name:client.name,log:client.opsLog||'',
       field:'opsLog',col:COL_X,preserveLines:2,kind:'ops'};
+    title='תיעוד ביצוע';
   } else if(kind==='ch'){
     currentLog={rowNum,name:client.name,log:client.callLog||'',
       field:'callLog',col:COL_CH,preserveLines:0,kind:'ch'};
+    title='סיכומי שיחות';
   } else {
     currentLog={rowNum,name:client.name,log:client.log||'',
       field:'log',col:COL_CF,preserveLines:0,kind:'cf'};
+    title='תיעוד תיק';
   }
+  // Reset the expand-all state so each viewer starts collapsed
+  _logExpandAll=false;
+  document.getElementById('log-modal-title').textContent=title;
   document.getElementById('log-modal-name').textContent=client.name+(client.caseNum?' • תיק '+client.caseNum:'');
   document.getElementById('log-content-wrap').innerHTML=renderLogContent(currentLog.log);
   document.getElementById('log-modal').classList.add('open');
@@ -1420,6 +1423,8 @@ function popHistorySilently(){
 function closeLogModal(){
   document.getElementById('log-modal').classList.remove('open');
   if(history.state&&history.state.page==='log') popHistorySilently();
+  // Clear currentLog so a stale reference can't leak into a different viewer.
+  currentLog=null;
 }
 
 /* ── EDIT existing log ────────────────────────────────────────────────────── */
