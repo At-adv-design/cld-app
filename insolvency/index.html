@@ -1105,9 +1105,10 @@ function renderCards(clients){
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
           <div class="client-info">
-            <div class="client-name-row">${phoneBtn(c)}<button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button><div class="client-name">${esc(c.name)}</div></div>
+            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
           </div>
+          <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק" style="margin-right:auto">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
         </div>
         ${bodyHtml}
       </div>`;
