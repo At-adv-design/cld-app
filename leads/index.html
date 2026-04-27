@@ -129,6 +129,21 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .call-btn.done{background:var(--green);border-color:var(--green);color:#fff;}
 .note-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
 .cal-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+/* Custom date/time picker stepper buttons — large tap targets for hands-busy use */
+.picker-btn{width:100%;min-height:44px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;color:var(--slate);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.picker-btn:active{background:var(--slate);color:#fff;transform:scale(.96);}
+/* Visual calendar grid in meeting dialog — Sunday-first */
+.cal-dow{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:6px 0;}
+.cal-day{height:46px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:16px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
+.cal-day:active{transform:scale(.94);}
+.cal-day.empty{visibility:hidden;}
+.cal-day.today{border-color:var(--slate);}
+.cal-day.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
+.cal-day.past{color:var(--muted);background:#f5f5f5;}
+/* Time slot grid (half-hour buttons 08:00–20:00) */
+.time-slot{height:46px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:15px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;direction:ltr;}
+.time-slot:active{transform:scale(.94);}
+.time-slot.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
 .cal-btn:active{transform:scale(.92);background:var(--bg);}
 .note-btn:active{transform:scale(.92);background:var(--bg);}
 
@@ -415,29 +430,64 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <!-- MEETING DIALOG — schedule a 1-hour meeting; writes to columns X, Y, Z -->
 <!-- MEETING DIALOG — larger fields and buttons for quick interaction (e.g. while driving) -->
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
-  <div class="modal-sheet" style="padding:22px 20px 26px;padding-bottom:calc(26px + env(safe-area-inset-bottom));max-height:92dvh;overflow-y:auto;">
+  <div class="modal-sheet" style="padding:18px 16px 22px;padding-bottom:calc(22px + env(safe-area-inset-bottom));max-height:94dvh;overflow-y:auto;">
     <div class="mhandle"></div>
-    <div class="mtitle" style="font-size:20px;font-weight:700;margin-bottom:4px">קביעת פגישה</div>
-    <div class="msub" id="meeting-name" style="font-size:15px;color:var(--slate);margin-bottom:18px;font-weight:600"></div>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div>
-        <label style="font-size:14px;font-weight:700;color:var(--slate);display:block;margin-bottom:6px">תאריך</label>
-        <input type="date" id="meeting-date" style="width:100%;padding:16px 14px;background:var(--bg);border:1px solid var(--border);font-size:18px;font-weight:600;font-family:inherit;color:var(--text)"/>
+    <div class="mtitle" style="font-size:19px;font-weight:700;margin-bottom:4px">קביעת פגישה</div>
+    <div class="msub" id="meeting-name" style="font-size:14px;color:var(--slate);margin-bottom:14px;font-weight:600"></div>
+
+    <!-- Section: VISUAL CALENDAR -->
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <button type="button" onclick="navMonth(-1)" class="picker-btn" style="width:46px;min-height:46px;font-size:22px">‹</button>
+        <div id="cal-title" style="flex:1;text-align:center;font-size:18px;font-weight:700;color:var(--slate)">—</div>
+        <button type="button" onclick="navMonth(1)" class="picker-btn" style="width:46px;min-height:46px;font-size:22px">›</button>
       </div>
-      <div>
-        <label style="font-size:14px;font-weight:700;color:var(--slate);display:block;margin-bottom:6px">שעת התחלה</label>
-        <input type="time" id="meeting-start" step="60" style="width:100%;padding:16px 14px;background:var(--bg);border:1px solid var(--border);font-size:18px;font-weight:600;font-family:inherit;color:var(--text);direction:ltr;text-align:right"/>
+      <!-- Day-of-week header — Sunday first -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:4px">
+        <div class="cal-dow">א'</div>
+        <div class="cal-dow">ב'</div>
+        <div class="cal-dow">ג'</div>
+        <div class="cal-dow">ד'</div>
+        <div class="cal-dow">ה'</div>
+        <div class="cal-dow">ו'</div>
+        <div class="cal-dow">ש'</div>
       </div>
-      <div style="background:var(--bg);padding:14px 16px;border:1px solid var(--border);font-size:15px;display:flex;align-items:center;justify-content:space-between">
-        <span style="color:var(--muted);font-weight:600">שעת סיום (+1 שעה)</span>
-        <span id="meeting-end-preview" style="font-weight:700;color:var(--slate);font-size:18px">—</span>
+      <!-- Calendar days grid — populated by renderCalendar() -->
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+    </div>
+
+    <!-- Section: TIME SLOTS — half-hours from 08:00 to 20:00 -->
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-size:14px;font-weight:700;color:var(--slate)">שעת התחלה</label>
+        <div style="font-size:18px;font-weight:700;color:var(--slate);background:var(--bg);border:1px solid var(--border);padding:6px 12px" id="time-current">--:--</div>
+      </div>
+      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"></div>
+      <!-- Manual entry row — for times outside the preset range or odd minutes -->
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--bg);border:1px solid var(--border);padding:10px;direction:ltr">
+        <span style="font-size:12px;color:var(--muted);font-weight:600;writing-mode:horizontal-tb">או הזן ידנית:</span>
+        <input type="number" id="manual-hour" min="0" max="23" placeholder="HH" style="width:70px;padding:10px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
+        <span style="font-size:24px;font-weight:700;color:var(--slate)">:</span>
+        <input type="number" id="manual-minute" min="0" max="59" placeholder="MM" style="width:70px;padding:10px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:20px">
+
+    <!-- end time preview -->
+    <div style="background:var(--bg);padding:12px 14px;border:1px solid var(--border);font-size:14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="color:var(--muted);font-weight:600">שעת סיום (+1 שעה)</span>
+      <span id="meeting-end-preview" style="font-weight:700;color:var(--slate);font-size:20px">—</span>
+    </div>
+
+    <!-- hidden inputs the saveMeeting code reads -->
+    <input type="hidden" id="meeting-date"/>
+    <input type="hidden" id="meeting-start"/>
+
+    <div style="display:flex;gap:10px">
       <button class="btn btn-save" style="flex:1.4;padding:18px 12px;font-size:17px;font-weight:700" onclick="saveMeeting()">שמור פגישה</button>
       <button class="btn btn-skip" style="flex:1;padding:18px 12px;font-size:16px;font-weight:600" onclick="closeMeetingDialog()">ביטול</button>
     </div>
   </div>
+</div>
 </div>
 
 <div class="saving-overlay" id="saving-overlay">
@@ -1376,41 +1426,162 @@ async function deleteEntry(){
 
 // ── Meeting scheduler (writes date to col X, start time to Y, end time to Z) ──
 let _meetingLead=null;
+// Custom meeting picker — visual calendar grid (Sunday-first) + time slot grid.
+// State held centrally so each interaction (click on day, click on slot,
+// manual time entry, month nav) can update the right pieces.
+const HEBREW_MONTHS=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+let _meetingPick={
+  // The day currently selected (full Date components). Defaults set in openMeetingDialog.
+  day:1,month:1,year:2026,
+  // What month the calendar is currently showing (may differ from selected day if user navigates)
+  viewMonth:1,viewYear:2026,
+  // Time selection
+  hour:9,minute:0
+};
+
 function openMeetingDialog(idx,name,phone){
   const lead=allLeads.find(l=>l.index===idx);
   if(!lead) return;
   _meetingLead=lead;
   document.getElementById('meeting-name').textContent=name+(phone?` • ${phone}`:'');
-  // Default date = today, default start = next round half hour
+  // Default selection — today + the next half-hour slot
   const now=new Date();
-  const mins=now.getMinutes();
-  const roundUp=mins<=30?30:60;
-  now.setMinutes(roundUp,0,0);
-  const yyyy=now.getFullYear(),mm=String(now.getMonth()+1).padStart(2,'0'),dd=String(now.getDate()).padStart(2,'0');
-  const hh=String(now.getHours()).padStart(2,'0'),mn=String(now.getMinutes()).padStart(2,'0');
-  document.getElementById('meeting-date').value=`${yyyy}-${mm}-${dd}`;
-  document.getElementById('meeting-start').value=`${hh}:${mn}`;
-  recomputeMeetingEnd();
+  _meetingPick.day=now.getDate();
+  _meetingPick.month=now.getMonth()+1;
+  _meetingPick.year=now.getFullYear();
+  _meetingPick.viewMonth=_meetingPick.month;
+  _meetingPick.viewYear=_meetingPick.year;
+  // Default time = next half-hour slot, clamped to 08:00–20:00 range
+  let h=now.getHours(), m=now.getMinutes();
+  if(m<30){m=30;}else{m=0; h++;}
+  if(h<8){h=8;m=0;}
+  if(h>=20){h=8;m=0;} // if it's late, default to morning
+  _meetingPick.hour=h; _meetingPick.minute=m;
+  renderCalendar();
+  renderTimeSlots();
+  syncHiddenInputs();
   document.getElementById('meeting-modal').style.display='flex';
   history.pushState({page:'meeting'},'');
-  // Hook up live recompute of end time
-  document.getElementById('meeting-start').oninput=recomputeMeetingEnd;
 }
+
+// Days in month, with leap-year handling for February
+function daysInMonth(year,month){
+  if(month===2){
+    const leap=(year%4===0 && year%100!==0) || (year%400===0);
+    return leap?29:28;
+  }
+  return [31,28,31,30,31,30,31,31,30,31,30,31][month-1];
+}
+
+// Render the visual calendar grid for the current view month
+function renderCalendar(){
+  const p=_meetingPick;
+  const ym=p.viewYear, mm=p.viewMonth;
+  const title=`${HEBREW_MONTHS[mm-1]} ${ym}`;
+  document.getElementById('cal-title').textContent=title;
+  // Day-of-week of the 1st (0=Sunday, 6=Saturday)
+  const firstDow=new Date(ym, mm-1, 1).getDay();
+  const total=daysInMonth(ym,mm);
+  const today=new Date();
+  const todayY=today.getFullYear(), todayM=today.getMonth()+1, todayD=today.getDate();
+  const grid=document.getElementById('cal-grid');
+  let html='';
+  // Pad with empty cells for days before the 1st (so 1st sits in the right column)
+  for(let i=0;i<firstDow;i++) html+='<div class="cal-day empty"></div>';
+  // Render each day
+  for(let d=1; d<=total; d++){
+    const isToday=(ym===todayY && mm===todayM && d===todayD);
+    const isPast=(ym<todayY) || (ym===todayY && mm<todayM) || (ym===todayY && mm===todayM && d<todayD);
+    const isSel=(ym===p.year && mm===p.month && d===p.day);
+    const cls=['cal-day'];
+    if(isToday) cls.push('today');
+    if(isPast) cls.push('past');
+    if(isSel) cls.push('selected');
+    html+=`<button type="button" class="${cls.join(' ')}" onclick="pickDay(${ym},${mm},${d})">${d}</button>`;
+  }
+  grid.innerHTML=html;
+}
+
+function pickDay(y,m,d){
+  _meetingPick.year=y;
+  _meetingPick.month=m;
+  _meetingPick.day=d;
+  // No need to re-render time slots, but the calendar needs to update its
+  // .selected highlight.
+  renderCalendar();
+  syncHiddenInputs();
+}
+
+function navMonth(delta){
+  const p=_meetingPick;
+  p.viewMonth+=delta;
+  if(p.viewMonth<1){p.viewMonth=12; p.viewYear--;}
+  if(p.viewMonth>12){p.viewMonth=1; p.viewYear++;}
+  renderCalendar();
+}
+
+// Render the half-hour time slot buttons from 08:00 to 20:00 (inclusive)
+function renderTimeSlots(){
+  const slots=[];
+  for(let h=8; h<=20; h++){
+    slots.push({h,m:0});
+    if(h<20) slots.push({h,m:30});
+  }
+  const wrap=document.getElementById('time-slots');
+  const pad=n=>String(n).padStart(2,'0');
+  wrap.innerHTML=slots.map(s=>{
+    const sel=(s.h===_meetingPick.hour && s.m===_meetingPick.minute);
+    return `<button type="button" class="time-slot${sel?' selected':''}" onclick="pickTime(${s.h},${s.m})">${pad(s.h)}:${pad(s.m)}</button>`;
+  }).join('');
+  // Update the "current selection" badge above the slots
+  document.getElementById('time-current').textContent=`${pad(_meetingPick.hour)}:${pad(_meetingPick.minute)}`;
+}
+
+function pickTime(h,m){
+  _meetingPick.hour=h;
+  _meetingPick.minute=m;
+  // Clear manual inputs so it's clear which one is active
+  document.getElementById('manual-hour').value='';
+  document.getElementById('manual-minute').value='';
+  renderTimeSlots();
+  syncHiddenInputs();
+}
+
+// Manual time entry — fired on every keystroke. We accept any valid hour+minute.
+function onManualTimeChange(){
+  const hEl=document.getElementById('manual-hour');
+  const mEl=document.getElementById('manual-minute');
+  const h=parseInt(hEl.value,10);
+  const m=parseInt(mEl.value,10);
+  if(isNaN(h)||isNaN(m)) return; // wait until both fields have valid input
+  if(h<0||h>23||m<0||m>59) return;
+  _meetingPick.hour=h;
+  _meetingPick.minute=m;
+  // Re-render slot grid so the previously-selected slot is no longer highlighted
+  renderTimeSlots();
+  // BUT we want to keep the manual input values visible to the user,
+  // so re-set them after renderTimeSlots() (which doesn't touch the manual inputs).
+  syncHiddenInputs();
+}
+
+// Push the current selection to the hidden inputs that saveMeeting reads.
+function syncHiddenInputs(){
+  const p=_meetingPick;
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('meeting-date').value=`${p.year}-${pad(p.month)}-${pad(p.day)}`;
+  document.getElementById('meeting-start').value=`${pad(p.hour)}:${pad(p.minute)}`;
+  // Update the "+1h" preview
+  let nh=p.hour+1; if(nh>=24) nh-=24;
+  document.getElementById('meeting-end-preview').textContent=`${pad(nh)}:${pad(p.minute)}`;
+  document.getElementById('time-current').textContent=`${pad(p.hour)}:${pad(p.minute)}`;
+}
+
 function closeMeetingDialog(){
   document.getElementById('meeting-modal').style.display='none';
   if(history.state&&history.state.page==='meeting') popHistorySilently();
   _meetingLead=null;
 }
-function recomputeMeetingEnd(){
-  const t=document.getElementById('meeting-start').value;
-  const out=document.getElementById('meeting-end-preview');
-  if(!t){out.textContent='—';return;}
-  const [h,m]=t.split(':').map(s=>parseInt(s,10));
-  if(isNaN(h)||isNaN(m)){out.textContent='—';return;}
-  let nh=h+1, nm=m;
-  if(nh>=24) nh-=24;
-  out.textContent=`${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
-}
+function recomputeMeetingEnd(){/* compatibility no-op */}
 async function saveMeeting(){
   if(!_meetingLead) return;
   const dateIso=document.getElementById('meeting-date').value;
