@@ -86,7 +86,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
-.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;}
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;position:sticky;top:96px;z-index:99;}
 .tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
 .tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
 
@@ -117,6 +117,13 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
 
 .lead-row{padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;}
+/* Call-count dot indicator — sits above the lead row, spanning its full width.
+   Each dot = one call attempt. Grey = empty slot, red = call made.
+   direction:ltr so the dots fill left→right consistently regardless of RTL parent. */
+.call-dots{display:flex;align-items:center;gap:4px;padding:6px 14px 0;direction:ltr;justify-content:flex-start;}
+.call-dot{display:inline-block;width:6px;height:6px;background:#d0d0d0;flex-shrink:0;}
+.call-dot.filled{background:var(--red);}
+.call-dot-extra{font-size:9px;font-weight:700;color:var(--red);margin-inline-start:2px;}
 .lead-info{flex:1;min-width:0;}
 .lead-name{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
 .lead-phone{font-size:13px;color:var(--muted);margin-top:2px;direction:ltr;text-align:right;font-weight:400;}
@@ -1107,7 +1114,7 @@ async function loadLeads(){
     document.getElementById('leads-list').innerHTML='';
   }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:W?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AB?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const all=(data.values||[]).slice(1)
@@ -1117,7 +1124,14 @@ async function loadLeads(){
         phone:(row[1]||'').toString().trim(),
         note:(row[2]||'').trim(),
         status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
-        callers:((row[22]||'')+'').trim()                 // column W (0-based 22)
+        callers:((row[22]||'')+'').trim(),                // column W (0-based 22) — comma-separated user tags
+        // Column AB (0-based 27) — full audit log: status changes, calls,
+        // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event"
+        metaLog:((row[27]||'')+'').trim(),
+        // Number of calls made to this lead (parsed from W which contains
+        // a comma-separated list of caller tags, one per call). This is the
+        // count we use to fill in the dot indicator above the lead's name.
+        callCount:((row[22]||'')+'').trim() ? ((row[22]||'')+'').split(',').filter(s=>s.trim()).length : 0
       }))
       .filter(l=>l.phone).reverse();
 
@@ -1228,7 +1242,9 @@ function renderLeadCard(l,kind){
   if(kind==='removed')label=`<div class="removed-lbl">${ICON.removed}<span>הוסר</span></div>`;
   else if(kind==='continue')label=`<div class="continue-lbl">${ICON.bookmark}<span>המשך</span></div>`;
 
-  return `<div class="lead-row" onclick="toggleExpand(${l.index})">
+  return `<div class="lead-row-wrap">
+    <div class="call-dots">${renderCallDots(l.callCount||0)}</div>
+    <div class="lead-row" onclick="toggleExpand(${l.index})">
     <div class="lead-info">
       <div class="lead-name">${esc(l.name)}</div>
       <div class="lead-phone">${esc(l.phone)}</div>
@@ -1242,7 +1258,24 @@ function renderLeadCard(l,kind){
       ${kind!=='removed' ? `<button class="note-btn" onclick="event.stopPropagation();openLogView(${l.index})" title="סיכומי שיחות">${ICON.noteAdd}</button>` : ''}
       ${kind!=='removed' ? `<button class="wa-btn" onclick="event.stopPropagation();openWA('${ej(l.phone)}')" title="WhatsApp">${ICON.whatsapp}</button>` : ''}
     </div>
+    </div>
   </div>${notesHtml}`;
+}
+
+// Render the dot row above each lead. We always show a fixed number of slots
+// (10 dots is enough for any practical call cadence). Filled-in (red) dots
+// from left to right represent the count of calls made so far. Empty (grey)
+// dots represent remaining slots — purely visual, no upper limit on calls.
+function renderCallDots(count){
+  const TOTAL=10;
+  let html='';
+  for(let i=0;i<TOTAL;i++){
+    const filled = i < Math.min(count, TOTAL);
+    html += `<span class="call-dot${filled?' filled':''}"></span>`;
+  }
+  // If somehow more than TOTAL calls, show the actual count as a tiny number
+  if(count>TOTAL) html += `<span class="call-dot-extra">+${count-TOTAL}</span>`;
+  return html;
 }
 
 function renderLeads(leads){
@@ -1357,9 +1390,14 @@ async function setLeadStatus(idx,status,toastMsg){
   const lead=allLeads.find(l=>l.index===idx);
   if(lead){
     lead.status=status;
-    // Bump the lead to the top of allLeads so it appears first in whichever
-    // tab it lands in. This applies to all status transitions: moving to
-    // המשך, moving to הוסרו, or restoring to לידים.
+    // Persist a "moved at" timestamp per row so the order survives reloads.
+    // loadLeads() reads this map and sorts each tab so most recently moved
+    // leads appear first.
+    const moves=loadMovesMap();
+    moves[idx]=Date.now();
+    saveMovesMap(moves);
+    lead.movedAt=moves[idx];
+    // Bump in-memory immediately so the change is visible without a reload.
     const i=allLeads.indexOf(lead);
     if(i>0){ allLeads.splice(i,1); allLeads.unshift(lead); }
   }
@@ -1376,29 +1414,66 @@ async function setLeadStatus(idx,status,toastMsg){
     enqueueWrite(url,opts,'סטטוס ליד');
     showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
+  // Also append a metadata log entry to column AB so we have full audit trail
+  const label = status===STATUS_CONTINUE ? 'הועבר להמשך'
+              : status===STATUS_REMOVED ? 'הוסר'
+              : 'הוחזר ללידים';
+  appendMetaLog(idx, label);
 }
+
+// Append an entry to the metadata log column (AB). Each entry is one line:
+// "DD/MM/YY HH:MM | userTag | event". Newest entries go on top.
+// Failures are queued like every other write so we never lose history.
+async function appendMetaLog(idx, event){
+  const lead=allLeads.find(l=>l.index===idx);
+  const ts=getTS(); // already includes user tag in format "DD/MM/YY HH:MM | tag"
+  const newEntry=`${ts} | ${event}`;
+  const prev=lead?(lead.metaLog||''):'';
+  const combined=prev?(newEntry+'\n'+prev):newEntry;
+  if(lead) lead.metaLog=combined;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AB${idx}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
+  try{ await apiFetch(url,opts); }
+  catch(e){ enqueueWrite(url,opts,'יומן ליד'); }
+}
+
+// Persistent map of {rowIndex: timestamp} — when each lead was last moved
+// between tabs. Used by loadLeads to keep the recency-based ordering across
+// page reloads.
+function loadMovesMap(){
+  try{ return JSON.parse(localStorage.getItem('lead_moves')||'{}'); }
+  catch(_){ return {}; }
+}
+function saveMovesMap(m){ localStorage.setItem('lead_moves',JSON.stringify(m)); }
 
 function restoreLead(idx){
   setLeadStatus(idx,STATUS_ACTIVE,'ליד שוחזר');
 }
 
 /* =========================
-   CALLER MARK — writes to column W (append user tag)
+   CALLER MARK — writes to column W (append user tag on EVERY call)
    ========================= */
 async function markCalled(idx){
   const tag=getUserTag().toLowerCase();
   if(!tag)return;
   const lead=allLeads.find(l=>l.index===idx);
+  // Append on EVERY call (not deduped). The total call count is just the
+  // length of this list — that's what drives the dot indicator above each
+  // lead's name. Same user calling 3 times → 3 entries, 3 red dots.
   let list=lead&&lead.callers?lead.callers.split(',').map(s=>s.trim()).filter(Boolean):[];
-  if(list.map(s=>s.toLowerCase()).includes(tag))return; // already marked
   list.push(tag);
   const newVal=list.join(', ');
-  if(lead)lead.callers=newVal;
+  if(lead){
+    lead.callers=newVal;
+    lead.callCount=list.length;
+  }
   filterLeads();
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/W${idx}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   try{ await apiFetch(url,opts); }
   catch(e){ enqueueWrite(url,opts,'סימון מתקשר'); }
+  // Add to the audit log too
+  appendMetaLog(idx, 'שיחה יצאה');
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
@@ -1985,6 +2060,7 @@ async function saveNote(){
     expandedSet.add(row);filterLeads();
   }
   finally{document.getElementById('saving-overlay').classList.remove('show');}
+  appendMetaLog(row, 'סיכום שיחה נוסף');
 }
 
 // Corner button action: save the typed note (if any) and move the lead to a
