@@ -788,15 +788,40 @@ function setOnlineBadge(state,msg){
   else { el.textContent=msg||'אין חיבור'; el.style.background='#f8d7da'; el.style.color='#721c24'; }
 }
 
-window.addEventListener('online',()=>{ setOnlineBadge('online'); flushQueue(); });
+window.addEventListener('online',()=>{ setOnlineBadge('online'); ensureFreshToken(); flushQueue(); });
 window.addEventListener('offline',()=>setOnlineBadge('offline'));
+// Refresh on every meaningful app event
+window.addEventListener('focus',()=>ensureFreshToken());
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) ensureFreshToken(); });
 
-// Proactive token refresh every 5 minutes
-setInterval(()=>{
+// "Ensure fresh token" — refresh if less than 30 minutes of life remaining.
+// Called on every app event to keep the connection permanent.
+let _ensureFreshInFlight=false;
+async function ensureFreshToken(){
+  if(_ensureFreshInFlight) return;
+  if(!accessToken) return;
   const exp=parseInt(localStorage.getItem('ite')||'0');
-  if(!accessToken || !exp) return;
-  if(Date.now() > exp - 10*60*1000){ silentReauth().then(ok=>{ if(ok) flushQueue(); }); }
-},5*60*1000);
+  if(!exp) return;
+  if(Date.now() <= exp - 30*60*1000) return;
+  _ensureFreshInFlight=true;
+  try{
+    const ok=await silentReauth();
+    if(ok) flushQueue();
+  }finally{
+    _ensureFreshInFlight=false;
+  }
+}
+
+// Force a freshness check every 2 minutes
+setInterval(ensureFreshToken, 2*60*1000);
+
+// Aggressive retry within last 5 minutes of token life
+setInterval(()=>{
+  if(!navigator.onLine) return;
+  if(!accessToken) return;
+  const exp=parseInt(localStorage.getItem('ite')||'0');
+  if(exp && Date.now() > exp - 5*60*1000) ensureFreshToken();
+},60*1000);
 
 // Try flushing queue every 30s
 setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
@@ -841,11 +866,36 @@ window.addEventListener('load',()=>{
     userName=localStorage.getItem('in')||'';
     userEmail=localStorage.getItem('ie')||'';
     restoreAvatar();showApp();loadData();
+    // Force a freshness check immediately. If token is in last 30 min — refresh now.
+    setTimeout(ensureFreshToken, 500);
+  } else if(tok && hasWriteScope && localStorage.getItem('ie')){
+    // Token expired BUT we have a saved email and the right scope — try silent
+    // reauth. Works as long as the user still has a Google session in browser.
+    userEmail=localStorage.getItem('ie')||'';
+    userName=localStorage.getItem('in')||'';
+    silentReauth().then(ok=>{
+      if(ok){
+        restoreAvatar();showApp();loadData();
+      } else {
+        document.getElementById('login-screen').style.display='flex';
+      }
+    });
   } else if(tok){
     // we have a token but it's missing scopes — clear it and show login
     ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
     accessToken=null;
     document.getElementById('login-screen').style.display='flex';
+  } else if(localStorage.getItem('ie')){
+    // No token but we have a saved email — try silent reauth as a fallback
+    userEmail=localStorage.getItem('ie')||'';
+    userName=localStorage.getItem('in')||'';
+    silentReauth().then(ok=>{
+      if(ok){
+        restoreAvatar();showApp();loadData();
+      } else {
+        document.getElementById('login-screen').style.display='flex';
+      }
+    });
   }
   // else login screen already visible
 });
