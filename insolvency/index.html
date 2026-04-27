@@ -222,6 +222,16 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .log-action-edit{background:var(--bg);color:var(--text);border:1px solid var(--border);}
 .log-content{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow-y:auto;}
 .log-empty{text-align:center;padding:24px 12px;color:var(--muted);font-size:13px;}
+/* Collapsible entry card — used by all loggers (CF, X, CH).
+   Defaults to a 5-line clamp; clicking the card or the global "expand all"
+   toggles a .expanded class which removes the clamp. */
+.entry-card{position:relative;padding:10px 12px;border:1px solid var(--border);background:var(--white);margin-bottom:10px;cursor:pointer;transition:background .12s;}
+.entry-card:active{background:var(--bg);}
+.entry-card .entry-body{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;word-break:break-word;padding-left:36px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
+.entry-card.expanded .entry-body{display:block;-webkit-line-clamp:unset;overflow:visible;}
+.entry-card .entry-ts{font-size:11px;font-weight:700;color:var(--slate);margin-bottom:4px;padding-left:36px;}
+.expand-all-btn{display:inline-flex;align-items:center;gap:5px;background:var(--white);border:1px solid var(--border);color:var(--slate);padding:5px 10px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
+.expand-all-btn:active{background:var(--bg);}
 .log-textarea{width:100%;min-height:160px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;color:var(--text);font-family:'Courier New',monospace;direction:rtl;resize:vertical;}
 .log-textarea:focus{outline:none;border-color:var(--slate);background:var(--white);}
 .log-add-input{width:100%;min-height:110px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:15px;color:var(--text);direction:rtl;font-family:inherit;resize:none;}
@@ -1270,29 +1280,40 @@ function showToast(msg,kind){
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // Format the raw log content for display: highlight timestamp/user lines.
+let _logExpandAll=false;
 function renderLogContent(log){
   if(!log||!log.trim()){
     return '<div class="log-empty">אין תיעוד עדיין. לחץ "הוסף תיעוד" כדי להתחיל.</div>';
   }
   const entries=log.split(/\n\n+/).filter(e=>e.trim());
-  return '<div class="log-content">'+entries.map((en,i)=>{
+  const toggleLabel=_logExpandAll?'צמצם הכל':'הרחב הכל';
+  const header=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+    <button class="expand-all-btn" onclick="toggleLogContentExpandAll()">${ICON.plus}<span>${toggleLabel}</span></button>
+  </div>`;
+  return '<div class="log-content">'+header+entries.map((en,i)=>{
     const lines=en.split('\n');
     const head=lines[0]||'';
     const isHeader=/^\d{2}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}/.test(head.trim());
     const editBtn=`<button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="position:absolute;left:8px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.pencil}</button>`;
-    if(isHeader){
-      const body=lines.slice(1).join('\n');
-      return `<div style="position:relative;margin-bottom:10px;padding:10px 12px;border:1px solid var(--border);background:var(--bg);">
-        <div style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:3px;padding-left:36px">${esc(head)}</div>
-        <div style="padding-left:36px">${linkifyPhones(esc(body))}</div>
-        ${editBtn}
-      </div>`;
-    }
-    return `<div style="position:relative;margin-bottom:10px;padding:10px 12px;border:1px solid var(--border);background:var(--bg);">
-      <div style="padding-left:36px">${linkifyPhones(esc(en))}</div>
+    const body=isHeader?lines.slice(1).join('\n'):en;
+    const tsHtml=isHeader?`<div class="entry-ts">${esc(head)}</div>`:'';
+    const expandedCls=_logExpandAll?' expanded':'';
+    return `<div class="entry-card${expandedCls}" onclick="toggleEntryCard(this)">
+      ${tsHtml}
+      <div class="entry-body">${linkifyPhones(esc(body))}</div>
       ${editBtn}
     </div>`;
   }).join('')+'</div>';
+}
+function toggleEntryCard(el){
+  if(!el)return;
+  el.classList.toggle('expanded');
+}
+function toggleLogContentExpandAll(){
+  _logExpandAll=!_logExpandAll;
+  if(currentLog){
+    document.getElementById('log-content-wrap').innerHTML=renderLogContent(currentLog.log);
+  }
 }
 
 // ── Edit a single entry from the currently-open log (CF / X / CH) ───────────
@@ -2169,6 +2190,7 @@ function serializeCallEntries(entries){
   }).join('\n\n');
 }
 
+let _callSummaryExpandAll=false;
 function renderCallSummaryView(){
   if(!_callSummaryFor) return;
   const c=_callSummaryFor;
@@ -2180,12 +2202,21 @@ function renderCallSummaryView(){
     wrap.innerHTML='<div style="padding:30px 10px;text-align:center;color:var(--muted);font-size:13px">אין סיכומי שיחות עדיין</div>';
     return;
   }
-  wrap.innerHTML=entries.map((en,i)=>`
-    <div class="log-entry" style="margin-bottom:14px;padding:10px 12px 12px;border:1px solid var(--border);background:var(--bg);position:relative">
-      ${en.head?`<div class="log-entry-head" style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:5px;padding-left:36px">${esc(en.head)}</div>`:''}
-      <div class="log-entry-body" style="font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;padding-left:36px">${linkifyPhones(esc(en.body.trim()))}</div>
+  const toggleLabel=_callSummaryExpandAll?'צמצם הכל':'הרחב הכל';
+  const header=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+    <button class="expand-all-btn" onclick="toggleCallSummaryExpandAll()">${ICON.plus}<span>${toggleLabel}</span></button>
+  </div>`;
+  const expandedCls=_callSummaryExpandAll?' expanded':'';
+  wrap.innerHTML=header+entries.map((en,i)=>`
+    <div class="entry-card${expandedCls}" onclick="toggleEntryCard(this)">
+      ${en.head?`<div class="entry-ts">${esc(en.head)}</div>`:''}
+      <div class="entry-body">${linkifyPhones(esc(en.body.trim()))}</div>
       <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="position:absolute;left:8px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.pencil}</button>
     </div>`).join('');
+}
+function toggleCallSummaryExpandAll(){
+  _callSummaryExpandAll=!_callSummaryExpandAll;
+  renderCallSummaryView();
 }
 
 function openCallSummary(rowNum){
