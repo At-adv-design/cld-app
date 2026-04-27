@@ -9,7 +9,2162 @@
 <meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <title>חדלות פירעון | אבי טל ושות׳</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" <!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<title>חדלות פירעון | אבי טל ושות׳</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+/* sharp-corner reset */
+button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
+.search-box,.confirm-card,.login-card,.hdr-btn,.hdr-count,.call-btn,.note-btn,
+.wa-btn,.restore-btn,.tab,.lead-badge,.removed-lbl,.continue-lbl,.btn,
+.mic-btn,.show-all-btn,.note-user,.confirm-btn,.google-btn,.chip,
+.report-cell,.status-row,.status-badge,.reminder-row,.waiting-badge,
+.log-btn,.log-action-btn,.log-textarea,.log-add-input,.log-mic-btn,
+.log-btn-primary,.log-btn-secondary,.log-content{
+  border-radius:0 !important;
+}
+
+/* dark-mode tweaks for the brand logo */
+[data-theme="dark"] img[alt*="טל"]{
+  filter:invert(.94) hue-rotate(180deg) brightness(.95);
+}
+
+:root{
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#FDECEC;--red-border:#f5c0c0;
+  --orange:#c8620a;--orange-bg:#FFF6EC;--orange-border:#f5d0a0;
+  --green:#1a7a45;--green-bg:#EFF7F1;--green-border:#b0ddc0;
+  --blue:#2060c0;--blue-bg:#EEF1FA;--blue-border:#c0d0f0;
+  --bg:#FAF9F5;--white:#FFFFFF;--border:#D9D6CA;--muted:#6B6A65;--text:#1F1E1B;
+  --shadow:0 1px 2px rgba(31,30,27,0.04),0 4px 16px rgba(31,30,27,0.05);
+}
+[data-theme="dark"]{
+  --slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;--red-bg:#3A2222;--red-border:#5C2D2D;
+  --orange:#E89B5C;--orange-bg:#3A2A1F;--orange-border:#5C4329;
+  --green:#48C77A;--green-bg:#1F3A2A;--green-border:#2D5C3F;
+  --blue:#6FA8E5;--blue-bg:#1F2A3A;--blue-border:#2D4359;
+  --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
+  --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
+}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* HEADER */
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hdr-btn:active{background:var(--border);}
+.avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+
+/* TABS */
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
+
+/* FILTERS */
+.filters-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
+.search-box:focus-within{border-color:var(--slate);}
+.search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
+.search-box input::placeholder{color:var(--muted);}
+.filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.filter-label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .12s;white-space:nowrap;}
+.chip.active{background:var(--slate);color:#fff;border-color:var(--slate);}
+.chip.red.active{background:var(--red);border-color:var(--red);}
+.chip.orange.active{background:var(--orange);border-color:var(--orange);}
+
+/* STATS */
+.stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;font-size:11px;font-weight:500;color:var(--muted);overflow-x:auto;}
+.stat{display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.sdot{width:6px;height:6px;border-radius:2px;flex-shrink:0;}
+
+/* CARDS */
+#cards-list,#waiting-list{padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+
+/* SWIPE */
+.swipe-wrap{position:relative;overflow:hidden;border-radius:6px;}
+.swipe-bg{position:absolute;inset:0;display:flex;align-items:center;padding:0 20px;font-size:13px;font-weight:600;color:#fff;pointer-events:none;}
+.swipe-bg.left{background:var(--orange);justify-content:flex-end;}
+.swipe-bg.right{background:var(--green);justify-content:flex-start;}
+.swipe-content{position:relative;background:var(--white);}
+
+.client-card{background:var(--white);border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:var(--shadow);}
+.client-card.urgent{border-right:2px solid var(--red);}
+.client-card.warning{border-right:2px solid var(--orange);}
+
+.card-header{padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.client-info{flex:1;min-width:0;}
+.client-name{font-size:15px;font-weight:600;color:var(--text);}
+.client-name-row{display:flex;align-items:center;gap:8px;}
+.phone-btn{width:44px;height:44px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);text-decoration:none;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.phone-btn:active{transform:scale(.92);background:var(--bg);}
+.phone-btn svg{width:20px;height:20px;}
+.client-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.status-dots{display:flex;gap:4px;flex-shrink:0;}
+.sdot-lg{width:10px;height:10px;border-radius:2px;}
+
+/* CARD BODY */
+.card-body{border-top:1px solid var(--border);padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
+
+/* REPORTS */
+.reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:100%;grid-auto-rows:34px;}
+.report-cell{border-radius:3px;padding:0;text-align:center;border:1px solid var(--border);height:34px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;align-self:stretch;}
+
+
+.report-cell.red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);}
+.report-cell.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+.report-cell.progress{background:#fff8e6;border-color:#f5dfa0;color:#9a6800;}
+.report-cell.future{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue);}
+.report-cell.empty{background:var(--bg);color:var(--muted);}
+
+/* STATUS ROWS */
+.status-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);}
+.status-row.red{background:var(--red-bg);border-color:var(--red-border);}
+.status-row.orange{background:var(--orange-bg);border-color:var(--orange-border);}
+.status-row.green{background:var(--green-bg);border-color:var(--green-border);}
+.status-label{font-size:12px;font-weight:500;}
+.status-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;}
+.badge-red{background:var(--red);color:#fff;}
+.badge-orange{background:var(--orange);color:#fff;}
+.badge-green{background:var(--green);color:#fff;}
+.badge-gray{background:var(--muted);color:#fff;}
+.reminder-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;border:1px solid #f5dfa0;background:#fff8e6;}
+.reminder-text{font-size:12px;font-weight:500;color:#9a6800;flex:1;}
+
+/* WAITING */
+.waiting-badge{font-size:10px;font-weight:700;color:var(--orange);background:rgba(200,98,10,0.1);border:1px solid rgba(200,98,10,0.25);border-radius:3px;padding:2px 6px;margin-top:4px;display:inline-block;}
+.restore-btn{width:40px;height:40px;border-radius:4px;background:var(--white);border:1px solid var(--green);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--green);}
+.restore-btn:active{transform:scale(.92);}
+
+/* LOADING */
+#loading{display:flex;flex-direction:column;align-items:center;padding:60px 20px;gap:12px;}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;gap:24px;text-align:center;background:var(--white);}
+.login-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:28px;display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:320px;}
+.google-btn{background:var(--white);color:var(--text);border:1px solid var(--border);padding:13px 20px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);width:100%;justify-content:center;font-family:inherit;}
+.google-btn:active{transform:scale(.98);}
+
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+
+/* LOG ICON */
+.log-btn{width:38px;height:38px;border-radius:6px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);position:relative;}
+.log-btn:active{transform:scale(.92);background:var(--bg);}
+.log-btn.has-log{border-color:var(--slate);background:#fafafd;}
+.log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
+
+/* LOG MODAL — viewer + edit (fullscreen) and add (bottom sheet) */
+#log-modal,#log-edit-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
+#log-modal.open,#log-edit-modal.open{display:flex;flex-direction:column;}
+#log-edit-modal{z-index:310;}
+#log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);}
+#log-add-modal.open{display:flex;}
+/* Fullscreen sheet for the viewer + editor */
+#log-modal .log-sheet,#log-edit-modal .log-sheet{
+  background:var(--white);
+  border:none;
+  padding:14px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  padding-top:calc(14px + env(safe-area-inset-top));
+  width:100%;height:100%;max-height:100dvh;
+  display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+  overflow-y:auto;
+}
+/* Bottom-sheet style for add modal */
+#log-add-modal .log-sheet{
+  background:var(--white);border-top:2px solid var(--slate);
+  padding:16px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  width:100%;display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+  box-shadow:0 -4px 28px rgba(0,0,0,0.1);
+  max-height:100dvh;overflow-y:auto;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.log-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 4px;}
+.log-title{font-size:16px;font-weight:700;color:var(--text);}
+.log-sub{font-size:13px;color:var(--muted);font-weight:500;margin-top:-4px;}
+.log-actions{display:flex;gap:8px;margin-top:6px;}
+.log-action-btn{flex:1;padding:11px;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;}
+.log-action-btn:active{transform:scale(.97);}
+.log-action-add{background:var(--slate);color:#fff;}
+.log-action-edit{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+.log-content{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow-y:auto;}
+.log-empty{text-align:center;padding:24px 12px;color:var(--muted);font-size:13px;}
+.log-textarea{width:100%;min-height:160px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;color:var(--text);font-family:'Courier New',monospace;direction:rtl;resize:vertical;}
+.log-textarea:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.log-add-input{width:100%;min-height:110px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:15px;color:var(--text);direction:rtl;font-family:inherit;resize:none;}
+.log-add-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.log-mic-btn{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:11px 14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:inherit;}
+.log-mic-btn.recording{background:#fff2f2;border-color:#e08080;color:var(--red);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.75}}
+.log-btn-row{display:flex;gap:8px;}
+.log-btn-primary{flex:1;padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;background:var(--slate);color:#fff;font-family:inherit;}
+.log-btn-secondary{flex:1;padding:12px;border:1px solid var(--border);border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--muted);font-family:inherit;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;" onerror="this.style.display='none'">
+    <div style="font-size:15px;font-weight:600;color:var(--text)">חדלות פירעון</div>
+    <div style="font-size:13px;color:var(--muted)">ניהול תיקים | כניסה עם Google</div>
+    <button class="google-btn" onclick="doLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      כניסה עם Google
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="hdr-right">
+      <span class="hdr-count" id="total-count">טוען...</span>
+      <button class="hdr-btn" onclick="loadData()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+      </button>
+      <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="signOut()"></div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-main" onclick="switchTab('main')">תיקים פעילים</div>
+    <div class="tab" id="tab-waiting" onclick="switchTab('waiting')"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect x="6" y="4" width="4" height="16" rx="0.5"/><rect x="14" y="4" width="4" height="16" rx="0.5"/></svg><span id="tab-waiting-text">ממתינים</span></span></div>
+  </div>
+
+  <div id="main-section">
+    <div class="filters-wrap">
+      <div class="search-box">
+        <span style="color:var(--muted);display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input type="search" id="search" placeholder="חיפוש שם לקוח או מספר תיק..." oninput="applyFilters()"/>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">דוחות פתוחים:</span>
+        <div class="filter-chips" id="report-chips" style="display:flex;gap:4px;flex-wrap:wrap;">
+          <div class="chip active" onclick="setReportFilter('all',this)">הכל</div>
+          <div class="chip red" onclick="setReportFilter(1,this)">1</div>
+          <div class="chip red" onclick="setReportFilter(2,this)">2</div>
+          <div class="chip red" onclick="setReportFilter(3,this)">3</div>
+          <div class="chip red" onclick="setReportFilter(4,this)">4</div>
+          <div class="chip red" onclick="setReportFilter(5,this)">5</div>
+          <div class="chip red" onclick="setReportFilter(6,this)">6</div>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">מסמכים:</span>
+        <div class="chip active" id="fd-all" onclick="setF('docs','all')">הכל</div>
+        <div class="chip red" id="fd-urgent" onclick="setF('docs','urgent')" data-icon="fire">דחוף</div>
+        <div class="chip orange" id="fd-warning" onclick="setF('docs','warning')">בטיפול</div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">עיכוב הליכים:</span>
+        <div class="chip active" id="fi-all" onclick="setF('inj','all')">הכל</div>
+        <div class="chip red" id="fi-urgent" onclick="setF('inj','urgent')" data-icon="fire">דחוף</div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">אישורי מסירה:</span>
+        <div class="chip active" id="fs-all" onclick="setF('srv','all')">הכל</div>
+        <div class="chip red" id="fs-urgent" onclick="setF('srv','urgent')" data-icon="fire">דחוף</div>
+        <div class="chip orange" id="fs-warning" onclick="setF('srv','warning')">בטיפול</div>
+      </div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat"><div class="sdot" style="background:var(--red)"></div><span id="s-urgent">0 דחוף</span></div>
+      <div class="stat"><div class="sdot" style="background:var(--orange)"></div><span id="s-warning">0 אזהרה</span></div>
+      <div class="stat"><div class="sdot" style="background:var(--green)"></div><span id="s-ok">0 תקין</span></div>
+      <div class="stat"><div class="sdot" style="background:#9a6800"></div><span id="s-reminder">0 תזכורת</span></div>
+    </div>
+    <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:13px">טוען תיקים...</div></div>
+    <div id="cards-list"></div>
+  </div>
+
+  <div id="waiting-section" style="display:none">
+    <div style="padding:12px 16px;font-size:12px;color:var(--muted);font-weight:500">גרור ימינה להחזרה לתיקים פעילים</div>
+    <div id="waiting-list"></div>
+  </div>
+
+  <!-- TASKS SECTION (hidden — entered via 4 taps on the logo) -->
+  <div id="tasks-section" style="display:none">
+    <div class="tabs" style="background:#fafafd">
+      <div class="tab active" id="tasks-tab-do" onclick="switchTaskTab('do')">בביצוע</div>
+      <div class="tab" id="tasks-tab-wait" onclick="switchTaskTab('wait')">בהמתנה</div>
+    </div>
+    <div class="filters-wrap" style="background:#fafafd">
+      <div class="search-box">
+        <span style="color:var(--muted);display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input type="search" id="tasks-search" placeholder="חיפוש שם או מספר תיק..." oninput="renderTasks()"/>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">דדליין:</span>
+        <div class="chip active" onclick="setTaskRange('all',this)">הכל</div>
+        <div class="chip red" onclick="setTaskRange(5,this)">5 ימים</div>
+        <div class="chip orange" onclick="setTaskRange(10,this)">10 ימים</div>
+        <div class="chip" onclick="setTaskRange(20,this)">20 ימים</div>
+        <div class="chip" onclick="setTaskRange(30,this)">30 ימים</div>
+      </div>
+    </div>
+    <div id="tasks-list" style="padding:10px 14px;display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<!-- LOG VIEWER MODAL — fullscreen -->
+<div id="log-modal">
+  <div class="log-sheet">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
+      <button onclick="closeLogModal()" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>חזרה</span></span></button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">תיעוד תיק</div>
+        <div class="log-sub" id="log-modal-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div id="log-content-wrap" style="flex:1;overflow-y:auto;min-height:0"></div>
+    <div class="log-actions">
+      <button class="log-action-btn log-action-add" onclick="openAddLog()"><span style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>הוסף תיעוד</span></span></button>
+      <button class="log-action-btn log-action-edit" onclick="openEditLog()"><span style="display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg><span>ערוך</span></span></button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG EDIT MODAL -->
+<!-- LOG EDIT MODAL — fullscreen -->
+<div id="log-edit-modal">
+  <div class="log-sheet">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
+      <button onclick="closeEditLog()" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>חזרה</span></span></button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">עריכת תיעוד</div>
+        <div class="log-sub" id="log-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">זהירות: עריכה ידנית של כל הלוג</div>
+    <textarea class="log-textarea" id="log-edit-textarea" style="flex:1;min-height:0"></textarea>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveEditLog()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeEditLog()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG ADD MODAL -->
+<div id="log-add-modal">
+  <div class="log-sheet">
+    <div class="log-handle"></div>
+    <div class="log-title">הוספת תיעוד</div>
+    <div class="log-sub" id="log-add-name"></div>
+    <textarea class="log-add-input" id="log-add-textarea" placeholder="מה לתעד?"></textarea>
+    <button class="log-mic-btn" id="log-mic-btn" onclick="toggleLogMic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      <span>הכתב (מיקרופון)</span>
+    </button>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveAddLog()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeAddLog()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPS EDIT MODAL — edit Y (start date) + Z (days). AA is auto-computed. -->
+<div id="ops-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);">
+  <div class="log-sheet" style="border-radius:8px;border-top:none;width:100%;max-width:380px;max-height:90dvh;animation:none;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div class="log-title">עריכת דדליין</div>
+    <div class="log-sub" id="ops-edit-name"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">תאריך התחלה (Y)</label>
+        <input type="date" id="ops-edit-start" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;font-family:inherit"/>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">מספר ימים לביצוע (Z)</label>
+        <input type="number" id="ops-edit-days" min="0" placeholder="0" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:14px;font-family:inherit;direction:ltr;text-align:right"/>
+      </div>
+      <div style="background:#f5f5f7;padding:9px 11px;border-radius:4px;border:1px solid var(--border);font-size:13px">
+        <span style="color:var(--muted)">דדליין מחושב (AA): </span>
+        <span id="ops-edit-deadline-preview" style="font-weight:700;color:var(--slate)">—</span>
+      </div>
+    </div>
+    <div class="log-btn-row" style="margin-top:8px">
+      <button class="log-btn-primary" onclick="saveOpsEdit()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeOpsEdit()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- DOCS LIST EDIT MODAL (fullscreen) -->
+<div id="docs-edit-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:315;flex-direction:column;">
+  <div style="padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;height:100%;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeDocsEdit()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">רשימת מסמכים</div>
+        <div class="log-sub" id="docs-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">העריכה תישמר ישירות לעמודה AC בגוגל-שיט</div>
+    <textarea id="docs-edit-textarea" placeholder="רשימת המסמכים שצריכים להגיע..." style="flex:1;min-height:0;width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.6"></textarea>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveDocsEdit()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeDocsEdit()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- CALL SUMMARY MODAL — opens after a phone-button tap -->
+<!-- CALL SUMMARY VIEWER (fullscreen) — shows all entries from column CH -->
+<div id="call-summary-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:310;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding:14px 16px 10px;padding-top:calc(14px + env(safe-area-inset-top));">
+    <button onclick="closeCallSummary()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      <span>חזרה</span>
+    </button>
+    <div style="flex:1;min-width:0">
+      <div class="log-title" style="font-size:15px">סיכומי שיחות</div>
+      <div class="log-sub" id="call-summary-name" style="margin-top:2px"></div>
+    </div>
+  </div>
+  <div id="call-summary-content" style="flex:1;overflow-y:auto;padding:14px 16px;min-height:0"></div>
+  <div style="padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border)">
+    <button class="log-action-btn log-action-add" onclick="openAddCallSummary()" style="width:100%">
+      <span style="display:inline-flex;align-items:center;gap:6px;justify-content:center">${''/* injected via ICON map at runtime */}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>הוסף סיכום שיחה</span>
+      </span>
+    </button>
+  </div>
+</div>
+
+<!-- ADD CALL SUMMARY (bottom sheet) — creates a new entry, prepends to CH -->
+<div id="call-add-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);">
+  <div class="log-sheet" style="background:var(--white);border-top:2px solid var(--slate);padding:16px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;max-height:90dvh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+    <div class="log-handle"></div>
+    <div class="log-title">סיכום שיחה חדש</div>
+    <div class="log-sub" id="call-add-name"></div>
+    <textarea class="log-textarea" id="call-add-text" placeholder="הקלד את סיכום השיחה..." style="min-height:140px"></textarea>
+    <button class="log-mic-btn" id="call-add-mic" onclick="toggleCallSummaryMic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      <span>הכתב (מיקרופון)</span>
+    </button>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveCallSummary()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeAddCallSummary()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT SINGLE CALL ENTRY (bottom sheet) — edits one entry in place -->
+<div id="call-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);">
+  <div class="log-sheet" style="background:var(--white);border-top:2px solid var(--slate);padding:16px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;max-height:90dvh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+    <div class="log-handle"></div>
+    <div class="log-title">עריכת סיכום שיחה</div>
+    <div class="log-sub" id="call-edit-head" style="font-size:11px;color:var(--muted);font-weight:600"></div>
+    <textarea class="log-textarea" id="call-edit-text" style="min-height:140px"></textarea>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveEditCallSummary()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeEditCallSummary()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Register the service worker for the insolvency PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+// Theme toggle (shared with the rest of the brand pages)
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const m=document.getElementById('theme-moon'),s=document.getElementById('theme-sun');
+  if(m&&s){m.style.display=t==='dark'?'none':'block';s.style.display=t==='dark'?'block':'none';}
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>{
+    meta.setAttribute('content',t==='dark'?'#1F1E1C':'#FAF9F5');
+  });
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='light'?'dark':'light';
+  localStorage.setItem('at_theme',next);
+  applyTheme(next);
+}
+(function initTheme(){
+  let saved=localStorage.getItem('at_theme');
+  if(!saved){
+    saved=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  applyTheme(saved);
+})();
+
+// Lucide-style icon set (stroke 1.5, no fill)
+const _SVG=(content,size)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:${size||18}px;height:${size||18}px;display:block">${content}</svg>`;
+const ICON={
+  check:    _SVG('<polyline points="20 6 9 17 4 12"/>',16),
+  phone:    _SVG('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',20),
+  checkCircle:_SVG('<circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>',14),
+  search:   _SVG('<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',14),
+  refresh:  _SVG('<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/>',14),
+  moon:     _SVG('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',14),
+  sun:      _SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',14),
+  pause:    _SVG('<rect x="6" y="4" width="4" height="16" rx="0.5"/><rect x="14" y="4" width="4" height="16" rx="0.5"/>',14),
+  back:     _SVG('<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',16),
+  pencil:   _SVG('<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/>',14),
+  warning:  _SVG('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',12),
+  bell:     _SVG('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',14),
+  plus:     _SVG('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',16),
+  arrowL:   _SVG('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',16),
+  fire:     _SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',12),
+  mic:      _SVG('<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/>',16),
+  micStop:  _SVG('<rect x="6" y="6" width="12" height="12" rx="1"/>',16),
+  x:        _SVG('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',12),
+  fire:     _SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',12),
+  clipboard:_SVG('<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/>',16)
+};
+
+// Decorate any element with data-icon="<name>" by prepending the matching ICON
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('[data-icon]').forEach(el=>{
+    const key=el.getAttribute('data-icon');
+    if(ICON[key] && !el.querySelector('svg')){
+      const txt=el.textContent;
+      el.innerHTML=`<span style="display:inline-flex;align-items:center;gap:4px">${ICON[key]}<span>${txt}</span></span>`;
+    }
+  });
+});
+
+const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const REDIRECT=location.origin+location.pathname;
+const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
+
+// Columns (0-based)
+const C_NAME=22,C_CASE=66;
+const C_PHONE=21;      // V: client phone
+// Operations section ("ביצועים" — entered via 4 logo taps)
+const C_X=23;          // X: cumulative summary log (first 2 lines preserved)
+const C_Y=24;          // Y: start / received-instruction date
+const C_Z=25;          // Z: days to complete
+const C_AA=26;         // AA: deadline (Y + Z) — formula in sheet, do not write
+const C_CG=84;         // CG: status — 'wait' or empty
+const C_CH=85;         // CH: cumulative call-summary log
+const COL_X='X';       // write URL for ops log
+const COL_CG='CG';     // write URL for status
+const COL_CH='CH';     // write URL for call-summary log
+const C_DOCS_LIST=28,C_DOCS_AE=30,C_DOCS_AG=32,C_DOCS_AH=33,C_DOCS_AI=34;
+const C_AL=37,C_AZ=51;
+const C_BG=58,C_BH=59,C_BI=60;
+const C_CE=82;
+const C_CF=83;       // log column (CF) — main case log
+const COL_CF='CF';   // for write URL
+
+const C_REP_DATES=[39,41,43,45,47,49]; // AN AP AR AT AV AX
+const C_REP_STATUS=[40,42,44,46,48,50]; // AO AQ AS AU AW AY
+
+let accessToken=null,allClients=[],expandedSet=new Set();
+let waitingSet=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
+let curTab='main';
+// Tasks section (hidden by 4 logo taps)
+let logoTapCount=0;
+let logoTapTimer=null;
+let inTasksSection=sessionStorage.getItem('ins_inTasks')==='1';
+let taskRangeDays='all';
+let taskTab='do'; // 'do' | 'wait'
+let fReport='all',fDocs='all',fInj='all',fSrv='all';
+let userName='',userEmail='';
+let currentLog=null;        // {rowNum, name, log, field, col, preserveLines}
+let logRecognition=null,logIsRecording=false,logFinalTranscript='';
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+function doLogin(){
+  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+    client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',
+    scope:SCOPES,prompt:'consent select_account',include_granted_scopes:'true'
+  });
+}
+function signOut(){
+  if(!confirm('להתנתק?'))return;
+  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+window.addEventListener('load',()=>{
+  if(location.hash&&location.hash.includes('access_token')){
+    const p=new URLSearchParams(location.hash.substring(1));
+    const tok=p.get('access_token'),exp=parseInt(p.get('expires_in')||'3600');
+    const scope=p.get('scope')||'';
+    if(tok){
+      accessToken=tok;
+      localStorage.setItem('it',tok);
+      localStorage.setItem('ite',(Date.now()+(exp-120)*1000).toString());
+      localStorage.setItem('isc',scope);
+      history.replaceState(null,'',location.pathname);
+      fetchUserInfo();showApp();loadData();return;
+    }
+  }
+  const tok=localStorage.getItem('it'),exp=parseInt(localStorage.getItem('ite')||'0');
+  const savedScope=localStorage.getItem('isc')||'';
+  // Old tokens (saved before we added the spreadsheets scope) won't have it →
+  // force a fresh login so writes won't fail with "insufficient scopes".
+  const hasWriteScope=savedScope.includes('spreadsheets');
+  if(tok&&Date.now()<exp&&hasWriteScope){
+    accessToken=tok;
+    userName=localStorage.getItem('in')||'';
+    userEmail=localStorage.getItem('ie')||'';
+    restoreAvatar();showApp();loadData();
+  } else if(tok){
+    // we have a token but it's missing scopes — clear it and show login
+    ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+    accessToken=null;
+    document.getElementById('login-screen').style.display='flex';
+  }
+  // else login screen already visible
+});
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  // Set up history so the back button doesn't immediately leave the app:
+  //   entry-A (replace): represents "outside / exit anchor"
+  //   entry-B (push):    represents current app state
+  history.replaceState({page:'exit'},'');
+  history.pushState({page:'app'},'');
+  // If the user was in the tasks section before a refresh, restore them there.
+  if(inTasksSection){
+    document.getElementById('main-section').style.display='none';
+    document.getElementById('waiting-section').style.display='none';
+    document.getElementById('tasks-section').style.display='block';
+    document.querySelector('#app > .tabs').style.display='none';
+    history.pushState({page:'tasks'},'');
+    if(typeof renderTasks==='function') renderTasks();
+  }
+}
+function fetchUserInfo(){
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
+    .then(r=>r.json()).then(u=>{
+      if(!ALLOWED.includes((u.email||'').toLowerCase())){
+        ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+        accessToken=null;
+        document.getElementById('app').style.display='none';
+        document.getElementById('login-screen').style.display='flex';
+        alert('אין הרשאה: '+u.email);return;
+      }
+      localStorage.setItem('ip',u.picture||'');
+      localStorage.setItem('in',u.name||'');
+      localStorage.setItem('ie',u.email||'');
+      userName=u.name||'';userEmail=u.email||'';
+      setAvatar(u.picture,u.name);
+    }).catch(()=>{});
+}
+function restoreAvatar(){setAvatar(localStorage.getItem('ip'),localStorage.getItem('in'));}
+function setAvatar(pic,name){
+  const av=document.getElementById('user-avatar');if(!av)return;
+  av.innerHTML=pic?`<img src="${pic}">`:(name||'U')[0].toUpperCase();
+}
+
+// Tag = first 3 + last 3 letters of the email's local part (or name as fallback).
+// If the source is shorter than 6 chars, return it as-is (no padding).
+function getUserTag6(){
+  let src='';
+  if(userEmail) src=userEmail.split('@')[0];
+  else src=userName||'user';
+  if(src.length<=6) return src;
+  return src.slice(0,3)+src.slice(-3);
+}
+function getInsTS(){
+  const n=new Date(),p=x=>String(x).padStart(2,'0');
+  return `${p(n.getDate())}/${p(n.getMonth()+1)}/${String(n.getFullYear()).slice(2)} ${p(n.getHours())}:${p(n.getMinutes())}`;
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(tab){
+  curTab=tab;
+  document.getElementById('tab-main').className='tab'+(tab==='main'?' active':'');
+  document.getElementById('tab-waiting').className='tab'+(tab==='waiting'?' active':'');
+  document.getElementById('main-section').style.display=tab==='main'?'block':'none';
+  document.getElementById('waiting-section').style.display=tab==='waiting'?'block':'none';
+  if(tab==='waiting')renderWaiting();
+}
+
+// Wrap a status text with an inline icon: "דחוף"→fire, "הסתיים"→checkCircle.
+function withStatusIcon(text){
+  if(!text) return text;
+  if(text==='הסתיים' || text.startsWith('הסתיים')) return `<span style="display:inline-flex;align-items:center;gap:3px">${ICON.checkCircle}<span>${text}</span></span>`;
+  if(text==='דחוף' || text.startsWith('דחוף')) return `<span style="display:inline-flex;align-items:center;gap:3px">${ICON.fire}<span>${text}</span></span>`;
+  return text;
+}
+
+// Render a clickable phone button (uses tel: + opens call-summary modal on tap).
+// Returns empty string if no phone.
+function phoneBtn(c){
+  if(!c.phone) return '';
+  const digits=String(c.phone).replace(/\D/g,'');
+  let tel=digits;
+  if(digits.startsWith('0')) tel='+972'+digits.substring(1);
+  // The tel: link triggers the dialer; the JS also opens a summary dialog.
+  return `<a href="tel:${tel}" onclick="event.stopPropagation();openCallSummary(${c.rowNum})" class="phone-btn" title="התקשר ${esc(c.phone)}">${ICON.phone}</a>`;
+}
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+let _firstLoadDone=false;
+async function loadData(){
+  // Show the spinner only on the very first load (or when actively viewing the main list and it's empty)
+  const showSpinner=!_firstLoadDone && !inTasksSection;
+  if(showSpinner){
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('cards-list').innerHTML='';
+  }
+  try{
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CH?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const rows=(data.values||[]).slice(2);
+    allClients=rows.map((row,i)=>parseClient(row,i+3)).filter(c=>c&&c.name&&c.name.trim());
+    const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+    document.getElementById('total-count').textContent=active.length;
+    updateWaitingTab();
+    updateStats(active);
+    document.getElementById('loading').style.display='none';
+    // Only re-render the section the user is currently looking at
+    if(inTasksSection){
+      renderTasks();
+    } else {
+      renderCards(active);
+    }
+    _firstLoadDone=true;
+    setTimeout(loadData,3*60*1000);
+  }catch(e){
+    document.getElementById('loading').style.display='none';
+    if(!inTasksSection){
+      document.getElementById('cards-list').innerHTML=`<div style="padding:20px;color:var(--red);display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span>${e.message}</span></div>`;
+    }
+  }
+}
+
+// ── PARSE ─────────────────────────────────────────────────────────────────────
+function parseClient(row,rowNum){
+  const g=i=>(row[i]||'').toString().trim();
+  const name=g(C_NAME);if(!name)return null;
+
+  const today=new Date();today.setHours(0,0,0,0);
+  const in7days=new Date(today);in7days.setDate(today.getDate()+7);
+  const in7=new Date(today);in7.setDate(today.getDate()+7);
+
+  // REPORTS
+  const reports=[],reportStatus=[];
+  for(let i=0;i<6;i++){
+    const dv=g(C_REP_DATES[i]),sv=g(C_REP_STATUS[i]).toLowerCase();
+    reports.push(dv); // always store date from date column
+    if(sv==='הוגש') reportStatus.push('done');
+    else if(sv.includes('בתהליך')||sv.includes('בתהל')) reportStatus.push('progress');
+    else if(!dv) reportStatus.push('empty');
+    else{
+      const d=parseDate(dv);
+      if(!d) reportStatus.push('empty');
+      else if(d<today){
+        // לפני 2025 = לא נספר כפיגור בפילטר, אבל מוצג
+        if(d.getFullYear()<2025) reportStatus.push('old');
+        else reportStatus.push('overdue');
+      }
+      else reportStatus.push('future');
+    }
+  }
+  // CE מעמודה (מחושב ע"י סקריפט) — אם 0 השתמש בחישוב מקומי
+  const ceVal=parseInt(g(C_CE))||0;
+  const calcCount=reportStatus.filter(s=>s==='overdue').length;
+  const overdueCount=ceVal>0?ceVal:calcCount;
+
+  // DOCS
+  const docsList=g(C_DOCS_LIST);
+  const docsAGRaw=g(C_DOCS_AG);
+  const agDate=parseDate(docsAGRaw),aeDate=parseDate(g(C_DOCS_AE));
+  const docsDone=g(C_DOCS_AH).includes('בוצע');
+  const docsReminder=g(C_DOCS_AI)==='TRUE';
+  const docsHighUrgent=!docsDone&&agDate&&agDate<=in7;
+  const docsLowUrgent=!docsDone&&!docsHighUrgent&&aeDate&&aeDate<today&&(!agDate||agDate>in7);
+
+  // INJUNCTION
+  const alDate=parseDate(g(C_AL));
+  const injUrgent=alDate&&alDate<=in7;
+
+  // SERVICE
+  const bgDate=parseDate(g(C_BG));
+  const serviceDone=g(C_BI).includes('בוצע');
+  let bg45=null;if(bgDate){bg45=new Date(bgDate);bg45.setDate(bgDate.getDate()+45);}
+  const srvWarning=!serviceDone&&bgDate&&bgDate<today&&!(bg45&&bg45<today);
+  const srvUrgent=!serviceDone&&bg45&&bg45<today;
+
+  // REMINDER
+  const reminder=g(C_AZ)==='TRUE';
+
+  const isUrgent=overdueCount>0||docsHighUrgent||injUrgent||srvUrgent;
+  const isWarning=!isUrgent&&(docsLowUrgent||srvWarning||docsReminder||reminder);
+
+  return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
+    docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
+    injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
+    log:g(C_CF),
+    callLog:g(C_CH),
+    // Operations section (columns X, Y, Z, AA, CG)
+    opsLog:g(C_X),
+    opsStartRaw:g(C_Y),
+    opsDaysRaw:g(C_Z),
+    opsDeadlineRaw:g(C_AA),
+    opsDeadline:parseDate(g(C_AA)),
+    opsStatus:(g(C_CG)||'').trim().toLowerCase()};
+}
+
+function parseDate(s){
+  if(!s)return null;
+  let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const y=m[3].length===2?2000+parseInt(m[3]):parseInt(m[3]);
+    return new Date(y,parseInt(m[2])-1,parseInt(m[1]));
+  }
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m)return new Date(parseInt(m[1]),parseInt(m[2])-1,parseInt(m[3]));
+  return null;
+}
+
+function fmtDateFull(s){
+  // Returns DD/MM/YY (or original if can't parse)
+  if(!s||s==='')return'';
+  let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const dd=m[1].padStart(2,'0');
+    const mm=m[2].padStart(2,'0');
+    const yy=m[3].length===4?m[3].slice(2):m[3].padStart(2,'0');
+    return dd+'/'+mm+'/'+yy;
+  }
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return m[3]+'/'+m[2]+'/'+m[1].slice(2);
+  return s;
+}
+
+function fmtDate(s){
+  if(!s||s==='')return'—';
+  let m;
+  // dd/mm/yy or dd/mm/yyyy — return mm/yy
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const mm=m[2].padStart(2,'0');
+    const yy=m[3].length===4?m[3].slice(2):m[3];
+    return mm+'/'+yy;
+  }
+  // yyyy-mm-dd
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return m[2]+'/'+m[1].slice(2);
+  if(s.length<=5) return s;
+  return s.substring(0,5);
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function setReportFilter(val,el){
+  fReport=val;
+  document.querySelectorAll('#report-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
+}
+function setF(type,val){
+  if(type==='docs')fDocs=val;
+  else if(type==='inj')fInj=val;
+  else if(type==='srv')fSrv=val;
+  ['all','urgent','warning'].forEach(v=>{
+    const el=document.getElementById('f'+type[0]+'-'+v);
+    if(el)el.classList.toggle('active',v===val);
+  });
+  applyFilters();
+}
+function applyFilters(){
+  // If the user is currently in the secret operations section, don't touch the
+  // main list at all — just refresh the tasks view.
+  if(inTasksSection){
+    if(typeof renderTasks==='function') renderTasks();
+    return;
+  }
+  const q=document.getElementById('search').value.toLowerCase();
+  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  const filtered=active.filter(c=>{
+    if(q){
+      // Search across name, case number, log (CF), docs list, ops log (X), and call log (CH).
+      const haystack=[
+        c.name,
+        c.caseNum,
+        c.log,
+        c.docsList,
+        c.opsLog,
+        c.callLog
+      ].map(s=>(s||'').toLowerCase()).join('\n');
+      if(!haystack.includes(q)) return false;
+    }
+    if(fReport!=='all'&&c.overdueCount!==fReport)return false;
+    if(fDocs==='urgent'&&!c.docsHighUrgent)return false;
+    if(fDocs==='warning'&&!c.docsLowUrgent)return false;
+    if(fInj==='urgent'&&!c.injUrgent)return false;
+    if(fSrv==='urgent'&&!c.srvUrgent)return false;
+    if(fSrv==='warning'&&!c.srvWarning)return false;
+    return true;
+  });
+  renderCards(filtered);
+}
+
+function updateStats(active){
+  const urgent=active.filter(c=>c.isUrgent).length;
+  const warning=active.filter(c=>c.isWarning).length;
+  const ok=active.filter(c=>!c.isUrgent&&!c.isWarning).length;
+  const rem=active.filter(c=>c.reminder).length;
+  document.getElementById('s-urgent').textContent=urgent+' דחוף';
+  document.getElementById('s-warning').textContent=warning+' אזהרה';
+  document.getElementById('s-ok').textContent=ok+' תקין';
+  document.getElementById('s-reminder').textContent=rem+' תזכורת';
+}
+
+// ── RENDER CARDS ──────────────────────────────────────────────────────────────
+function renderCards(clients){
+  const list=document.getElementById('cards-list');
+  list.innerHTML='';
+  if(!clients.length){list.innerHTML='<div class="empty">אין תיקים</div>';return;}
+  clients.forEach(c=>{
+    const exp=expandedSet.has(c.rowNum);
+
+    // Report cells - show date for ALL
+    const reportCells=c.reportStatus.map((s,i)=>{
+      const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':'empty';
+      const lbl=['ד1','ד2','ד3','ד4','ד5','ד6'][i];
+      const dateStr=fmtDate(c.reports[i]);
+      let topLine,botLine;
+      if(s==='done'){topLine=lbl;botLine=dateStr;}
+      else if(s==='progress'){topLine=lbl;botLine=dateStr!=='—'?dateStr:'';}
+      else{topLine=lbl;botLine=dateStr;}
+      return`<div class="report-cell ${cls}" title="${c.reports[i]||''}">
+        <span style="font-size:6px;font-weight:700;line-height:1">${topLine}</span>
+        <span style="font-size:6px;font-weight:400;line-height:1">${botLine||'&nbsp;'}</span>
+      </div>`;
+    }).join('');
+
+    // Docs
+    const docsCls=c.docsDone?'green':c.docsHighUrgent?'red':c.docsLowUrgent?'orange':'';
+    const docsBadge=c.docsDone?'badge-green':c.docsHighUrgent?'badge-red':c.docsLowUrgent?'badge-orange':'badge-gray';
+    const docsText=c.docsDone?'הסתיים':c.docsHighUrgent?'דחוף':c.docsLowUrgent?'בטיפול':'תקין';
+
+    // Injunction
+    const injCls=c.injUrgent?'red':'';
+    const injText=c.injUrgent?'דחוף':'תקין';
+
+    // Service
+    const srvCls=c.serviceDone?'green':c.srvUrgent?'red':c.srvWarning?'orange':'';
+    const srvBadge=c.serviceDone?'badge-green':c.srvUrgent?'badge-red':c.srvWarning?'badge-orange':'badge-gray';
+    const srvText=c.serviceDone?'הסתיים':c.srvUrgent?'דחוף — 45+ יום':c.srvWarning?'בטיפול':'תקין';
+
+    // Dots
+    const d1=c.isUrgent?'var(--red)':c.isWarning?'var(--orange)':'var(--green)';
+    const d2=c.overdueCount>0?'var(--red)':'var(--muted)';
+    const d3=c.docsHighUrgent?'var(--red)':c.docsLowUrgent?'var(--orange)':'var(--muted)';
+    const d4=c.srvUrgent?'var(--red)':c.srvWarning?'var(--orange)':'var(--muted)';
+    const d5=c.injUrgent?'var(--red)':'var(--muted)';
+
+    let bodyHtml='';
+    if(exp){
+      const docsDeadline=c.docsHighUrgent&&c.docsAGRaw?fmtDateFull(c.docsAGRaw):'';
+      bodyHtml=`<div class="card-body">
+        <div>
+          <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
+          <div style="height:30px;overflow:hidden"><div class="reports-grid">${reportCells}</div></div>
+          ${c.reminder?`<div class="reminder-row" style="margin-top:6px"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span></div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+            <div class="section-title" style="color:var(--slate);margin-bottom:0">השלמת מסמכים</div>
+            ${docsDeadline?`<div style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${docsDeadline}</div>`:''}
+          </div>
+          <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
+          ${c.docsList
+            ? `<div style="position:relative" onclick="event.stopPropagation();openDocsEdit(${c.rowNum})">
+                 <div style="font-size:12px;color:var(--text);padding:8px 32px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.docsList)}</div>
+                 <button style="position:absolute;left:6px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="ערוך רשימה">${ICON.pencil}</button>
+               </div>`
+            : `<button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים</span></button>`
+          }
+          ${c.docsReminder?`<div class="reminder-row"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת — ב-5, 15 ו-25 לחודש</span></div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="section-title" style="color:var(--slate)">אישורי מסירה</div>
+          <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="section-title" style="color:var(--slate)">עיכוב הליכים</div>
+          <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
+        </div>
+      </div>`;
+    }
+
+    const card=document.createElement('div');
+    card.innerHTML=`
+      <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
+        <div class="card-header" onclick="toggleExpand(${c.rowNum})">
+          <div class="client-info">
+            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+            <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
+          </div>
+          <button class="log-btn ${c.callLog?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'ch')" title="סיכומי שיחות">
+            ${ICON.clipboard}${c.callLog?'<span class="log-dot"></span>':''}
+          </button>
+        </div>
+        ${bodyHtml}
+      </div>`;
+
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML='<div class="swipe-bg left">להמתנה</div><div class="swipe-bg right"></div>';
+    const content=document.createElement('div');
+    content.className='swipe-content';
+    content.appendChild(card);
+    wrap.appendChild(content);
+    list.appendChild(wrap);
+    initSwipe(wrap,c.rowNum,'waiting');
+  });
+}
+
+// ── RENDER WAITING ────────────────────────────────────────────────────────────
+function renderWaiting(){
+  const list=document.getElementById('waiting-list');
+  const q=(document.getElementById('search').value||'').toLowerCase().trim();
+  let waiting=allClients.filter(c=>waitingSet.has(c.rowNum));
+  if(q){
+    waiting=waiting.filter(c=>{
+      const haystack=[c.name,c.caseNum,c.log,c.docsList,c.opsLog,c.callLog]
+        .map(s=>(s||'').toLowerCase()).join('\n');
+      return haystack.includes(q);
+    });
+  }
+  if(!waiting.length){list.innerHTML='<div class="empty">אין תיקים'+(q?' תואמים לחיפוש':' בהמתנה')+'</div>';return;}
+  list.innerHTML='';
+  waiting.forEach(c=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML='<div class="swipe-bg left"></div><div class="swipe-bg right">החזר</div>';
+    const content=document.createElement('div');
+    content.className='swipe-content';
+    content.innerHTML=`<div class="client-card" style="opacity:.75" data-row="${c.rowNum}">
+      <div class="card-header" style="cursor:default">
+        <div class="client-info">
+          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+          <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}</div>
+          <div class="waiting-badge" style="display:inline-flex;align-items:center;gap:4px">${ICON.pause}<span>בהמתנה</span></div>
+        </div>
+        <button class="restore-btn" onclick="restoreClient(${c.rowNum})">${ICON.back}</button>
+      </div>
+    </div>`;
+    wrap.appendChild(content);
+    list.appendChild(wrap);
+    initSwipe(wrap,c.rowNum,'restore');
+  });
+}
+
+// ── SWIPE ─────────────────────────────────────────────────────────────────────
+function initSwipe(wrap,rowNum,action){
+  const content=wrap.querySelector('.swipe-content');
+  const bgL=wrap.querySelector('.swipe-bg.left');
+  const bgR=wrap.querySelector('.swipe-bg.right');
+  let sx=0,sy=0,dx=0,going=false,axis=null;
+  const THRESH=80;
+
+  wrap.addEventListener('touchstart',e=>{
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;going=true;axis=null;dx=0;
+  },{passive:true});
+
+  wrap.addEventListener('touchmove',e=>{
+    if(!going)return;
+    const t=e.touches[0];
+    const mx=t.clientX-sx,my=t.clientY-sy;
+    if(!axis)axis=Math.abs(mx)>8||Math.abs(my)>8?(Math.abs(mx)>Math.abs(my)?'x':'y'):null;
+    if(axis!=='x')return;
+    e.preventDefault();
+    dx=mx;
+    content.style.transition='none';
+    content.style.transform=`translateX(${dx}px)`;
+    const pct=Math.min(Math.abs(dx)/THRESH,1);
+    // For 'waiting': swipe left only
+    // For 'restore': swipe right only
+    if(action==='waiting'&&dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
+    else if(action==='restore'&&dx>0){bgR.style.opacity=pct;bgL.style.opacity=0;}
+    else{bgL.style.opacity=0;bgR.style.opacity=0;}
+  },{passive:false});
+
+  wrap.addEventListener('touchend',()=>{
+    if(!going||axis!=='x'){going=false;return;}
+    going=false;
+    content.style.transition='transform .2s';
+    const triggered=(action==='waiting'&&dx<=-THRESH)||(action==='restore'&&dx>=THRESH);
+    if(triggered){
+      content.style.transform=`translateX(${dx<0?'-110%':'110%'})`;
+      setTimeout(()=>{
+        if(action==='waiting') moveToWaiting(rowNum);
+        else restoreClient(rowNum);
+      },200);
+    }else{
+      content.style.transform='';
+      bgL.style.opacity=0;bgR.style.opacity=0;
+    }
+  });
+}
+
+function moveToWaiting(rowNum){
+  waitingSet.add(rowNum);
+  localStorage.setItem('ins_waiting',JSON.stringify([...waitingSet]));
+  // Remove from DOM immediately
+  const el=document.querySelector(`[data-row="${rowNum}"]`);
+  if(el)el.closest('.swipe-wrap').remove();
+  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  document.getElementById('total-count').textContent=active.length;
+  updateWaitingTab();
+  showToast('תיק הועבר להמתנה');
+}
+
+function restoreClient(rowNum){
+  waitingSet.delete(rowNum);
+  localStorage.setItem('ins_waiting',JSON.stringify([...waitingSet]));
+  const el=document.querySelector(`[data-row="${rowNum}"]`);
+  if(el)el.closest('.swipe-wrap').remove();
+  updateWaitingTab();
+  showToast('תיק שוחזר');
+}
+
+function updateWaitingTab(){
+  const n=waitingSet.size;
+  document.getElementById('tab-waiting-text').textContent='ממתינים'+(n>0?' ('+n+')':'');
+}
+
+function toggleExpand(rowNum){
+  if(expandedSet.has(rowNum))expandedSet.delete(rowNum);else expandedSet.add(rowNum);
+  applyFilters();
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Wrap phone-number-looking sequences in tel: links.
+// Accepts already-HTML-escaped input. Matches Israeli mobile/landline formats:
+//   050-1234567, 050 1234567, 0501234567, +972501234567, 02-1234567, 1-700-12-34-56 etc.
+// Looks for runs of 9-12 digits with optional separators, where the digit count is sane.
+function linkifyPhones(html){
+  if(!html)return html;
+  // Pattern: optional + or 0 prefix, then digits with optional separators (- . space)
+  return html.replace(/(\+?\d[\d\-\.\s]{7,16}\d)/g,(match)=>{
+    const digits=match.replace(/\D/g,'');
+    if(digits.length<9||digits.length>13) return match;
+    let tel=digits;
+    // Israeli local → international (+972) so it works on both Android and iOS
+    if(digits.startsWith('0')) tel='+972'+digits.substring(1);
+    else if(!match.startsWith('+')) tel=digits;
+    else tel='+'+digits;
+    return `<a href="tel:${tel}" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:underline;font-weight:600">${match}</a>`;
+  });
+}
+
+// kind: 'ok' | 'err' | undefined (plain). Adds a small inline icon.
+function showToast(msg,kind){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');
+  t.className='toast';
+  let iconHtml='';
+  if(kind==='ok')      iconHtml=`<span style="display:inline-flex">${ICON.check}</span>`;
+  else if(kind==='err')iconHtml=`<span style="display:inline-flex">${ICON.x}</span>`;
+  t.style.display='inline-flex';t.style.alignItems='center';t.style.gap='8px';
+  t.innerHTML=iconHtml+'<span>'+msg.replace(/^[✓✗]\s?/,'')+'</span>';
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOG (column CF) — viewer + edit + add new entry
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// Format the raw log content for display: highlight timestamp/user lines.
+function renderLogContent(log){
+  if(!log||!log.trim()){
+    return '<div class="log-empty">אין תיעוד עדיין. לחץ "הוסף תיעוד" כדי להתחיל.</div>';
+  }
+  // Split into entries by blank line; keep order (newest is at top, as written).
+  const entries=log.split(/\n\n+/).filter(e=>e.trim());
+  return '<div class="log-content">'+entries.map(en=>{
+    const lines=en.split('\n');
+    const head=lines[0]||'';
+    const isHeader=/^\d{2}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}/.test(head.trim());
+    if(isHeader){
+      const body=lines.slice(1).join('\n');
+      return `<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:3px">${esc(head)}</div><div>${linkifyPhones(esc(body))}</div></div>`;
+    }
+    return `<div style="margin-bottom:10px">${linkifyPhones(esc(en))}</div>`;
+  }).join('<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">')+'</div>';
+}
+
+// Open the viewer modal for a given client row.
+// kind: 'cf' (default — insolvency log column CF)
+//   or  'ops' (operations section log column X, with first 2 lines preserved)
+function openLogModal(rowNum,kind){
+  const client=allClients.find(c=>c.rowNum===rowNum);
+  if(!client){showToast('תיק לא נמצא');return;}
+  kind=kind||'cf';
+  if(kind==='ops'){
+    currentLog={rowNum,name:client.name,log:client.opsLog||'',
+      field:'opsLog',col:COL_X,preserveLines:2,kind:'ops'};
+  } else if(kind==='ch'){
+    currentLog={rowNum,name:client.name,log:client.callLog||'',
+      field:'callLog',col:COL_CH,preserveLines:0,kind:'ch'};
+  } else {
+    currentLog={rowNum,name:client.name,log:client.log||'',
+      field:'log',col:COL_CF,preserveLines:0,kind:'cf'};
+  }
+  document.getElementById('log-modal-name').textContent=client.name+(client.caseNum?' • תיק '+client.caseNum:'');
+  document.getElementById('log-content-wrap').innerHTML=renderLogContent(currentLog.log);
+  document.getElementById('log-modal').classList.add('open');
+  // history state — back button just closes the viewer
+  history.pushState({page:'log'},'');
+}
+
+// When we close a modal "programmatically" (via Save / Cancel button), we still
+// want to pop the history entry we pushed when opening it — but the popstate
+// handler must NOT then do its own close logic (it would re-trigger and exit
+// the section). This flag tells popstate to ignore the next event.
+let _suppressPopstate=false;
+function popHistorySilently(){
+  _suppressPopstate=true;
+  history.back();
+  // safety reset in case popstate doesn't fire (e.g. no entry to pop)
+  setTimeout(()=>{_suppressPopstate=false;},120);
+}
+
+function closeLogModal(){
+  document.getElementById('log-modal').classList.remove('open');
+  if(history.state&&history.state.page==='log') popHistorySilently();
+}
+
+/* ── EDIT existing log ────────────────────────────────────────────────────── */
+function openEditLog(){
+  if(!currentLog)return;
+  document.getElementById('log-edit-name').textContent=currentLog.name;
+  document.getElementById('log-edit-textarea').value=currentLog.log||'';
+  document.getElementById('log-edit-modal').classList.add('open');
+  history.pushState({page:'log-edit'},'');
+}
+function closeEditLog(){
+  document.getElementById('log-edit-modal').classList.remove('open');
+  if(history.state&&history.state.page==='log-edit') popHistorySilently();
+}
+async function saveEditLog(){
+  if(!currentLog)return;
+  const newVal=document.getElementById('log-edit-textarea').value;
+  // optimistic
+  currentLog.log=newVal;
+  const c=allClients.find(x=>x.rowNum===currentLog.rowNum);
+  if(c) c[currentLog.field]=newVal;
+  document.getElementById('log-content-wrap').innerHTML=renderLogContent(newVal);
+  closeEditLog();
+  showToast('שומר...');
+  try{
+    await writeLogToSheet(currentLog.rowNum,newVal,currentLog.col);
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+/* ── ADD new entry ────────────────────────────────────────────────────────── */
+function openAddLog(){
+  if(!currentLog)return;
+  document.getElementById('log-add-name').textContent=currentLog.name;
+  // Restore any draft for this row+column
+  const draftKey='ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col;
+  const draft=localStorage.getItem(draftKey)||'';
+  document.getElementById('log-add-textarea').value=draft;
+  logFinalTranscript=draft;
+  document.getElementById('log-add-modal').classList.add('open');
+  history.pushState({page:'log-add'},'');
+  stopLogMic();
+  setTimeout(()=>document.getElementById('log-add-textarea').focus(),300);
+}
+function closeAddLog(){
+  // user clicked סגור → drop the draft
+  if(currentLog)localStorage.removeItem('ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col);
+  _closeAddLogCore();
+}
+function saveDraftAndCloseAddLog(){
+  // back button → keep the draft
+  if(currentLog){
+    const draftKey='ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col;
+    const txt=document.getElementById('log-add-textarea').value;
+    if(txt&&txt.trim()) localStorage.setItem(draftKey,txt);
+    else localStorage.removeItem(draftKey);
+    if(txt&&txt.trim()) showToast('טיוטה נשמרה');
+  }
+  _closeAddLogCore();
+}
+function _closeAddLogCore(){
+  stopLogMic();
+  document.getElementById('log-add-modal').classList.remove('open');
+}
+async function saveAddLog(){
+  if(!currentLog)return;
+  const newText=document.getElementById('log-add-textarea').value.trim();
+  if(!newText){closeAddLog();return;}
+  const ts=getInsTS();
+  const tag=getUserTag6();
+  const header=ts+(tag?` | ${tag}`:'');
+  const entry=header+'\n'+newText;
+  const prev=currentLog.log||'';
+  // If preserveLines>0 (e.g. the X column keeps the first 2 lines as headings),
+  // we insert the new entry AFTER those lines and push the rest of the log down.
+  let combined;
+  const preserve=currentLog.preserveLines||0;
+  if(preserve>0 && prev){
+    const allLines=prev.split('\n');
+    const head=allLines.slice(0,preserve).join('\n');
+    const rest=allLines.slice(preserve).join('\n').replace(/^\n+/,''); // trim leading blanks
+    combined=head+'\n'+entry+(rest?'\n\n'+rest:'');
+  } else {
+    combined=prev?entry+'\n\n'+prev:entry;
+  }
+  // optimistic update
+  currentLog.log=combined;
+  const c=allClients.find(x=>x.rowNum===currentLog.rowNum);
+  if(c) c[currentLog.field]=combined;
+  // refresh viewer behind
+  document.getElementById('log-content-wrap').innerHTML=renderLogContent(combined);
+  // also refresh the card so the "has-log" dot appears immediately
+  applyFilters();
+  if(typeof renderTasks==='function' && document.getElementById('tasks-section').style.display!=='none') renderTasks();
+  // pop add-modal history without triggering popstate logic
+  if(history.state&&history.state.page==='log-add')history.replaceState({page:'log'},'');
+  // clear draft (we are saving)
+  localStorage.removeItem('ins_logdraft_'+currentLog.rowNum+'_'+currentLog.col);
+  _closeAddLogCore();
+  showToast('שומר...');
+  try{
+    await writeLogToSheet(currentLog.rowNum,combined,currentLog.col);
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+/* ── Sheet write ─────────────────────────────────────────────────────────── */
+// If a write call returns an "insufficient scopes" or invalid-token error,
+// we have to force the user to log in again so OAuth re-issues a token
+// with the spreadsheets scope.
+function isAuthError(err){
+  const msg=(err&&err.message||'').toLowerCase();
+  return msg.includes('insufficient authentication scopes')
+      || msg.includes('insufficient scopes')
+      || msg.includes('invalid_token')
+      || msg.includes('invalid credentials')
+      || msg.includes('unauthorized')
+      || msg.includes('the request is missing')
+      || msg.includes('access token');
+}
+function handleAuthError(){
+  // Clear stored token and bounce back to login screen
+  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;
+  showToast('צריך להתחבר מחדש כדי לקבל הרשאת כתיבה לגיליון');
+  setTimeout(()=>{
+    document.getElementById('app').style.display='none';
+    document.getElementById('login-screen').style.display='flex';
+  },1500);
+}
+
+async function writeLogToSheet(rowNum,value,col){
+  if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
+  const c=col||COL_CF;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${c}${rowNum}?valueInputOption=RAW`;
+  const res=await fetch(url,{
+    method:'PUT',
+    headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+    body:JSON.stringify({values:[[value]]})
+  });
+  const data=await res.json();
+  if(data.error){
+    const e=new Error(data.error.message);
+    if(isAuthError(e)) handleAuthError();
+    throw e;
+  }
+  return data;
+}
+
+/* ── Mic for the add-log modal ──────────────────────────────────────────── */
+function toggleLogMic(){
+  if(logIsRecording){stopLogMic();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('הדפדפן לא תומך בהכתבה');return;}
+  logFinalTranscript=document.getElementById('log-add-textarea').value;
+  logRecognition=new SR();
+  logRecognition.lang='he-IL';logRecognition.continuous=false;logRecognition.interimResults=true;
+  logRecognition.onresult=e=>{
+    let interim='';
+    for(let i=0;i<e.results.length;i++){
+      if(e.results[i].isFinal) logFinalTranscript+=e.results[i][0].transcript;
+      else interim=e.results[i][0].transcript;
+    }
+    document.getElementById('log-add-textarea').value=logFinalTranscript+interim;
+  };
+  logRecognition.onend=()=>{if(logIsRecording)logRecognition.start();};
+  logRecognition.onerror=e=>{if(e.error!=='no-speech')stopLogMic();};
+  logRecognition.start();
+  logIsRecording=true;
+  const b=document.getElementById('log-mic-btn');
+  b.classList.add('recording');b.innerHTML=ICON.micStop+' <span>עצור הקלטה</span>';
+}
+function stopLogMic(){
+  logIsRecording=false;
+  if(logRecognition){try{logRecognition.abort();}catch(e){}logRecognition=null;}
+  const b=document.getElementById('log-mic-btn');
+  if(b){b.classList.remove('recording');b.innerHTML=ICON.mic+' <span>הכתב (מיקרופון)</span>';}
+}
+
+/* ── Back button: close the topmost log modal ─────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   TASKS SECTION (hidden, accessed by 4 taps on the logo)
+   Backed by columns X (log), Y (start date), Z (days), AA (deadline), AB (status)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function onLogoTap(){
+  logoTapCount++;
+  if(logoTapTimer) clearTimeout(logoTapTimer);
+  logoTapTimer=setTimeout(()=>{logoTapCount=0;},1200);
+  if(logoTapCount>=4){
+    logoTapCount=0;
+    if(logoTapTimer)clearTimeout(logoTapTimer);
+    if(inTasksSection) exitTasksSection();
+    else enterTasksSection();
+  }
+}
+
+function enterTasksSection(){
+  inTasksSection=true;
+  sessionStorage.setItem('ins_inTasks','1');
+  document.getElementById('main-section').style.display='none';
+  document.getElementById('waiting-section').style.display='none';
+  document.getElementById('tasks-section').style.display='block';
+  // Hide top tabs while in tasks section
+  document.querySelector('#app > .tabs').style.display='none';
+  history.pushState({page:'tasks'},'');
+  renderTasks();
+}
+
+function exitTasksSection(){
+  inTasksSection=false;
+  sessionStorage.removeItem('ins_inTasks');
+  document.getElementById('tasks-section').style.display='none';
+  document.querySelector('#app > .tabs').style.display='flex';
+  // Restore previous main tab view
+  if(curTab==='waiting'){
+    document.getElementById('waiting-section').style.display='block';
+  } else {
+    document.getElementById('main-section').style.display='block';
+  }
+  // Pop the tasks history entry
+  if(history.state&&history.state.page==='tasks') popHistorySilently();
+  // Refresh counter
+  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  document.getElementById('total-count').textContent=active.length;
+}
+
+function switchTaskTab(t){
+  taskTab=t;
+  document.getElementById('tasks-tab-do').className='tab'+(t==='do'?' active':'');
+  document.getElementById('tasks-tab-wait').className='tab'+(t==='wait'?' active':'');
+  renderTasks();
+}
+
+function setTaskRange(val,el){
+  taskRangeDays=val;
+  document.querySelectorAll('#tasks-section .filter-row .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function daysFromToday(date){
+  if(!date)return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=new Date(date);d.setHours(0,0,0,0);
+  return Math.round((d-today)/86400000);
+}
+
+function renderTasks(){
+  const list=document.getElementById('tasks-list');
+  if(!list)return;
+  const q=(document.getElementById('tasks-search').value||'').toLowerCase().trim();
+  let arr;
+  if(q){
+    // When the user is searching, ignore the active tab and search ALL clients
+    // (both "doing" and "waiting") — so waiting items can be found and acted on.
+    arr=allClients.slice();
+    arr=arr.filter(c=>{
+      const haystack=[c.name,c.caseNum,c.opsLog,c.log,c.callLog].map(s=>(s||'').toLowerCase()).join('\n');
+      return haystack.includes(q);
+    });
+  } else {
+    // No search → respect the active tab
+    const wantedStatus=(taskTab==='wait')?'wait':'';
+    arr=allClients.filter(c=>{
+      const st=(c.opsStatus||'').toLowerCase();
+      if(wantedStatus==='wait') return st==='wait';
+      return st!=='wait';
+    });
+  }
+  // Date range filter (only matters when not 'all'; only items WITH a deadline qualify
+  // and only those within range remain).
+  if(taskRangeDays!=='all'){
+    const max=parseInt(taskRangeDays,10);
+    arr=arr.filter(c=>{
+      if(!c.opsDeadline) return false;
+      const d=daysFromToday(c.opsDeadline);
+      return d!==null && d<=max;
+    });
+  }
+  // Sort: by deadline ascending, items with no deadline last
+  arr.sort((a,b)=>{
+    const da=a.opsDeadline?a.opsDeadline.getTime():null;
+    const db=b.opsDeadline?b.opsDeadline.getTime():null;
+    if(da===null && db===null) return 0;
+    if(da===null) return 1;
+    if(db===null) return -1;
+    return da-db;
+  });
+
+  list.innerHTML='';
+  if(!arr.length){
+    list.innerHTML='<div class="empty">אין משימות'+(taskTab==='wait'?' בהמתנה':'')+'</div>';
+    return;
+  }
+
+  arr.forEach(c=>{
+    const dl=c.opsDeadline;
+    const dleft=dl?daysFromToday(dl):null;
+
+    // Late badge — only when actually late (negative days). Otherwise no badge.
+    let lateBadge='';
+    if(dleft!==null && dleft<0){
+      lateBadge=`<span class="status-badge badge-red" style="position:absolute;left:10px;bottom:10px;display:inline-flex;align-items:center;gap:4px">${ICON.warning}<span>באיחור ${Math.abs(dleft)} ימים</span></span>`;
+    }
+
+    // One-line meta: case # • start • days • deadline (deadline is the edit trigger)
+    const parts=[];
+    if(c.caseNum) parts.push('תיק '+esc(c.caseNum));
+    if(c.opsStartRaw) parts.push('התחלה '+esc(c.opsStartRaw));
+    if(c.opsDaysRaw) parts.push(esc(c.opsDaysRaw)+' ימים');
+    const dlPart=c.opsDeadlineRaw
+      ? `<span class="ops-edit-trigger" data-row="${c.rowNum}" style="cursor:pointer;color:var(--slate);font-weight:600">דדליין ${esc(c.opsDeadlineRaw)}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg></span>`
+      : `<span class="ops-edit-trigger" data-row="${c.rowNum}" style="cursor:pointer;color:var(--muted)">ללא דדליין<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px;vertical-align:middle;margin-right:3px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg></span>`;
+    parts.push(dlPart);
+    const metaLine=parts.join(' • ');
+
+    // Full content of column X — exactly as it sits in the sheet (phones clickable)
+    const logPreview=c.opsLog?linkifyPhones(esc(c.opsLog)):'';
+
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    if(taskTab==='do'){
+      wrap.innerHTML='<div class="swipe-bg left">להמתנה</div><div class="swipe-bg right"></div>';
+    } else {
+      wrap.innerHTML='<div class="swipe-bg left"></div><div class="swipe-bg right">החזר לביצוע</div>';
+    }
+    const content=document.createElement('div');
+    content.className='swipe-content';
+    const cardCls=dleft!==null&&dleft<0?' urgent'
+                 :dleft!==null&&dleft<=5?' urgent'
+                 :dleft!==null&&dleft<=10?' warning':'';
+    // If this card is currently in "wait" status, mark it visually and offer
+    // an inline "back to active" button. Useful when the search shows waiting
+    // items mixed with active ones.
+    const isWaiting=(c.opsStatus||'').toLowerCase()==='wait';
+    const waitMark=isWaiting
+      ? `<div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+           <span class="status-badge badge-gray" style="display:inline-flex;align-items:center;gap:4px">${ICON.pause}<span>בהמתנה</span></span>
+           <button onclick="event.stopPropagation();setTaskStatus(${c.rowNum},'')" style="background:var(--bg);border:1px solid var(--border);padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;color:var(--slate)">${ICON.back}<span>החזר לביצוע</span></button>
+         </div>`
+      : '';
+
+    // Whole card is clickable → opens the log (full-screen). Inner buttons/links
+    // (deadline editor, tel: anchors) call stopPropagation so they don't bubble.
+    content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;cursor:pointer" onclick="openLogModal(${c.rowNum},'ops')">
+      <div class="card-header" style="${lateBadge?'padding-bottom:34px;':''}">
+        <div class="client-info">
+          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+          <div class="client-meta" style="margin-top:3px">${metaLine}</div>
+          ${waitMark}
+          ${logPreview?`<div class="log-preview-text" style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
+        </div>
+      </div>
+      ${lateBadge}
+    </div>`;
+    wrap.appendChild(content);
+    list.appendChild(wrap);
+    initTaskSwipe(wrap,c.rowNum,taskTab);
+  });
+
+  // Hook up the deadline-badge click → open Y/Z editor
+  list.querySelectorAll('.ops-edit-trigger').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const row=parseInt(el.getAttribute('data-row'),10);
+      openOpsEditModal(row);
+    });
+  });
+}
+
+// Swipe handler for the tasks section
+function initTaskSwipe(wrap,rowNum,tab){
+  const content=wrap.querySelector('.swipe-content');
+  const bgL=wrap.querySelector('.swipe-bg.left');
+  const bgR=wrap.querySelector('.swipe-bg.right');
+  let sx=0,sy=0,dx=0,going=false,axis=null;
+  const THRESH=80;
+
+  wrap.addEventListener('touchstart',e=>{
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;going=true;axis=null;dx=0;
+  },{passive:true});
+
+  wrap.addEventListener('touchmove',e=>{
+    if(!going)return;
+    const t=e.touches[0];
+    const mx=t.clientX-sx,my=t.clientY-sy;
+    if(!axis)axis=Math.abs(mx)>8||Math.abs(my)>8?(Math.abs(mx)>Math.abs(my)?'x':'y'):null;
+    if(axis!=='x')return;
+    e.preventDefault();
+    dx=mx;
+    content.style.transition='none';
+    content.style.transform=`translateX(${dx}px)`;
+    const pct=Math.min(Math.abs(dx)/THRESH,1);
+    if(tab==='do'&&dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
+    else if(tab==='wait'&&dx>0){bgR.style.opacity=pct;bgL.style.opacity=0;}
+    else{bgL.style.opacity=0;bgR.style.opacity=0;}
+  },{passive:false});
+
+  wrap.addEventListener('touchend',()=>{
+    if(!going||axis!=='x'){going=false;return;}
+    going=false;
+    content.style.transition='transform .2s';
+    const triggered=(tab==='do'&&dx<=-THRESH)||(tab==='wait'&&dx>=THRESH);
+    if(triggered){
+      content.style.transform=`translateX(${dx<0?'-110%':'110%'})`;
+      setTimeout(()=>{
+        if(tab==='do') setTaskStatus(rowNum,'wait');
+        else setTaskStatus(rowNum,'');
+      },200);
+    } else {
+      content.style.transform='';
+      bgL.style.opacity=0;bgR.style.opacity=0;
+    }
+  });
+}
+
+async function setTaskStatus(rowNum,status){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(c) c.opsStatus=status;
+  renderTasks();
+  showToast(status==='wait'?'הועבר להמתנה':'הוחזר לביצוע');
+  try{
+    await writeLogToSheet(rowNum,status,COL_CG);
+  } catch(e){
+    showToast('שמירה נכשלה: '+e.message,'err');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OPS DEADLINE EDITOR — edit Y (start date) and Z (days);
+   AA is computed automatically and saved.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let currentOpsEdit=null; // {rowNum, name}
+
+// Convert various date strings into YYYY-MM-DD for the <input type="date">
+function toIsoDate(s){
+  if(!s)return'';
+  let m=String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const dd=m[1].padStart(2,'0');
+    const mm=m[2].padStart(2,'0');
+    const yyyy=m[3].length===2?'20'+m[3]:m[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  m=String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return '';
+}
+// YYYY-MM-DD → DD/MM/YYYY for writing to the sheet
+function isoToDdmm(iso){
+  if(!iso)return'';
+  const m=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return iso;
+  return `${m[3]}/${m[2]}/${m[1].slice(2)}`;
+}
+
+// Format a JS Date object as DD/MM/YY
+function fmtDdMmYy(d){
+  if(!d)return'';
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(2);
+  return `${dd}/${mm}/${yy}`;
+}
+
+function recomputeOpsDeadlinePreview(){
+  const startIso=document.getElementById('ops-edit-start').value;
+  const daysRaw=document.getElementById('ops-edit-days').value;
+  const days=parseInt(daysRaw,10);
+  const out=document.getElementById('ops-edit-deadline-preview');
+  if(!startIso||isNaN(days)){out.textContent='—';return null;}
+  const d=new Date(startIso+'T00:00:00');
+  if(isNaN(d.getTime())){out.textContent='—';return null;}
+  d.setDate(d.getDate()+days);
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yyyy=d.getFullYear();
+  const ddmm=`${dd}/${mm}/${yyyy}`;
+  out.textContent=ddmm;
+  return ddmm;
+}
+
+function openOpsEditModal(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c){showToast('תיק לא נמצא');return;}
+  currentOpsEdit={rowNum,name:c.name};
+  document.getElementById('ops-edit-name').textContent=c.name+(c.caseNum?' • תיק '+c.caseNum:'');
+  document.getElementById('ops-edit-start').value=toIsoDate(c.opsStartRaw);
+  document.getElementById('ops-edit-days').value=c.opsDaysRaw||'';
+  recomputeOpsDeadlinePreview();
+  document.getElementById('ops-edit-modal').style.display='flex';
+  history.pushState({page:'ops-edit'},'');
+  // Live preview
+  document.getElementById('ops-edit-start').oninput=recomputeOpsDeadlinePreview;
+  document.getElementById('ops-edit-days').oninput=recomputeOpsDeadlinePreview;
+}
+
+function closeOpsEdit(){
+  document.getElementById('ops-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='ops-edit') popHistorySilently();
+}
+
+async function saveOpsEdit(){
+  if(!currentOpsEdit)return;
+  const startIso=document.getElementById('ops-edit-start').value;
+  const daysRaw=document.getElementById('ops-edit-days').value.trim();
+  const days=parseInt(daysRaw,10);
+  if(!startIso&&!daysRaw){
+    // empty both — clear Y and Z (AA is a formula, will recalc)
+    return doOpsWrite('','');
+  }
+  if(!startIso){showToast('בחר תאריך התחלה');return;}
+  if(isNaN(days)||days<0){showToast('הזן מספר ימים תקין');return;}
+  const startDdMm=isoToDdmm(startIso);
+  doOpsWrite(startDdMm,String(days));
+}
+
+async function doOpsWrite(yVal,zVal){
+  const rowNum=currentOpsEdit.rowNum;
+  // optimistic update — compute deadline locally so UI shows it immediately
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(c){
+    c.opsStartRaw=yVal;
+    c.opsDaysRaw=zVal;
+    // local-side recompute (the sheet's AA formula will set the real value on next reload)
+    if(yVal && zVal){
+      const d=parseDate(yVal);
+      const days=parseInt(zVal,10);
+      if(d && !isNaN(days)){
+        const dl=new Date(d.getTime()+days*86400000);
+        c.opsDeadline=dl;
+        c.opsDeadlineRaw=fmtDdMmYy(dl);
+      } else {
+        c.opsDeadline=null; c.opsDeadlineRaw='';
+      }
+    } else {
+      c.opsDeadline=null; c.opsDeadlineRaw='';
+    }
+  }
+  closeOpsEdit();
+  if(typeof renderTasks==='function')renderTasks();
+  showToast('שומר...');
+  try{
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
+    // Write only Y and Z. AA is a formula in the sheet — never write to it.
+    // USER_ENTERED: Sheets parses the string the same way as if a person typed it
+    // into the cell — so "24/04/26" becomes a real date, not text with a leading '.
+    const body={
+      valueInputOption:'USER_ENTERED',
+      data:[
+        {range:`Y${rowNum}`,values:[[yVal]]},
+        {range:`Z${rowNum}`,values:[[zVal]]}
+      ]
+    };
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json();
+    if(data.error){
+      const e=new Error(data.error.message);
+      if(isAuthError(e)) handleAuthError();
+      throw e;
+    }
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// ── DOCS LIST EDIT (writes to column AC) ─────────────────────────────────
+let _docsEditFor=null;
+function openDocsEdit(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c)return;
+  _docsEditFor=c;
+  document.getElementById('docs-edit-name').textContent=
+    c.name+(c.caseNum?` • תיק ${c.caseNum}`:'');
+  document.getElementById('docs-edit-textarea').value=c.docsList||'';
+  document.getElementById('docs-edit-modal').style.display='flex';
+  history.pushState({page:'docs-edit'},'');
+}
+function closeDocsEdit(){
+  document.getElementById('docs-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='docs-edit') popHistorySilently();
+  _docsEditFor=null;
+}
+async function saveDocsEdit(){
+  if(!_docsEditFor)return;
+  const c=_docsEditFor;
+  const newVal=document.getElementById('docs-edit-textarea').value;
+  c.docsList=newVal; // optimistic
+  closeDocsEdit();
+  showToast('שומר...');
+  try{
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${c.rowNum}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+    // re-render so the new text appears
+    const active=allClients.filter(x=>!waitingSet.has(x.rowNum));
+    if(typeof applyFilters==='function') applyFilters(); else renderCards(active);
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// ── CALL SUMMARY (column CH) — viewer + add + edit per entry ──────────────
+let _callSummaryFor=null,_callSummaryRecognition=null;
+let _callEditIdx=null;  // index of entry being edited, when applicable
+
+// Parse the CH column's content into an array of entries
+// Each entry has: { head: 'DD/MM/YY HH:MM | tag', body: '...' }
+function parseCallEntries(raw){
+  if(!raw) return [];
+  const txt=raw.replace(/^\s+|\s+$/g,'');
+  if(!txt) return [];
+  return txt.split(/\n\n+/).filter(e=>e.trim()).map(en=>{
+    const lines=en.split('\n');
+    const head=lines[0]||'';
+    const isHead=/^\d{2}\/\d{2}\/\d{2}/.test(head.trim());
+    return {
+      head: isHead?head:'',
+      body: isHead?lines.slice(1).join('\n'):en
+    };
+  });
+}
+// Re-serialize entries back to a single string
+function serializeCallEntries(entries){
+  return entries.map(e=>{
+    return e.head?(e.head+'\n'+e.body):e.body;
+  }).join('\n\n');
+}
+
+function renderCallSummaryView(){
+  if(!_callSummaryFor) return;
+  const c=_callSummaryFor;
+  document.getElementById('call-summary-name').textContent=
+    c.name+(c.caseNum?` • תיק ${c.caseNum}`:'')+(c.phone?` • ${c.phone}`:'');
+  const wrap=document.getElementById('call-summary-content');
+  const entries=parseCallEntries(c.callLog||'');
+  if(!entries.length){
+    wrap.innerHTML='<div style="padding:30px 10px;text-align:center;color:var(--muted);font-size:13px">אין סיכומי שיחות עדיין</div>';
+    return;
+  }
+  wrap.innerHTML=entries.map((en,i)=>`
+    <div class="log-entry" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);position:relative">
+      ${en.head?`<div class="log-entry-head" style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:5px">${esc(en.head)}</div>`:''}
+      <div class="log-entry-body" style="font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;padding-left:36px">${linkifyPhones(esc(en.body.trim()))}</div>
+      <button onclick="openEditCallSummary(${i})" class="phone-btn" style="position:absolute;left:0;top:0;width:30px;height:30px;background:var(--bg);" title="ערוך">${ICON.pencil}</button>
+    </div>`).join('');
+}
+
+function openCallSummary(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c)return;
+  _callSummaryFor=c;
+  document.getElementById('call-summary-modal').style.display='flex';
+  renderCallSummaryView();
+  history.pushState({page:'call-summary'},'');
+}
+function closeCallSummary(){
+  if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+  _callSummaryRecognition=null;
+  document.getElementById('call-summary-modal').style.display='none';
+  if(history.state&&history.state.page==='call-summary') popHistorySilently();
+  _callSummaryFor=null;
+}
+
+// ── ADD a new call entry ─────────────────────────────────────────────────────
+function openAddCallSummary(){
+  if(!_callSummaryFor) return;
+  const c=_callSummaryFor;
+  document.getElementById('call-add-name').textContent=
+    c.name+(c.caseNum?` • תיק ${c.caseNum}`:'');
+  document.getElementById('call-add-text').value='';
+  document.getElementById('call-add-modal').style.display='flex';
+  history.pushState({page:'call-add'},'');
+}
+function closeAddCallSummary(){
+  if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+  _callSummaryRecognition=null;
+  document.getElementById('call-add-modal').style.display='none';
+  if(history.state&&history.state.page==='call-add') popHistorySilently();
+}
+
+async function saveCallSummary(){
+  if(!_callSummaryFor)return;
+  const text=document.getElementById('call-add-text').value.trim();
+  if(!text){closeAddCallSummary();return;}
+  const c=_callSummaryFor;
+  const rowNum=c.rowNum;
+  const stamp=`${getInsTS()} | ${getUserTag6()}`;
+  const newEntry=`${stamp}\n${text}`;
+  const prev=(c.callLog||'').replace(/^\s+|\s+$/g,'');
+  const newVal=prev?(newEntry+'\n\n'+prev):newEntry;
+  c.callLog=newVal; // optimistic
+  closeAddCallSummary();
+  renderCallSummaryView();
+  showToast('שומר...');
+  try{
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// ── EDIT a single entry by index ─────────────────────────────────────────────
+function openEditCallSummary(idx){
+  if(!_callSummaryFor) return;
+  const entries=parseCallEntries(_callSummaryFor.callLog||'');
+  if(idx<0||idx>=entries.length) return;
+  _callEditIdx=idx;
+  const en=entries[idx];
+  document.getElementById('call-edit-head').textContent=en.head||'';
+  document.getElementById('call-edit-text').value=en.body;
+  document.getElementById('call-edit-modal').style.display='flex';
+  history.pushState({page:'call-edit'},'');
+}
+function closeEditCallSummary(){
+  document.getElementById('call-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='call-edit') popHistorySilently();
+  _callEditIdx=null;
+}
+async function saveEditCallSummary(){
+  if(_callEditIdx===null||!_callSummaryFor) return;
+  const newBody=document.getElementById('call-edit-text').value.trim();
+  const c=_callSummaryFor;
+  const entries=parseCallEntries(c.callLog||'');
+  if(_callEditIdx<0||_callEditIdx>=entries.length){closeEditCallSummary();return;}
+  if(!newBody){
+    // empty body → remove the entry
+    entries.splice(_callEditIdx,1);
+  } else {
+    entries[_callEditIdx].body=newBody;
+  }
+  const newVal=serializeCallEntries(entries);
+  c.callLog=newVal; // optimistic
+  closeEditCallSummary();
+  renderCallSummaryView();
+  showToast('שומר...');
+  try{
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${c.rowNum}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+function toggleCallSummaryMic(){
+  // Mic always targets the visible add textarea (call-add-text)
+  const btn=document.getElementById('call-add-mic');
+  const ta=document.getElementById('call-add-text');
+  if(!btn||!ta) return;
+  if(_callSummaryRecognition){
+    try{_callSummaryRecognition.stop();}catch(e){}
+    _callSummaryRecognition=null;
+    btn.classList.remove('recording');
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span>הכתב (מיקרופון)</span>';
+    return;
+  }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('הדפדפן לא תומך בהכתבה','err');return;}
+  const r=new SR();r.lang='he-IL';r.continuous=true;r.interimResults=true;
+  let finalTxt=ta.value?ta.value+' ':'';
+  r.onresult=(ev)=>{
+    let interim='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const t=ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) finalTxt+=t+' ';
+      else interim+=t;
+    }
+    ta.value=finalTxt+interim;
+  };
+  r.onend=()=>{
+    btn.classList.remove('recording');
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span>הכתב (מיקרופון)</span>';
+    _callSummaryRecognition=null;
+  };
+  r.start();_callSummaryRecognition=r;
+  btn.classList.add('recording');
+  btn.innerHTML=ICON.micStop+' <span>עצור הקלטה</span>';
+}
+
+// Track consecutive back-presses on the main page to require triple-back to exit
+let _backPressCount=0,_backPressTimer=null;
+
+window.addEventListener('popstate',()=>{
+  // If we triggered the popstate ourselves to close a modal, don't run the
+  // generic close logic (it would cascade and accidentally exit the section).
+  if(_suppressPopstate){
+    _suppressPopstate=false;
+    return;
+  }
+  const addOpen=document.getElementById('log-add-modal').classList.contains('open');
+  const editOpen=document.getElementById('log-edit-modal').classList.contains('open');
+  const viewOpen=document.getElementById('log-modal').classList.contains('open');
+  const opsEditOpen=document.getElementById('ops-edit-modal').style.display==='flex';
+  const callSumOpen=document.getElementById('call-summary-modal').style.display==='flex';
+  const callAddOpen=document.getElementById('call-add-modal').style.display==='flex';
+  const callEditOpen=document.getElementById('call-edit-modal').style.display==='flex';
+  const docsEditOpen=document.getElementById('docs-edit-modal').style.display==='flex';
+  // Inner-most call modals first (on top of the viewer)
+  if(callEditOpen){
+    document.getElementById('call-edit-modal').style.display='none';
+    _callEditIdx=null;
+    return;
+  }
+  if(callAddOpen){
+    if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+    _callSummaryRecognition=null;
+    document.getElementById('call-add-modal').style.display='none';
+    return;
+  }
+  if(docsEditOpen){
+    document.getElementById('docs-edit-modal').style.display='none';
+    _docsEditFor=null;
+    return;
+  }
+  if(callSumOpen){
+    if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+    _callSummaryRecognition=null;
+    document.getElementById('call-summary-modal').style.display='none';
+    _callSummaryFor=null;
+    return;
+  }
+  if(opsEditOpen){
+    document.getElementById('ops-edit-modal').style.display='none';
+    return;
+  }
+  if(addOpen){
+    saveDraftAndCloseAddLog();
+    history.replaceState({page:'log'},'');
+    return;
+  }
+  if(editOpen){
+    document.getElementById('log-edit-modal').classList.remove('open');
+    history.replaceState({page:'log'},'');
+    return;
+  }
+  if(viewOpen){
+    document.getElementById('log-modal').classList.remove('open');
+    return;
+  }
+  // Inside tasks section: 3 consecutive back-presses → return to main section.
+  if(inTasksSection){
+    _backPressCount++;
+    history.pushState({page:'tasks'},'');
+    if(_backPressCount<3){
+      showToast(`לחץ ${3-_backPressCount} פעמים נוספות לחזרה לעמוד הראשי`);
+      clearTimeout(_backPressTimer);
+      _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
+      return;
+    }
+    _backPressCount=0;
+    exitTasksSection();
+    return;
+  }
+  // On the main page — back is a no-op (never exits the app).
+  history.pushState({page:'app'},'');
+});
+</script>
+</body>
+</html>
+="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 
