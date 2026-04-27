@@ -273,6 +273,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <div id="app" style="display:none">
   <div class="header">
     <div class="hdr-right">
+      <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
+      <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="total-count">טוען...</span>
       <button class="hdr-btn" onclick="loadData()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
@@ -652,6 +654,154 @@ let userName='',userEmail='';
 let currentLog=null;        // {rowNum, name, log, field, col, preserveLines}
 let logRecognition=null,logIsRecording=false,logFinalTranscript='';
 
+/* =========================
+   CONNECTION LAYER — robust API access with token refresh + retry + queue
+   Mirrors the leads app: silent re-auth, fetch wrapper, persistent queue.
+   ========================= */
+function tokenIsValid(){
+  if(!accessToken) return false;
+  const exp=parseInt(localStorage.getItem('ite')||'0');
+  return Date.now() < exp;
+}
+
+let _silentAuthInFlight=null;
+function silentReauth(){
+  if(_silentAuthInFlight) return _silentAuthInFlight;
+  _silentAuthInFlight=new Promise((resolve)=>{
+    const iframe=document.createElement('iframe');
+    iframe.style.display='none';
+    const url='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+      client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',
+      scope:SCOPES,prompt:'none',
+      login_hint:userEmail||localStorage.getItem('ie')||''
+    });
+    let settled=false;
+    const finish=(ok)=>{
+      if(settled) return; settled=true;
+      try{document.body.removeChild(iframe);}catch(_){}
+      _silentAuthInFlight=null;
+      resolve(ok);
+    };
+    iframe.onload=()=>{
+      try{
+        const href=iframe.contentWindow.location.href;
+        if(href.includes('access_token=')){
+          const hash=href.split('#')[1]||'';
+          const p=new URLSearchParams(hash);
+          const tok=p.get('access_token');
+          const exp=parseInt(p.get('expires_in')||'3600');
+          if(tok){
+            accessToken=tok;
+            localStorage.setItem('it',tok);
+            localStorage.setItem('ite',(Date.now()+(exp-120)*1000).toString());
+            finish(true); return;
+          }
+        }
+        if(href.includes('error=')){ finish(false); return; }
+      }catch(e){/* cross-origin: rely on timeout */}
+    };
+    iframe.src=url;
+    document.body.appendChild(iframe);
+    setTimeout(()=>finish(false), 8000);
+  });
+  return _silentAuthInFlight;
+}
+
+async function getValidToken(){
+  if(tokenIsValid()) return accessToken;
+  const ok=await silentReauth();
+  if(ok && accessToken) return accessToken;
+  throw new Error('TOKEN_EXPIRED');
+}
+
+// Robust fetch wrapper. Use for ALL Google API calls.
+async function apiFetch(url,opts={},attempt=0){
+  let tok;
+  try{ tok=await getValidToken(); }
+  catch(e){
+    setOnlineBadge('offline','אין הרשאה');
+    throw e;
+  }
+  const headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+tok});
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),20000);
+  try{
+    const res=await fetch(url,Object.assign({},opts,{headers,signal:ctrl.signal}));
+    clearTimeout(t);
+    if(res.status===401 && attempt===0){
+      localStorage.setItem('ite','0');
+      return apiFetch(url,opts,attempt+1);
+    }
+    let data=null;
+    try{ data=await res.json(); }catch(_){}
+    if(!res.ok){
+      const msg=(data&&data.error&&data.error.message)||('HTTP '+res.status);
+      throw new Error(msg);
+    }
+    setOnlineBadge('online');
+    return data;
+  }catch(e){
+    clearTimeout(t);
+    const isNetwork=(e.name==='AbortError'||e.name==='TypeError'||/network/i.test(e.message||''));
+    if(isNetwork && attempt<3){
+      setOnlineBadge('retrying','מחבר מחדש...');
+      await new Promise(r=>setTimeout(r, 600*(attempt+1)));
+      return apiFetch(url,opts,attempt+1);
+    }
+    setOnlineBadge('offline');
+    throw e;
+  }
+}
+
+// Persistent write queue for failed writes.
+function loadQueue(){ try{return JSON.parse(localStorage.getItem('iwq')||'[]');}catch(_){return [];} }
+function saveQueue(q){ localStorage.setItem('iwq',JSON.stringify(q)); }
+function enqueueWrite(url,opts,label){
+  const q=loadQueue();
+  q.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),url,opts,label,ts:Date.now()});
+  saveQueue(q); updateQueueBadge();
+}
+async function flushQueue(){
+  let q=loadQueue();
+  if(q.length===0) return;
+  while(q.length){
+    const item=q[0];
+    try{
+      await apiFetch(item.url,item.opts);
+      q.shift(); saveQueue(q); updateQueueBadge();
+    }catch(e){ break; }
+  }
+}
+function updateQueueBadge(){
+  const n=loadQueue().length;
+  const el=document.getElementById('queue-badge');
+  if(!el) return;
+  if(n>0){ el.style.display='inline-flex'; el.textContent=`${n} ממתין לשמירה`; }
+  else el.style.display='none';
+}
+function setOnlineBadge(state,msg){
+  const el=document.getElementById('conn-badge');
+  if(!el) return;
+  if(state==='online'){ el.style.display='none'; return; }
+  el.style.display='inline-flex';
+  if(state==='retrying'){ el.textContent=msg||'מחבר מחדש...'; el.style.background='#fff3cd'; el.style.color='#856404'; }
+  else { el.textContent=msg||'אין חיבור'; el.style.background='#f8d7da'; el.style.color='#721c24'; }
+}
+
+window.addEventListener('online',()=>{ setOnlineBadge('online'); flushQueue(); });
+window.addEventListener('offline',()=>setOnlineBadge('offline'));
+
+// Proactive token refresh every 5 minutes
+setInterval(()=>{
+  const exp=parseInt(localStorage.getItem('ite')||'0');
+  if(!accessToken || !exp) return;
+  if(Date.now() > exp - 10*60*1000){ silentReauth().then(ok=>{ if(ok) flushQueue(); }); }
+},5*60*1000);
+
+// Try flushing queue every 30s
+setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
+
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function doLogin(){
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
@@ -810,6 +960,9 @@ function dialAndOpenSummary(rowNum){
 // ── LOAD ──────────────────────────────────────────────────────────────────────
 let _firstLoadDone=false;
 async function loadData(){
+  // Try to flush any queued writes first — good moment because we know we have network.
+  if(navigator.onLine && accessToken) flushQueue();
+  updateQueueBadge();
   // Show the spinner only on the very first load (or when actively viewing the main list and it's empty)
   const showSpinner=!_firstLoadDone && !inTasksSection;
   if(showSpinner){
@@ -1381,19 +1534,14 @@ async function saveEditLogEntry(){
   closeEditLogEntry();
   document.getElementById('log-content-wrap').innerHTML=renderLogContent(newVal);
   showToast('שומר...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${currentLog.col}${currentLog.rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${currentLog.col}${currentLog.rowNum}?valueInputOption=RAW`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[newVal]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
+    await apiFetch(url,opts);
     showToast('נשמר','ok');
   }catch(e){
-    showToast(e.message,'err');
+    enqueueWrite(url,opts,'תיעוד');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -1581,21 +1729,16 @@ function handleAuthError(){
 }
 
 async function writeLogToSheet(rowNum,value,col){
-  if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
   const c=col||COL_CF;
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${c}${rowNum}?valueInputOption=RAW`;
-  const res=await fetch(url,{
-    method:'PUT',
-    headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-    body:JSON.stringify({values:[[value]]})
-  });
-  const data=await res.json();
-  if(data.error){
-    const e=new Error(data.error.message);
-    if(isAuthError(e)) handleAuthError();
-    throw e;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[value]]})};
+  try{
+    return await apiFetch(url,opts);
+  }catch(e){
+    enqueueWrite(url,opts,'תיעוד');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
+    return null;
   }
-  return data;
 }
 
 /* ── Mic for the add-log modal ──────────────────────────────────────────── */
@@ -1878,19 +2021,14 @@ async function clearReminder(rowNum,col){
     else if(typeof renderCards==='function') renderCards(allClients.filter(x=>(x.opsStatus||'').toLowerCase()!=='wait'));
   }
   showToast('מסיר תזכורת...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[""]]})};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[""]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
+    await apiFetch(url,opts);
     showToast('תזכורת הוסרה','ok');
   }catch(e){
-    showToast(e.message,'err');
+    enqueueWrite(url,opts,'הסרת תזכורת');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -1909,28 +2047,14 @@ async function setReminder(rowNum,col,value){
   c.isWarning=!isUrgent&&(c.docsLowUrgent||c.srvWarning||c.docsReminder||c.reminder);
   if(typeof applyFilters==='function') applyFilters();
   showToast('שומר...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[value?'TRUE':'FALSE']]})};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    // Write TRUE/FALSE so the cell stays a checkbox (just toggles state).
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[value?'TRUE':'FALSE']]})
-    });
-    const d=await r.json();
-    if(d.error){
-      const e=new Error(d.error.message);
-      if(isAuthError(e)) handleAuthError();
-      throw e;
-    }
+    await apiFetch(url,opts);
     showToast('נשמר','ok');
   }catch(e){
-    showToast(e.message,'err');
-    // Revert on failure
-    if(col==='AZ') c.reminder=!value;
-    else if(col==='AI') c.docsReminder=!value;
-    if(typeof applyFilters==='function') applyFilters();
+    enqueueWrite(url,opts,'תזכורת');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -2043,11 +2167,8 @@ async function saveOpsEdit(){
 let _cachedSheetId=null;
 async function getSheetId(){
   if(_cachedSheetId!==null)return _cachedSheetId;
-  if(!accessToken)throw new Error('אין הרשאה');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties(sheetId,index)`;
-  const r=await fetch(url,{headers:{'Authorization':'Bearer '+accessToken}});
-  const d=await r.json();
-  if(d.error)throw new Error(d.error.message);
+  const d=await apiFetch(url);
   // first sheet (index 0)
   const first=(d.sheets||[]).find(s=>s.properties&&s.properties.index===0)||(d.sheets||[])[0];
   if(!first)throw new Error('לא נמצא גיליון');
@@ -2080,54 +2201,45 @@ async function doOpsWrite(yVal,zVal){
   closeOpsEdit();
   if(typeof renderTasks==='function')renderTasks();
   showToast('שומר...');
+  const sheetId=await getSheetId();
+  // Use spreadsheets:batchUpdate with updateCells + fields="userEnteredValue".
+  // This sets ONLY the value of the cell, leaving the cell's existing format
+  // (and any conditional formatting layered on top) intact. That preserves the
+  // 7-days-before / overdue red highlighting set up in the sheet.
+  // rowNum is 1-based in A1 notation; the API expects 0-based row indices.
+  const rowIdx=rowNum-1;
+  const yColIdx=24; // Y is the 25th column (0-based 24)
+  const zColIdx=25; // Z is the 26th column
+  // Helper: convert our string into a userEnteredValue object.
+  // Empty → clear the cell. Y is a date; Z is a number.
+  const yUEV=yVal
+    ? buildUEVForDateStr(yVal)
+    : {};
+  const zUEV=zVal
+    ? (isNaN(parseInt(zVal,10))?{stringValue:zVal}:{numberValue:parseInt(zVal,10)})
+    : {};
+  const body={
+    requests:[
+      {updateCells:{
+        rows:[{values:[{userEnteredValue:yUEV}]}],
+        fields:'userEnteredValue',
+        start:{sheetId,rowIndex:rowIdx,columnIndex:yColIdx}
+      }},
+      {updateCells:{
+        rows:[{values:[{userEnteredValue:zUEV}]}],
+        fields:'userEnteredValue',
+        start:{sheetId,rowIndex:rowIdx,columnIndex:zColIdx}
+      }}
+    ]
+  };
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`;
+  const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
-    const sheetId=await getSheetId();
-    // Use spreadsheets:batchUpdate with updateCells + fields="userEnteredValue".
-    // This sets ONLY the value of the cell, leaving the cell's existing format
-    // (and any conditional formatting layered on top) intact. That preserves the
-    // 7-days-before / overdue red highlighting set up in the sheet.
-    // rowNum is 1-based in A1 notation; the API expects 0-based row indices.
-    const rowIdx=rowNum-1;
-    const yColIdx=24; // Y is the 25th column (0-based 24)
-    const zColIdx=25; // Z is the 26th column
-    // Helper: convert our string into a userEnteredValue object.
-    // Empty → clear the cell. Y is a date; Z is a number.
-    const yUEV=yVal
-      ? buildUEVForDateStr(yVal)
-      : {};
-    const zUEV=zVal
-      ? (isNaN(parseInt(zVal,10))?{stringValue:zVal}:{numberValue:parseInt(zVal,10)})
-      : {};
-    const body={
-      requests:[
-        {updateCells:{
-          rows:[{values:[{userEnteredValue:yUEV}]}],
-          fields:'userEnteredValue',
-          start:{sheetId,rowIndex:rowIdx,columnIndex:yColIdx}
-        }},
-        {updateCells:{
-          rows:[{values:[{userEnteredValue:zUEV}]}],
-          fields:'userEnteredValue',
-          start:{sheetId,rowIndex:rowIdx,columnIndex:zColIdx}
-        }}
-      ]
-    };
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`;
-    const res=await fetch(url,{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
-    const data=await res.json();
-    if(data.error){
-      const e=new Error(data.error.message);
-      if(isAuthError(e)) handleAuthError();
-      throw e;
-    }
+    await apiFetch(url,opts);
     showToast('נשמר','ok');
   }catch(e){
-    showToast(e.message,'err');
+    enqueueWrite(url,opts,'תאריך התחלה');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -2169,22 +2281,17 @@ async function saveDocsEdit(){
   c.docsList=newVal; // optimistic
   closeDocsEdit();
   showToast('שומר...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${c.rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${c.rowNum}?valueInputOption=RAW`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[newVal]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
+    await apiFetch(url,opts);
     showToast('נשמר','ok');
     // re-render so the new text appears
     const active=allClients.filter(x=>!waitingSet.has(x.rowNum));
     if(typeof applyFilters==='function') applyFilters(); else renderCards(active);
   }catch(e){
-    showToast(e.message,'err');
+    enqueueWrite(url,opts,'מסמכים');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -2305,19 +2412,14 @@ async function saveCallSummary(){
     renderCallSummaryView();
   }
   showToast('שומר...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[newVal]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
+    await apiFetch(url,opts);
     showToast('נשמר','ok');
   }catch(e){
-    showToast(e.message,'err');
+    enqueueWrite(url,opts,'סיכום שיחה');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -2355,19 +2457,14 @@ async function saveEditCallSummary(){
   closeEditCallSummary();
   renderCallSummaryView();
   showToast('שומר...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${c.rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   try{
-    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${c.rowNum}?valueInputOption=RAW`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[newVal]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
+    await apiFetch(url,opts);
     showToast('נשמר','ok');
   }catch(e){
-    showToast(e.message,'err');
+    enqueueWrite(url,opts,'סיכום שיחה');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
