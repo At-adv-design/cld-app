@@ -364,8 +364,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
       <span>הוסר</span>
     </button>
-    <div class="mtitle">סיכום שיחה</div>
-    <div class="msub" id="modal-name"></div>
+    <div class="msub" id="modal-name" style="margin-top:42px"></div>
     <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
     <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
@@ -768,17 +767,47 @@ function setOnlineBadge(state,msg){
 }
 
 // When network or visibility comes back — try to flush the queue and reload.
-window.addEventListener('online',()=>{ setOnlineBadge('online'); flushQueue(); maybeReload(); });
+window.addEventListener('online',()=>{ setOnlineBadge('online'); ensureFreshToken(); flushQueue(); maybeReload(); });
 window.addEventListener('offline',()=>setOnlineBadge('offline'));
+// Refresh on focus/visibility too — every time the user comes back to the app,
+// we make sure the token is fresh before any call.
+window.addEventListener('focus',()=>ensureFreshToken());
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) ensureFreshToken(); });
 
-// Proactive token refresh: every 5 minutes, check if expiry is within 10 min
-// and refresh silently. Keeps the user signed in indefinitely as long as
-// they have an active Google session.
-setInterval(()=>{
+// "Ensure fresh token" — if the token has less than 30 minutes of life left,
+// refresh it now. Called on every meaningful app event (focus, online, visibility).
+// This is the core mechanism that keeps the app permanently connected.
+let _ensureFreshInFlight=false;
+async function ensureFreshToken(){
+  if(_ensureFreshInFlight) return;
+  if(!accessToken) return;
   const exp=parseInt(localStorage.getItem('lte')||'0');
-  if(!accessToken || !exp) return;
-  if(Date.now() > exp - 10*60*1000){ silentReauth().then(ok=>{ if(ok) flushQueue(); }); }
-},5*60*1000);
+  if(!exp) return;
+  // 30 minutes safety window — refresh well before Google rejects us
+  if(Date.now() <= exp - 30*60*1000) return;
+  _ensureFreshInFlight=true;
+  try{
+    const ok=await silentReauth();
+    if(ok) flushQueue();
+  }finally{
+    _ensureFreshInFlight=false;
+  }
+}
+
+// Proactive token refresh: every 2 minutes, force a freshness check.
+// With 30-min safety window, we'll refresh ~30 min after login and every hour after that.
+setInterval(ensureFreshToken, 2*60*1000);
+
+// If silent reauth ever fails (e.g. brief network blip during refresh), retry
+// every minute in the background until we succeed. Never gives up while the
+// user is in the app.
+setInterval(()=>{
+  if(!navigator.onLine) return;
+  if(!accessToken) return;
+  const exp=parseInt(localStorage.getItem('lte')||'0');
+  // If we're within 5 min of expiry — keep trying aggressively until refreshed
+  if(exp && Date.now() > exp - 5*60*1000) ensureFreshToken();
+},60*1000);
 
 // Try flushing the queue every 30s in case anything is stuck
 setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
@@ -879,6 +908,22 @@ window.addEventListener('load',()=>{
     userName=localStorage.getItem('ln')||'';
     userEmail=localStorage.getItem('le')||'';
     restoreAvatar();showApp();loadLeads();askNotif();
+    // Force a freshness check immediately after open. If the token is in the
+    // last 30 min of its life, this refreshes silently before any API call.
+    setTimeout(ensureFreshToken, 500);
+  } else if(localStorage.getItem('le')){
+    // Token expired BUT we have a saved email — try silent reauth first
+    // (works as long as the user still has a Google session in the browser).
+    // Only fall through to the login screen if silent reauth fails.
+    userEmail=localStorage.getItem('le')||'';
+    userName=localStorage.getItem('ln')||'';
+    silentReauth().then(ok=>{
+      if(ok){
+        restoreAvatar();showApp();loadLeads();askNotif();
+      } else {
+        document.getElementById('login-screen').style.display='flex';
+      }
+    });
   } else document.getElementById('login-screen').style.display='flex';
 });
 
