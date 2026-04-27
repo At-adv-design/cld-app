@@ -95,8 +95,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 .card-header{padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;}
 .client-info{flex:1;min-width:0;}
-.client-name{font-size:15px;font-weight:600;color:var(--text);}
-.client-name-row{display:flex;align-items:center;gap:8px;}
+.client-name{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
+.client-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 /* ── Unified action buttons (used next to client name and inside cards) ──
    Single rule for: phone-btn, call-log-btn, restore-btn, log-btn, note-btn.
    All buttons are 40×40, sharp corners, with 18×18 icons. */
@@ -587,7 +587,8 @@ const ICON={
   micStop:  _SVG('<rect x="6" y="6" width="12" height="12" rx="1"/>',16),
   x:        _SVG('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',12),
   fire:     _SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',12),
-  clipboard:_SVG('<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/>',16)
+  clipboard:_SVG('<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/>',16),
+  noteAdd:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',18)
 };
 
 // Decorate any element with data-icon="<name>" by prepending the matching ICON
