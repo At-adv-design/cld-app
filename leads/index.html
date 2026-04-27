@@ -413,28 +413,29 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 </div>
 
 <!-- MEETING DIALOG — schedule a 1-hour meeting; writes to columns X, Y, Z -->
+<!-- MEETING DIALOG — larger fields and buttons for quick interaction (e.g. while driving) -->
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="padding:22px 20px 26px;padding-bottom:calc(26px + env(safe-area-inset-bottom));max-height:92dvh;overflow-y:auto;">
     <div class="mhandle"></div>
-    <div class="mtitle">קביעת פגישה</div>
-    <div class="msub" id="meeting-name"></div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+    <div class="mtitle" style="font-size:20px;font-weight:700;margin-bottom:4px">קביעת פגישה</div>
+    <div class="msub" id="meeting-name" style="font-size:15px;color:var(--slate);margin-bottom:18px;font-weight:600"></div>
+    <div style="display:flex;flex-direction:column;gap:14px">
       <div>
-        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">תאריך</label>
-        <input type="date" id="meeting-date" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);font-size:14px;font-family:inherit"/>
+        <label style="font-size:14px;font-weight:700;color:var(--slate);display:block;margin-bottom:6px">תאריך</label>
+        <input type="date" id="meeting-date" style="width:100%;padding:16px 14px;background:var(--bg);border:1px solid var(--border);font-size:18px;font-weight:600;font-family:inherit;color:var(--text)"/>
       </div>
       <div>
-        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">שעת התחלה</label>
-        <input type="time" id="meeting-start" step="60" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);font-size:14px;font-family:inherit;direction:ltr;text-align:right"/>
+        <label style="font-size:14px;font-weight:700;color:var(--slate);display:block;margin-bottom:6px">שעת התחלה</label>
+        <input type="time" id="meeting-start" step="60" style="width:100%;padding:16px 14px;background:var(--bg);border:1px solid var(--border);font-size:18px;font-weight:600;font-family:inherit;color:var(--text);direction:ltr;text-align:right"/>
       </div>
-      <div style="background:#f5f5f7;padding:9px 11px;border:1px solid var(--border);font-size:13px">
-        <span style="color:var(--muted)">שעת סיום (אוטומטי, +1 שעה): </span>
-        <span id="meeting-end-preview" style="font-weight:700;color:var(--slate)">—</span>
+      <div style="background:var(--bg);padding:14px 16px;border:1px solid var(--border);font-size:15px;display:flex;align-items:center;justify-content:space-between">
+        <span style="color:var(--muted);font-weight:600">שעת סיום (+1 שעה)</span>
+        <span id="meeting-end-preview" style="font-weight:700;color:var(--slate);font-size:18px">—</span>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:6px">
-      <button class="btn btn-save" style="flex:1" onclick="saveMeeting()">שמור פגישה</button>
-      <button class="btn btn-skip" style="flex:1" onclick="closeMeetingDialog()">ביטול</button>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-save" style="flex:1.4;padding:18px 12px;font-size:17px;font-weight:700" onclick="saveMeeting()">שמור פגישה</button>
+      <button class="btn btn-skip" style="flex:1;padding:18px 12px;font-size:16px;font-weight:600" onclick="closeMeetingDialog()">ביטול</button>
     </div>
   </div>
 </div>
