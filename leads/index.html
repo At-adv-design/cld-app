@@ -199,7 +199,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .google-btn:active{box-shadow:none;transform:scale(.98);}
 
 /* MODAL — uses dynamic viewport units (dvh) so the keyboard pushes content up */
-#note-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:300;align-items:flex-end;backdrop-filter:blur(4px);}
+#note-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);}
 #note-modal.open{display:flex;}
 
 /* Fullscreen log viewer + editor (matches the insolvency app) */
@@ -1225,6 +1225,12 @@ function _closeModalCore(){
   modalOpen=false;
   stopMic();
   filterLeads();
+  // If the user opened this modal from inside the log viewer, return them there
+  if(_logViewReopenIndex!=null){
+    const idx=_logViewReopenIndex;
+    _logViewReopenIndex=null;
+    setTimeout(()=>openLogView(idx), 60);
+  }
 }
 
 // History navigation pattern: every inner window pushes a history entry
@@ -1239,6 +1245,10 @@ function popHistorySilently(){
 }
 
 let _logViewLead=null;
+// When the user clicks "הוסף סיכום שיחה" inside the log viewer, we close the
+// viewer and open the note modal. Store the lead index here so we can reopen
+// the log viewer after the modal closes.
+let _logViewReopenIndex=null;
 let _logExpandAll=false; // tracks whether all entries are expanded in the viewer
 function openLogView(idx){
   const l=allLeads.find(x=>x.index===idx);
@@ -1300,9 +1310,15 @@ function closeLogView(){
 }
 function openAddFromLogView(){
   const l=_logViewLead; if(!l) return;
-  // Open the addNote modal on TOP of the log-view (don't close log-view).
-  // When the user closes the note modal, they'll return to the log-view.
-  addNote(l.index,l.name);
+  // Close the log-view first, then open the note modal. This avoids any
+  // z-index/stacking confusion where the modal would appear behind the log
+  // viewer. We remember which lead we came from so we can reopen the log
+  // viewer after the note modal closes.
+  _logViewReopenIndex=l.index;
+  document.getElementById('log-view-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logview') popHistorySilently();
+  // Slight delay so the close animation can settle before the new modal opens
+  setTimeout(()=>addNote(l.index,l.name), 50);
 }
 function openEditFromLogView(){
   const l=_logViewLead; if(!l) return;
