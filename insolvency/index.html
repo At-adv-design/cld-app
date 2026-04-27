@@ -180,9 +180,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 /* LOG ICON */
 .log-btn{width:38px;height:38px;border-radius:6px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);position:relative;}
-/* WhatsApp button — same size as log-btn but with WhatsApp's signature green */
-.wa-btn{width:38px;height:38px;border-radius:6px;background:#25D366;border:none;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
-.wa-btn:active{transform:scale(.94);}
+/* WhatsApp button — matches the clean white style used in the leads app
+   (white background, subtle border, slate-colored outline icon) */
+.wa-btn{width:38px;height:38px;border-radius:6px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.wa-btn:active{transform:scale(.94);background:var(--bg);}
 .log-btn:active{transform:scale(.92);background:var(--bg);}
 .log-btn.has-log{border-color:var(--slate);background:#fafafd;}
 .log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
