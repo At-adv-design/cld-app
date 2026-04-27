@@ -7,7 +7,1224 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>אבי טל ושות׳ | לידים</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+/* sharp-corner reset (override default rounded buttons / inputs / cards) */
+button,input,textarea,select,.lead-card,.swipe-wrap,.note-box,.modal-sheet,
+.search-box,.confirm-card,.login-card,.hdr-btn,.hdr-count,.call-btn,.note-btn,
+.wa-btn,.restore-btn,.tab,.lead-badge,.removed-lbl,.continue-lbl,.btn,
+.mic-btn,.show-all-btn,.note-user,.confirm-btn,.google-btn{
+  border-radius:0 !important;
+}
+
+/* dark-mode tweaks for the brand logo (it's a light PNG) */
+[data-theme="dark"] img[alt*="טל"]{
+  filter:invert(.94) hue-rotate(180deg) brightness(.95);
+}
+
+/* theme toggle */
+.theme-toggle{
+  background:var(--bg);border:1px solid var(--border);
+  width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text);transition:background .15s;
+}
+.theme-toggle:active{background:var(--surface-2);}
+.theme-toggle svg{width:16px;height:16px;}
+:root{
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;
+  --bg:#FAF9F5;            /* Claude-input cream */
+  --white:#FFFFFF;
+  --surface-2:#F2F1EA;
+  --border:#D9D6CA;
+  --border-soft:#E6E3D8;
+  --muted:#6B6A65;
+  --text:#1F1E1B;
+  --green:#1a7a45;
+  --green-soft:#E8F2EB;
+  --blue:#1a5f9e;
+  --red-soft:#FDECEC;
+  --shadow:0 1px 2px rgba(31,30,27,0.04),0 4px 16px rgba(31,30,27,0.05);
+}
+[data-theme="dark"]{
+  --slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;
+  --bg:#1F1E1C;
+  --white:#2A2A28;          /* "white" surface in dark = dark surface */
+  --surface-2:#34332F;
+  --border:#3A3A36;
+  --border-soft:#33332F;
+  --muted:#A8A6A0;
+  --text:#F5F4EE;
+  --green:#48C77A;
+  --green-soft:#1F3A2A;
+  --blue:#6FA8E5;
+  --red-soft:#3A2222;
+  --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
+}
+html,body{height:100%;}
+body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* LOGO COMPONENT */
+.logo-mark{display:flex;align-items:stretch;gap:2px;height:36px;}
+.lm-b{display:flex;flex-direction:column;justify-content:center;padding:0 10px;}
+.lm-b1{background:var(--slate);}
+.lm-b2{background:var(--slate2);}
+.lm-he{font-size:11px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:0.1px;}
+.lm-en{font-size:8px;font-weight:400;color:rgba(255,255,255,0.6);line-height:1.25;}
+.lm-red{color:var(--red);}
+
+/* HEADER */
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;padding:6px 12px;font-family:inherit;display:inline-flex;align-items:center;height:32px;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hdr-btn:active{background:var(--border);}
+.avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+
+/* TABS */
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
+
+/* SEARCH */
+.search-wrap{background:var(--white);padding:10px 14px;border-bottom:1px solid var(--border);}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
+.search-box:focus-within{border-color:var(--slate);}
+.search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
+.search-box input::placeholder{color:var(--muted);}
+
+/* STATS */
+.stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:18px;font-size:11px;font-weight:500;color:var(--muted);}
+.stat{display:flex;align-items:center;gap:5px;}
+.sdot{width:6px;height:6px;border-radius:2px;}
+
+/* LEADS */
+#leads-list,#removed-list,#continue-list{padding:10px 14px;display:flex;flex-direction:column;gap:6px;}
+
+.lead-card{background:var(--white);border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s;position:relative;}
+.lead-card.has-note{border-right:2px solid var(--green);}
+.lead-card.expanded{box-shadow:0 2px 14px rgba(0,0,0,0.09);}
+
+/* SWIPE */
+.swipe-wrap{position:relative;overflow:hidden;}
+.swipe-bg{position:absolute;inset:0;display:flex;align-items:center;padding:0 20px;font-size:13px;font-weight:600;color:#fff;opacity:0;transition:opacity .15s;}
+.swipe-bg.left{background:var(--red);justify-content:flex-end;}
+.swipe-bg.right{background:var(--blue);justify-content:flex-start;}
+.swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
+
+.lead-row{padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;}
+.lead-info{flex:1;min-width:0;}
+.lead-name{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.1px;}
+.lead-phone{font-size:13px;color:var(--muted);margin-top:2px;direction:ltr;text-align:right;font-weight:400;}
+.lead-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--green);background:rgba(26,122,69,0.08);border:1px solid rgba(26,122,69,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;}
+.lead-preview{font-size:12px;color:#555;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
+
+/* CALL BUTTON */
+.call-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.call-btn:active{transform:scale(.92);background:var(--bg);}
+.call-btn.done{background:var(--green);border-color:var(--green);color:#fff;}
+.note-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.note-btn:active{transform:scale(.92);background:var(--bg);}
+
+/* RESTORE BUTTON */
+.restore-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--green);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;color:var(--green);}
+.wa-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.wa-btn:active{transform:scale(.92);background:var(--bg);}
+.restore-btn:active{transform:scale(.92);}
+
+/* NOTES */
+.note-box{background:#f8fbf9;border-top:1px solid rgba(26,122,69,0.1);padding:12px 14px;}
+.note-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.note-hdr-label{font-size:10px;font-weight:700;letter-spacing:0.8px;color:var(--green);text-transform:uppercase;}
+.show-all-btn{font-size:11px;font-weight:600;color:var(--slate);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:3px 8px;cursor:pointer;font-family:inherit;}
+.show-all-btn:active{background:var(--border);}
+.note-entry{margin-bottom:10px;}
+.note-ts{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:3px;display:flex;gap:6px;align-items:center;}
+.note-user{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;font-size:10px;font-weight:600;color:var(--slate);letter-spacing:0.2px;}
+.note-body{font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-weight:400;}
+.note-sep{border:none;border-top:1px solid rgba(26,122,69,0.1);margin:10px 0;}
+
+/* LOADING */
+#loading{display:flex;flex-direction:column;align-items:center;padding:60px 20px;gap:12px;}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;gap:28px;text-align:center;background:var(--white);}
+.login-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px;width:100%;max-width:320px;}
+.login-logo-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.login-logo-blocks{display:flex;gap:2px;height:48px;}
+.llb{display:flex;flex-direction:column;justify-content:center;padding:0 14px;}
+.llb1{background:var(--slate);}
+.llb2{background:var(--slate2);}
+.llb-he{font-size:14px;font-weight:700;color:#fff;line-height:1.3;}
+.llb-en{font-size:10px;font-weight:400;color:rgba(255,255,255,0.65);line-height:1.3;}
+.llb-url{font-size:11px;color:var(--red);font-weight:600;letter-spacing:1px;}
+.login-title{font-size:15px;font-weight:600;color:var(--text);}
+.login-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.google-btn{background:var(--white);color:var(--text);border:1px solid var(--border);padding:13px 20px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07);width:100%;justify-content:center;font-family:inherit;transition:box-shadow .15s;}
+.google-btn:active{box-shadow:none;transform:scale(.98);}
+
+/* MODAL — uses dynamic viewport units (dvh) so the keyboard pushes content up */
+#note-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:300;align-items:flex-end;backdrop-filter:blur(4px);}
+#note-modal.open{display:flex;}
+
+/* Fullscreen log viewer + editor (matches the insolvency app) */
+#log-view-modal,#log-edit-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:310;}
+#log-view-modal.open,#log-edit-modal.open{display:flex;flex-direction:column;}
+#log-edit-modal{z-index:320;}
+.log-fullscreen-sheet{
+  background:var(--white);border:none;
+  padding:14px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  padding-top:calc(14px + env(safe-area-inset-top));
+  width:100%;height:100%;max-height:100dvh;
+  display:flex;flex-direction:column;gap:10px;overflow-y:auto;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+}
+.log-action-row{display:flex;gap:8px;}
+.log-action-btn{flex:1;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);border-radius:0;}
+.log-action-add{background:var(--slate);color:#fff;border-color:var(--slate);}
+.log-action-edit{background:var(--bg);color:var(--text);}
+.log-content-area{flex:1;overflow-y:auto;min-height:0;padding:10px 0;}
+.log-content-area .log-entry{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.log-content-area .log-entry:last-child{border-bottom:none;}
+.log-entry-head{font-size:11px;font-weight:700;color:var(--slate);margin-bottom:5px;}
+.log-entry-body{font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;}
+
+.modal-sheet{
+  background:var(--white);border-radius:0;border-top:2px solid var(--slate);
+  padding:14px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  width:100%;
+  display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+  box-shadow:0 -4px 28px rgba(0,0,0,0.1);
+  max-height:100dvh;overflow-y:auto;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhandle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 6px;}
+.mtitle{font-size:16px;font-weight:700;color:var(--text);}
+.msub{font-size:13px;color:var(--red);font-weight:500;margin-top:-4px;}
+#note-input{width:100%;min-height:90px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:15px;resize:none;direction:rtl;font-family:inherit;transition:border-color .2s;}
+#note-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+#note-input::placeholder{color:#c0c0cc;}
+.btn{padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .12s;}
+.btn:active{transform:scale(.97);}
+.btn-save{background:var(--slate);color:#fff;}
+.btn-skip{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.mic-btn{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:11px 14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:inherit;}
+.mic-btn.recording{background:#fff2f2;border-color:#e08080;color:var(--red);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.75}}
+
+.saving-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.92);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;backdrop-filter:blur(3px);}
+.saving-overlay.show{display:flex;}
+.saving-overlay p{font-size:14px;font-weight:500;color:var(--muted);}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;box-shadow:0 4px 16px rgba(58,58,72,0.22);}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+.removed-lbl{font-size:11px;font-weight:700;color:var(--red);background:rgba(176,16,16,0.07);border:1px solid rgba(176,16,16,0.15);border-radius:3px;padding:2px 6px;margin-top:4px;display:inline-flex;align-items:center;gap:4px;}
+.continue-lbl{font-size:11px;font-weight:700;color:var(--blue);background:rgba(26,95,158,0.07);border:1px solid rgba(26,95,158,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;display:inline-flex;align-items:center;gap:4px;}
+
+/* CONFIRM DIALOG */
+#confirm-dialog{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:600;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+#confirm-dialog.open{display:flex;}
+.confirm-card{background:var(--white);border-radius:8px;padding:22px 20px;width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);}
+.confirm-title{font-size:16px;font-weight:700;color:var(--text);}
+.confirm-msg{font-size:14px;color:var(--muted);line-height:1.5;}
+.confirm-actions{display:flex;gap:8px;}
+.confirm-btn{flex:1;padding:11px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+.confirm-btn-yes{background:var(--red);color:#fff;}
+.confirm-btn-no{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex">
+  <div class="login-card">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;">
+    <div>
+      <div class="login-title">מערכת ניהול לידים</div>
+      <div class="login-sub">התחבר עם חשבון Google</div>
+    </div>
+    <button class="google-btn" onclick="doLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+      כניסה עם Google
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="hdr-right">
+      <span class="hdr-count" id="lead-count">טוען...</span>
+      <button class="hdr-btn" onclick="loadLeads()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+      </button>
+      <button class="theme-toggle hdr-btn" onclick="toggleTheme()" title="החלף מצב">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="confirmSignOut()"></div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;">
+  </div>
+
+  <!-- Tab order in RTL: visually right=המשך, middle=לידים, left=הוסרו -->
+  <div class="tabs">
+    <div class="tab" id="tab-continue" onclick="switchTab('continue')">המשך</div>
+    <div class="tab active" id="tab-active" onclick="switchTab('active')">לידים</div>
+    <div class="tab" id="tab-removed" onclick="switchTab('removed')">הוסרו</div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <span style="color:var(--muted);display:inline-flex">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="search" id="search" placeholder="חיפוש שם או טלפון..." oninput="filterLeads()"/>
+    </div>
+  </div>
+
+  <div id="active-section">
+    <div class="stats-bar">
+      <div class="stat"><div class="sdot" style="background:var(--green)"></div><span id="sn">0 עם הערות</span></div>
+      <div class="stat"><div class="sdot" style="background:var(--slate)"></div><span id="st">0 לידים</span></div>
+    </div>
+    <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:13px;font-weight:500">טוען...</div></div>
+    <div id="leads-list"></div>
+  </div>
+
+  <div id="continue-section" style="display:none">
+    <div id="continue-list"></div>
+  </div>
+
+  <div id="removed-section" style="display:none">
+    <div id="removed-list"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="note-modal">
+  <div class="modal-sheet">
+    <div class="mhandle"></div>
+    <div class="mtitle">סיכום שיחה</div>
+    <div class="msub" id="modal-name"></div>
+    <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
+    <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      <span>הכתב (מיקרופון)</span>
+    </button>
+    <button class="btn btn-save" onclick="saveNote()">שמור ב-Google Sheets</button>
+    <button class="btn btn-skip" onclick="closeModal()">סגור בלי לשמור</button>
+  </div>
+</div>
+
+<!-- LOG VIEWER (fullscreen) — opens when tapping the log icon on a card -->
+<div id="log-view-modal">
+  <div class="log-fullscreen-sheet">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeLogView()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="mtitle" style="font-size:15px">סיכומי שיחות</div>
+        <div class="msub" id="log-view-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div class="log-content-area" id="log-view-content"></div>
+    <div class="log-action-row">
+      <button class="log-action-btn log-action-add" onclick="openAddFromLogView()">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>הוסף סיכום שיחה</span>
+        </span>
+      </button>
+      <button class="log-action-btn log-action-edit" onclick="openEditFromLogView()">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>
+          <span>ערוך</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG EDIT (fullscreen) -->
+<div id="log-edit-modal">
+  <div class="log-fullscreen-sheet">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeLogEdit()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="mtitle" style="font-size:15px">עריכת סיכומי שיחות</div>
+        <div class="msub" id="log-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">זהירות: עריכה ידנית של כל הלוג</div>
+    <textarea id="log-edit-textarea" style="flex:1;min-height:0;width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.5"></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-save" style="flex:1" onclick="saveLogEdit()">שמור</button>
+      <button class="btn btn-skip" style="flex:1" onclick="closeLogEdit()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div class="saving-overlay" id="saving-overlay">
+  <div class="spinner"></div><p>שומר...</p>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirm-dialog">
+  <div class="confirm-card">
+    <div class="confirm-title" id="confirm-title">אישור</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-btn-no" onclick="confirmCancel()">ביטול</button>
+      <button class="confirm-btn confirm-btn-yes" id="confirm-yes-btn" onclick="confirmYes()">אישור</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Lucide-style SVG icons (consistent with the rest of the UI)
+// Lucide-style icon set (stroke 1.5, no fill) — matches the Claude UI vibe.
+// Helper: produce an svg with the given path content at desired size.
+const _SVG=(content,size)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:${size||18}px;height:${size||18}px;display:block">${content}</svg>`;
+const ICON={
+  phone:    _SVG('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',18),
+  check:    _SVG('<polyline points="20 6 9 17 4 12"/>',18),
+  noteAdd:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',18),
+  whatsapp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>',
+  mic:      _SVG('<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/>',16),
+  micStop:  _SVG('<rect x="6" y="6" width="12" height="12" rx="1"/>',16),
+  search:   _SVG('<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',14),
+  refresh:  _SVG('<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/>',14),
+  moon:     _SVG('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',14),
+  sun:      _SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',14),
+  bubble:   _SVG('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',12),
+  removed:  _SVG('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',12),
+  restore:  _SVG('<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',18),
+  bookmark: _SVG('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',12),
+  info:     _SVG('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',16),
+  chevronR: _SVG('<polyline points="15 18 9 12 15 6"/>',18),
+  users:    _SVG('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',22),
+  scales:   _SVG('<path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7a4 4 0 0 0 6 0L5 7z"/><path d="M19 7l-3 7a4 4 0 0 0 6 0L19 7z"/><path d="M7 21h10"/>',22),
+  pause:    _SVG('<rect x="6" y="4" width="4" height="16" rx="0.5"/><rect x="14" y="4" width="4" height="16" rx="0.5"/>',14),
+  back:     _SVG('<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',16),
+  pencil:   _SVG('<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/>',16),
+  warning:  _SVG('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',12),
+  bell:     _SVG('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',14),
+  plus:     _SVG('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',16),
+  arrowL:   _SVG('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',16),
+  checkCircle:_SVG('<circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>',14),
+  fire:     _SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',12)
+};
+
+// Theme toggle (shared across pages via localStorage key 'at_theme')
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const m=document.getElementById('theme-moon'),s=document.getElementById('theme-sun');
+  if(m&&s){m.style.display=t==='dark'?'none':'block';s.style.display=t==='dark'?'block':'none';}
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>{
+    meta.setAttribute('content',t==='dark'?'#1F1E1C':'#FAF9F5');
+  });
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='light'?'dark':'light';
+  localStorage.setItem('at_theme',next);
+  applyTheme(next);
+}
+(function initTheme(){
+  let saved=localStorage.getItem('at_theme');
+  if(!saved){
+    saved=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  applyTheme(saved);
+})();
+
+const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID='19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const REDIRECT=location.origin+location.pathname;
+
+// Sheet status values stored in column V (per-row)
+const STATUS_ACTIVE='';        // empty cell = active (default)
+const STATUS_CONTINUE='continue';
+const STATUS_REMOVED='removed';
+
+let accessToken=null,allLeads=[],currentLead=null,recognition=null;
+let isRecording=false,expandedSet=new Set(),showAllSet=new Set();
+let prevCount=null,finalTranscript='',currentTab='active';
+let userName='',userEmail='';
+let pendingConfirm=null; // callback for confirm dialog
+let modalOpen=false;     // tracks note modal state for back button
+
+function doLogin(){
+  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+    client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',scope:SCOPES,prompt:'select_account'
+  });
+}
+
+/* =========================
+   CONFIRM DIALOG (replaces native confirm)
+   ========================= */
+function showConfirm(title,msg,onYes,yesLabel){
+  document.getElementById('confirm-title').textContent=title||'אישור';
+  document.getElementById('confirm-msg').textContent=msg||'';
+  const yb=document.getElementById('confirm-yes-btn');
+  yb.textContent=yesLabel||'אישור';
+  pendingConfirm=onYes||null;
+  document.getElementById('confirm-dialog').classList.add('open');
+  // push a history state so the back button cancels the dialog instead of leaving
+  history.pushState({dialog:'confirm'},'');
+}
+function confirmYes(){
+  const cb=pendingConfirm;pendingConfirm=null;
+  document.getElementById('confirm-dialog').classList.remove('open');
+  // pop the history state we pushed
+  if(history.state&&history.state.dialog==='confirm')history.back();
+  if(cb)cb();
+}
+function confirmCancel(){
+  pendingConfirm=null;
+  document.getElementById('confirm-dialog').classList.remove('open');
+  if(history.state&&history.state.dialog==='confirm')history.back();
+}
+
+/* =========================
+   SIGN OUT (with confirmation)
+   ========================= */
+function confirmSignOut(){
+  showConfirm('להתנתק מהאפליקציה?','תצטרך להיכנס מחדש עם חשבון Google.',doSignOut,'התנתק');
+}
+function doSignOut(){
+  ['lt','lte','lp','ln','le'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+/* =========================
+   APP INIT
+   ========================= */
+window.addEventListener('load',()=>{
+  // Register service worker and listen for updates so new versions apply automatically
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then((reg)=>{
+      // Check for an updated SW every 5 minutes
+      setInterval(()=>reg.update().catch(()=>{}), 5*60*1000);
+      // When a new SW is installed and waiting, activate it immediately
+      reg.addEventListener('updatefound',()=>{
+        const newSW=reg.installing;
+        if(!newSW)return;
+        newSW.addEventListener('statechange',()=>{
+          if(newSW.state==='installed' && navigator.serviceWorker.controller){
+            newSW.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+    }).catch(()=>{});
+    // When the controlling SW changes, reload to get the fresh page
+    let reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloaded)return;reloaded=true;location.reload();
+    });
+  }
+
+  // seed history so back button has somewhere safe to go
+  history.replaceState({page:'app'},'');
+
+  if(location.hash&&location.hash.includes('access_token')){
+    const p=new URLSearchParams(location.hash.substring(1));
+    const tok=p.get('access_token'),exp=parseInt(p.get('expires_in')||'3600');
+    if(tok){
+      accessToken=tok;
+      localStorage.setItem('lt',tok);
+      localStorage.setItem('lte',(Date.now()+(exp-120)*1000).toString());
+      history.replaceState({page:'app'},'',location.pathname);
+      fetchUserInfo();showApp();loadLeads();askNotif();return;
+    }
+  }
+  const tok=localStorage.getItem('lt'),exp=parseInt(localStorage.getItem('lte')||'0');
+  if(tok&&Date.now()<exp){
+    accessToken=tok;
+    userName=localStorage.getItem('ln')||'';
+    userEmail=localStorage.getItem('le')||'';
+    restoreAvatar();showApp();loadLeads();askNotif();
+  } else document.getElementById('login-screen').style.display='flex';
+});
+
+// Reload data whenever the app comes back to the foreground.
+// This is what makes changes from other devices/users show up immediately.
+let lastReloadAt=Date.now();
+function maybeReload(){
+  // throttle: at most once every 5s, and only if we have a token
+  if(!accessToken)return;
+  const now=Date.now();
+  if(now-lastReloadAt<5000)return;
+  lastReloadAt=now;
+  loadLeads();
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) maybeReload(); });
+window.addEventListener('focus',maybeReload);
+window.addEventListener('pageshow',(e)=>{ if(e.persisted) maybeReload(); });
+
+/* =========================
+   BACK BUTTON HANDLING
+   - If confirm dialog is open: cancel it (handled by browser popping the state)
+   - If note modal is open: save draft locally, close modal, stay in app
+   - If on continue/removed tab: switch to active tab
+   - Otherwise: ask before leaving the app
+   ========================= */
+window.addEventListener('popstate',(e)=>{
+  // confirm dialog open
+  if(document.getElementById('confirm-dialog').classList.contains('open')){
+    pendingConfirm=null;
+    document.getElementById('confirm-dialog').classList.remove('open');
+    history.replaceState({page:'app'},'');
+    return;
+  }
+  // note modal open -> save draft & close
+  if(modalOpen){
+    saveDraftAndCloseModal();
+    history.replaceState({page:'app'},'');
+    return;
+  }
+  // not on the main tab -> switch to it
+  if(currentTab!=='active'){
+    switchTab('active');
+    history.replaceState({page:'app'},'');
+    return;
+  }
+  // otherwise confirm before leaving the app
+  // re-push so we don't actually leave yet
+  history.pushState({page:'app'},'');
+  showConfirm('לצאת מהאפליקציה?','האפליקציה תיסגר אבל החיבור יישאר.',()=>{
+    // user confirmed -> actually go back (which now leaves the page)
+    history.go(-2);
+  },'צא');
+});
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+
+function fetchUserInfo(){
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
+    .then(r=>r.json()).then(u=>{
+      const ALLOWED = [
+        'avi@t-adv.co.il',
+        'office@t-adv.co.il',
+        'tal.adv.offc2@gmail.com',
+        'avi.t.razr@gmail.com'
+      ];
+      if(!ALLOWED.includes((u.email||'').toLowerCase())){
+        ['lt','lte','lp','ln','le'].forEach(k=>localStorage.removeItem(k));
+        accessToken=null;
+        document.getElementById('app').style.display='none';
+        document.getElementById('login-screen').style.display='flex';
+        alert('אין הרשאה: '+u.email);
+        return;
+      }
+      localStorage.setItem('lp',u.picture||'');
+      localStorage.setItem('ln',u.name||'');
+      localStorage.setItem('le',u.email||'');
+      userName=u.name||'';userEmail=u.email||'';
+      setAvatar(u.picture,u.name);
+    }).catch(()=>{});
+}
+function restoreAvatar(){setAvatar(localStorage.getItem('lp'),localStorage.getItem('ln'));}
+function setAvatar(pic,name){
+  const av=document.getElementById('user-avatar');if(!av)return;
+  av.innerHTML=pic?`<img src="${pic}">`:(name||'U')[0].toUpperCase();
+}
+function getUserTag(){
+  // First 5 chars before @ in email, or first 5 of name
+  if(userEmail){const u=userEmail.split('@')[0];return u.slice(0,5);}
+  return (userName||'user').slice(0,5);
+}
+
+function askNotif(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
+function notifyNew(name,phone){
+  if('Notification'in window&&Notification.permission==='granted'){
+    new Notification('ליד חדש | אבי טל ושות׳',{
+      body:name+'\n'+phone,
+      icon:'../icon.png',
+      badge:'../icon.png',
+      tag:'new-lead',
+      vibrate:[200,100,200]
+    });
+  }
+}
+
+function switchTab(tab){
+  currentTab=tab;
+  document.getElementById('tab-active').className='tab'+(tab==='active'?' active':'');
+  document.getElementById('tab-continue').className='tab'+(tab==='continue'?' active':'');
+  document.getElementById('tab-removed').className='tab'+(tab==='removed'?' active':'');
+  document.getElementById('active-section').style.display=tab==='active'?'block':'none';
+  document.getElementById('continue-section').style.display=tab==='continue'?'block':'none';
+  document.getElementById('removed-section').style.display=tab==='removed'?'block':'none';
+  filterLeads();
+}
+
+/* =========================
+   LOAD LEADS — now reads A:W (status in V, callers in W)
+   ========================= */
+let loadingLeads=false;
+let loadTimer=null;
+async function loadLeads(){
+  if(loadingLeads)return;
+  loadingLeads=true;
+  // Only show the spinner for the very first load (when allLeads is empty)
+  const firstLoad=!allLeads||allLeads.length===0;
+  if(firstLoad){
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('leads-list').innerHTML='';
+  }
+  try{
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:W?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const all=(data.values||[]).slice(1)
+      .map((row,i)=>({
+        index:i+2,
+        name:(row[0]||'').trim()||'(ללא שם)',
+        phone:(row[1]||'').toString().trim(),
+        note:(row[2]||'').trim(),
+        status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
+        callers:((row[22]||'')+'').trim()                 // column W (0-based 22)
+      }))
+      .filter(l=>l.phone).reverse();
+
+    const active=all.filter(l=>!l.status||l.status===STATUS_ACTIVE);
+    if(prevCount!==null&&active.length>prevCount)notifyNew(active[0].name,active[0].phone);
+    prevCount=active.length;
+    allLeads=all;
+
+    const wn=active.filter(l=>l.note).length;
+    document.getElementById('lead-count').textContent=active.length;
+    document.getElementById('sn').textContent=wn+' עם הערות';
+    document.getElementById('st').textContent=active.length;
+    document.getElementById('loading').style.display='none';
+    filterLeads();
+  }catch(e){
+    document.getElementById('loading').style.display='none';
+    if(firstLoad){
+      document.getElementById('leads-list').innerHTML=`<div style="padding:20px;color:var(--red);font-size:14px;display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span>${e.message}</span></div>`;
+    }
+  }finally{
+    loadingLeads=false;
+    // Schedule next refresh — clear any old timer so we don't end up with multiple
+    if(loadTimer)clearTimeout(loadTimer);
+    loadTimer=setTimeout(loadLeads,30*1000);
+  }
+}
+
+/* =========================
+   NOTES PARSING
+   ========================= */
+function parseEntries(note){if(!note)return[];return note.split(/\n\n+/).filter(e=>e.trim());}
+
+function buildNoteEntry(entry){
+  const lines=entry.split('\n');
+  const ts=/^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim())?lines[0]:'';
+  const body=ts?lines.slice(1).join('\n'):entry;
+  let tsDisplay=ts,userTag='';
+  if(ts){
+    const parts=ts.split('|');
+    tsDisplay=parts[0].trim();
+    userTag=parts[1]?parts[1].trim():'';
+  }
+  return `<div class="note-entry">
+    ${ts?`<div class="note-ts">${tsDisplay}${userTag?`<span class="note-user">${userTag}</span>`:''}</div>`:''}
+    <div class="note-body">${esc(body.trim())}</div>
+  </div>`;
+}
+
+// Get the body of the most recent note entry (without timestamp), for inline preview on the card
+function getLatestNoteBody(note){
+  const entries=parseEntries(note);
+  if(!entries.length)return'';
+  const lines=entries[0].split('\n');
+  const hasTS=/^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim());
+  const body=hasTS?lines.slice(1).join('\n'):entries[0];
+  return body.trim();
+}
+
+/* =========================
+   CALLER VI — column W stores comma-separated user tags
+   ========================= */
+function leadWasCalledByMe(lead){
+  if(!lead||!lead.callers)return false;
+  const tag=getUserTag().toLowerCase();
+  return lead.callers.split(',').map(s=>s.trim().toLowerCase()).includes(tag);
+}
+
+/* =========================
+   RENDER
+   ========================= */
+function renderLeadCard(l,kind){
+  // kind: 'active' | 'continue' | 'removed'
+  const done=leadWasCalledByMe(l), exp=expandedSet.has(l.index), showAll=showAllSet.has(l.index);
+  const entries=parseEntries(l.note);
+  const shown=showAll?entries:entries.slice(0,3);
+  const latestBody=getLatestNoteBody(l.note);
+
+  let notesHtml='';
+  if(exp&&entries.length){
+    const items=shown.map(buildNoteEntry).join('<hr class="note-sep">');
+    const showAllBtn=(!showAll&&entries.length>3)?`<button class="show-all-btn" onclick="event.stopPropagation();openLogView(${l.index})">כל השיחות (${entries.length})</button>`:'';
+    const hideBtn=(showAll)?`<button class="show-all-btn" onclick="event.stopPropagation();toggleShowAll(${l.index})">הצג פחות</button>`:'';
+    notesHtml=`<div class="note-box">
+      <div class="note-hdr">
+        <span class="note-hdr-label">${shown.length===1?'שיחה אחרונה':shown.length+' שיחות אחרונות'}</span>
+        ${showAllBtn}${hideBtn}
+      </div>
+      ${items}
+    </div>`;
+  }
+
+  let actionBtn;
+  if(kind==='removed'){
+    actionBtn=`<button class="restore-btn" onclick="event.stopPropagation();restoreLead(${l.index})" title="שחזר">${ICON.restore}</button>`;
+  } else if(kind==='continue'){
+    actionBtn=`<button class="call-btn ${done?'done':''}" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${done?ICON.check:ICON.phone}</button>`;
+  } else {
+    actionBtn=`<button class="call-btn ${done?'done':''}" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${done?ICON.check:ICON.phone}</button>`;
+  }
+
+  let label='';
+  if(kind==='removed')label=`<div class="removed-lbl">${ICON.removed}<span>הוסר</span></div>`;
+  else if(kind==='continue')label=`<div class="continue-lbl">${ICON.bookmark}<span>המשך</span></div>`;
+
+  return `<div class="lead-row" onclick="toggleExpand(${l.index})">
+    <div class="lead-info">
+      <div class="lead-name">${esc(l.name)}</div>
+      <div class="lead-phone">${esc(l.phone)}</div>
+      ${l.note?`<div class="lead-badge">${ICON.bubble}<span>${entries.length} שיחות</span></div>`:''}
+      ${label}
+      ${latestBody?`<div class="lead-preview">${esc(latestBody)}</div>`:''}
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      ${actionBtn}
+      ${kind!=='removed' ? `<button class="note-btn" onclick="event.stopPropagation();openLogView(${l.index})" title="סיכומי שיחות">${ICON.noteAdd}</button>` : ''}
+      ${kind!=='removed' ? `<button class="wa-btn" onclick="event.stopPropagation();openWA('${ej(l.phone)}')" title="WhatsApp">${ICON.whatsapp}</button>` : ''}
+    </div>
+  </div>${notesHtml}`;
+}
+
+function renderLeads(leads){
+  const list=document.getElementById('leads-list');
+  list.innerHTML='';
+  if(!leads.length){list.innerHTML='<div class="empty">אין לידים</div>';return;}
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    // left bg = remove (red, swipe left); right bg = continue (blue, swipe right)
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right">המשך</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}" id="card-${l.index}">
+        ${renderLeadCard(l,'active')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'active');
+  });
+}
+
+function renderContinue(leads){
+  const list=document.getElementById('continue-list');
+  list.innerHTML='';
+  if(!leads.length){list.innerHTML='<div class="empty">אין לידים בהמשך</div>';return;}
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    // From "continue" tab: swipe left -> remove, swipe right -> back to active
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">חזרה ללידים</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'continue')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'continue');
+  });
+}
+
+function renderRemoved(leads){
+  const list=document.getElementById('removed-list');
+  list.innerHTML='';
+  if(!leads.length){list.innerHTML='<div class="empty">אין לידים שהוסרו</div>';return;}
+  leads.forEach(l=>{
+    // Removed tab keeps the original behavior — no swipe, just a restore button (✓).
+    const d=document.createElement('div');
+    d.className='lead-card'+(l.note?' has-note':'')+(expandedSet.has(l.index)?' expanded':'');
+    d.id='removed-card-'+l.index;
+    d.innerHTML=renderLeadCard(l,'removed');
+    list.appendChild(d);
+  });
+}
+
+/* =========================
+   SWIPE
+   - Active tab: left -> removed, right -> continue
+   - Continue tab: left -> removed, right -> active
+   ========================= */
+function initSwipe(wrap,idx,kind){
+  const content=wrap.querySelector('.swipe-content');
+  const bgL=wrap.querySelector('.swipe-bg.left');
+  const bgR=wrap.querySelector('.swipe-bg.right');
+  let startX=0,startY=0,currentX=0,swiping=false,axis=null;
+  const threshold=80;
+
+  function onStart(e){
+    const t=e.touches?e.touches[0]:e;
+    startX=t.clientX;startY=t.clientY;swiping=true;axis=null;currentX=0;
+  }
+  function onMove(e){
+    if(!swiping)return;
+    const t=e.touches?e.touches[0]:e;
+    const dx=t.clientX-startX,dy=t.clientY-startY;
+    if(!axis){if(Math.abs(dx)>8||Math.abs(dy)>8)axis=Math.abs(dx)>Math.abs(dy)?'x':'y';}
+    if(axis!=='x')return;
+    e.preventDefault();
+    currentX=dx;
+    content.style.transform=`translateX(${dx}px)`;
+    content.style.transition='none';
+    const pct=Math.min(Math.abs(dx)/threshold,1);
+    if(dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
+    else{bgR.style.opacity=pct;bgL.style.opacity=0;}
+  }
+  function onEnd(){
+    if(!swiping||axis!=='x'){swiping=false;return;}
+    swiping=false;
+    content.style.transition='';
+    if(Math.abs(currentX)>=threshold){
+      const goingLeft=currentX<0;
+      content.style.transform=`translateX(${goingLeft?'-120%':'120%'})`;
+      setTimeout(()=>{
+        if(kind==='active'){
+          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          else          setLeadStatus(idx,STATUS_CONTINUE,'ליד הועבר ל"המשך"');
+        } else if(kind==='continue'){
+          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          else          setLeadStatus(idx,STATUS_ACTIVE,'ליד הוחזר ללידים');
+        }
+      },220);
+    } else {
+      content.style.transform='';
+      bgL.style.opacity=0;bgR.style.opacity=0;
+    }
+  }
+  wrap.addEventListener('touchstart',onStart,{passive:true});
+  wrap.addEventListener('touchmove',onMove,{passive:false});
+  wrap.addEventListener('touchend',onEnd);
+}
+
+/* =========================
+   STATUS UPDATE — writes to column V
+   ========================= */
+async function setLeadStatus(idx,status,toastMsg){
+  // optimistic UI
+  const lead=allLeads.find(l=>l.index===idx);
+  if(lead)lead.status=status;
+  filterLeads();
+  if(toastMsg)showToast(toastMsg);
+
+  try{
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`,
+      {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[[status]]})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+  }catch(e){
+    showToast('שמירה נכשלה: '+e.message,'err');
+  }
+}
+
+function restoreLead(idx){
+  setLeadStatus(idx,STATUS_ACTIVE,'ליד שוחזר');
+}
+
+/* =========================
+   CALLER MARK — writes to column W (append user tag)
+   ========================= */
+async function markCalled(idx){
+  const tag=getUserTag().toLowerCase();
+  if(!tag)return;
+  const lead=allLeads.find(l=>l.index===idx);
+  let list=lead&&lead.callers?lead.callers.split(',').map(s=>s.trim()).filter(Boolean):[];
+  if(list.map(s=>s.toLowerCase()).includes(tag))return; // already marked
+  list.push(tag);
+  const newVal=list.join(', ');
+  if(lead)lead.callers=newVal;
+  filterLeads();
+  try{
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/W${idx}?valueInputOption=RAW`,
+      {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+       body:JSON.stringify({values:[[newVal]]})});
+  }catch(e){/* silent */}
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function ej(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+function toggleExpand(idx){
+  if(expandedSet.has(idx))expandedSet.delete(idx);else expandedSet.add(idx);
+  filterLeads();
+}
+function toggleShowAll(idx){
+  if(showAllSet.has(idx))showAllSet.delete(idx);else showAllSet.add(idx);
+  filterLeads();
+}
+
+/* =========================
+   FILTER & RENDER (search applies to all tabs)
+   ========================= */
+function filterLeads(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const match=l=>l.name.toLowerCase().includes(q)||l.phone.includes(q)||l.note.toLowerCase().includes(q);
+  const active=allLeads.filter(l=>(!l.status||l.status===STATUS_ACTIVE)&&match(l));
+  const cont=allLeads.filter(l=>l.status===STATUS_CONTINUE&&match(l));
+  const rem=allLeads.filter(l=>l.status===STATUS_REMOVED&&match(l));
+  renderLeads(active);
+  renderContinue(cont);
+  renderRemoved(rem);
+  // update header counter for the current tab
+  const counts={active:active.length,continue:cont.length,removed:rem.length};
+  document.getElementById('lead-count').textContent=counts[currentTab];
+}
+
+/* =========================
+   CALL FLOW
+   ========================= */
+function callLead(idx,name,phone){
+  currentLead={index:idx,name,phone};
+  markCalled(idx);
+  window.location.href='tel:'+phone.replace(/[^0-9+]/g,'');
+  setTimeout(()=>openModal(name),1800);
+}
+// Open the same summary modal but WITHOUT making a phone call.
+// Saving uses the same flow (saveNote -> column C with timestamp + user tag).
+function addNote(idx,name){
+  const lead=allLeads.find(l=>l.index===idx);
+  const phone=lead?lead.phone:'';
+  currentLead={index:idx,name,phone};
+  openModal(name);
+}
+function openModal(name){
+  document.getElementById('modal-name').textContent=name;
+  // restore any saved draft for this lead
+  const draftKey=currentLead?'draft_'+currentLead.index:null;
+  const draft=draftKey?(localStorage.getItem(draftKey)||''):'';
+  document.getElementById('note-input').value=draft;
+  finalTranscript=draft;
+  document.getElementById('note-modal').classList.add('open');
+  modalOpen=true;
+  // history entry so back button closes (and saves draft) instead of leaving
+  history.pushState({page:'modal'},'');
+  stopMic();
+  setTimeout(()=>document.getElementById('note-input').focus(),300);
+}
+function closeModal(){
+  // user clicked "סגור בלי לשמור" -> drop the draft
+  if(currentLead)localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+}
+function saveDraftAndCloseModal(){
+  // back button -> persist whatever was typed for next time
+  const txt=document.getElementById('note-input').value;
+  if(currentLead){
+    if(txt&&txt.trim())localStorage.setItem('draft_'+currentLead.index,txt);
+    else localStorage.removeItem('draft_'+currentLead.index);
+  }
+  _closeModalCore();
+  if(txt&&txt.trim())showToast('טיוטה נשמרה');
+}
+function _closeModalCore(){
+  document.getElementById('note-modal').classList.remove('open');
+  modalOpen=false;
+  stopMic();
+  filterLeads();
+}
+
+// ── Fullscreen log viewer + editor (for a lead's call summaries) ────────────
+let _logViewLead=null;
+function openLogView(idx){
+  const l=allLeads.find(x=>x.index===idx);
+  if(!l)return;
+  _logViewLead=l;
+  document.getElementById('log-view-name').textContent=l.name+(l.phone?` • ${l.phone}`:'');
+  const entries=parseEntries(l.note||'');
+  const wrap=document.getElementById('log-view-content');
+  if(!entries.length){
+    wrap.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">אין סיכומי שיחות עדיין</div>';
+  } else {
+    wrap.innerHTML=entries.map(en=>{
+      const lines=en.split('\n');
+      const head=lines[0]||'';
+      const isHead=/^\d{2}\/\d{2}\/\d{2}/.test(head.trim());
+      const body=isHead?lines.slice(1).join('\n'):en;
+      const headDisp=isHead?head:'';
+      return `<div class="log-entry">${headDisp?`<div class="log-entry-head">${esc(headDisp)}</div>`:''}<div class="log-entry-body">${esc(body.trim())}</div></div>`;
+    }).join('');
+  }
+  document.getElementById('log-view-modal').classList.add('open');
+  history.pushState({page:'logview'},'');
+}
+function closeLogView(){
+  document.getElementById('log-view-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logview') history.back();
+  _logViewLead=null;
+}
+function openAddFromLogView(){
+  const l=_logViewLead; if(!l) return;
+  // Close the viewer first, then open the existing addNote modal
+  document.getElementById('log-view-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logview') history.replaceState({page:'app'},'');
+  addNote(l.index,l.name);
+}
+function openEditFromLogView(){
+  const l=_logViewLead; if(!l) return;
+  document.getElementById('log-edit-name').textContent=l.name+(l.phone?` • ${l.phone}`:'');
+  document.getElementById('log-edit-textarea').value=l.note||'';
+  document.getElementById('log-edit-modal').classList.add('open');
+  history.pushState({page:'logedit'},'');
+}
+function closeLogEdit(){
+  document.getElementById('log-edit-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logedit') history.back();
+}
+async function saveLogEdit(){
+  const l=_logViewLead; if(!l) return;
+  const txt=document.getElementById('log-edit-textarea').value;
+  // optimistic
+  l.note=txt;
+  closeLogEdit();
+  showToast('שומר...');
+  try{
+    if(!accessToken){signOut();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${l.index}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[txt]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+    filterLeads();
+    // re-render viewer if still around
+    if(_logViewLead){_logViewLead.note=txt;openLogView(_logViewLead.index);}
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+function getTS(){
+  const n=new Date(),p=x=>String(x).padStart(2,'0');
+  const ts=`${p(n.getDate())}/${p(n.getMonth()+1)}/${String(n.getFullYear()).slice(2)} ${p(n.getHours())}:${p(n.getMinutes())}`;
+  const tag=getUserTag();
+  return ts+(tag?` | ${tag}`:'');
+}
+
+async function saveNote(){
+  const note=document.getElementById('note-input').value.trim();
+  // pop the modal history entry without triggering popstate logic
+  if(history.state&&history.state.page==='modal')history.replaceState({page:'app'},'');
+  // clear draft for this lead since we're saving
+  if(currentLead)localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  if(!note)return;
+  const row=currentLead.index,lead=allLeads.find(l=>l.index===row);
+  const entry=getTS()+'\n'+note,prev=lead?lead.note:'';
+  const combined=prev?entry+'\n\n'+prev:entry;
+  if(lead)lead.note=combined;
+  document.getElementById('saving-overlay').classList.add('show');
+  try{
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`,
+      {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    expandedSet.add(row);showToast('נשמר','ok');filterLeads();
+  }catch(e){showToast(e.message,'err');}
+  finally{document.getElementById('saving-overlay').classList.remove('show');}
+}
+
+/* =========================
+   MIC
+   ========================= */
+function toggleMic(){
+  if(isRecording){stopMic();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('הדפדפן לא תומך בהכתבה');return;}
+  finalTranscript=document.getElementById('note-input').value;
+  recognition=new SR();
+  recognition.lang='he-IL';recognition.continuous=false;recognition.interimResults=true;
+  recognition.onresult=e=>{
+    let interim='';
+    for(let i=0;i<e.results.length;i++){
+      if(e.results[i].isFinal)finalTranscript+=e.results[i][0].transcript;
+      else interim=e.results[i][0].transcript;
+    }
+    document.getElementById('note-input').value=finalTranscript+interim;
+  };
+  recognition.onend=()=>{if(isRecording)recognition.start();};
+  recognition.onerror=e=>{if(e.error!=='no-speech')stopMic();};
+  recognition.start();
+  isRecording=true;
+  document.getElementById('mic-btn').classList.add('recording');
+  document.getElementById('mic-btn').innerHTML=ICON.micStop+' <span>עצור הקלטה</span>';
+}
+function stopMic(){
+  isRecording=false;
+  if(recognition){try{recognition.abort();}catch(e){}recognition=null;}
+  const b=document.getElementById('mic-btn');
+  if(b){b.classList.remove('recording');b.innerHTML=ICON.mic+' <span>הכתב (מיקרופון)</span>';}
+}
+function openWA(phone){
+  let clean=phone.replace(/[^0-9]/g,'');
+  if(clean.startsWith('0'))clean='972'+clean.substring(1);
+  window.open('https://api.whatsapp.com/send?phone='+clean,'_blank');
+}
+function showToast(msg,kind){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');
+  t.className='toast';
+  let iconHtml='';
+  if(kind==='ok')      iconHtml=`<span style="display:inline-flex">${ICON.check}</span>`;
+  else if(kind==='err')iconHtml=`<span style="display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`;
+  t.style.display='inline-flex';t.style.alignItems='center';t.style.gap='8px';
+  t.innerHTML=iconHtml+'<span>'+msg.replace(/^[✓✗]\s?/,'')+'</span>';
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+</script>
+</body>
+</html>
+">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <title>אבי טל ושות׳ | לידים</title>
 <style>
