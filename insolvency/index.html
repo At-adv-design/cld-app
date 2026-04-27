@@ -97,9 +97,33 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .client-info{flex:1;min-width:0;}
 .client-name{font-size:15px;font-weight:600;color:var(--text);}
 .client-name-row{display:flex;align-items:center;gap:8px;}
-.phone-btn{width:44px;height:44px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);text-decoration:none;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-.phone-btn:active{transform:scale(.92);background:var(--bg);}
-.phone-btn svg{width:20px;height:20px;}
+/* ── Unified action buttons (used next to client name and inside cards) ──
+   Single rule for: phone-btn, call-log-btn, restore-btn, log-btn, note-btn.
+   All buttons are 40×40, sharp corners, with 18×18 icons. */
+.phone-btn,.call-log-btn,.restore-btn,.log-btn,.note-btn{
+  width:40px;height:40px;
+  background:var(--white);border:1px solid var(--border);
+  cursor:pointer;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--slate);text-decoration:none;font-family:inherit;padding:0;
+  transition:all .12s;
+  box-shadow:0 1px 3px rgba(0,0,0,0.06);
+  position:relative;
+}
+.phone-btn:active,.call-log-btn:active,.restore-btn:active,.log-btn:active,.note-btn:active{
+  transform:scale(.92);background:var(--bg);
+}
+.phone-btn svg,.call-log-btn svg,.restore-btn svg,.log-btn svg,.note-btn svg{
+  width:18px;height:18px;
+}
+/* Restore button keeps the green hint (used for "back to active") */
+.restore-btn{border-color:var(--green);color:var(--green);}
+/* "has-log" — small dot indicator that the entry has content */
+.log-btn.has-log,.call-log-btn.has-log{}
+.log-btn.has-log .log-dot,.call-log-btn.has-log .log-dot,.log-dot{
+  position:absolute;top:4px;left:4px;width:7px;height:7px;
+  background:var(--red);border-radius:50%;border:1.5px solid var(--white);
+}
 .client-meta{font-size:12px;color:var(--muted);margin-top:2px;}
 .status-dots{display:flex;gap:4px;flex-shrink:0;}
 .sdot-lg{width:10px;height:10px;border-radius:2px;}
@@ -751,13 +775,16 @@ function phoneBtn(c){
   return html;
 }
 
+// Track whether the call-summary viewer was opened as part of a dial flow.
+// If so, closing the "add" form should also close the viewer and return all
+// the way back to the client list — not leave the user looking at the log.
+let _callFromDial=false;
+
 // Dial the client AND open the call-summary viewer with the Add modal pre-opened,
 // so when the user returns from the phone app, the summary form is ready.
 function dialAndOpenSummary(rowNum){
-  // Open the viewer first, then chain into the "add" form so when the user
-  // returns from the phone app they can type the summary right away.
   openCallSummary(rowNum);
-  // Slight delay so the viewer animation isn't interrupted on slower devices.
+  _callFromDial=true;
   setTimeout(()=>{
     if(typeof openAddCallSummary==='function') openAddCallSummary();
   },150);
@@ -2098,6 +2125,7 @@ function closeCallSummary(){
   document.getElementById('call-summary-modal').style.display='none';
   if(history.state&&history.state.page==='call-summary') popHistorySilently();
   _callSummaryFor=null;
+  _callFromDial=false;
 }
 
 // ── ADD a new call entry ─────────────────────────────────────────────────────
@@ -2115,6 +2143,12 @@ function closeAddCallSummary(){
   _callSummaryRecognition=null;
   document.getElementById('call-add-modal').style.display='none';
   if(history.state&&history.state.page==='call-add') popHistorySilently();
+  // If we got here from the dial flow, also close the call-summary viewer so
+  // the user lands back on the client list, not on the call-log viewer.
+  if(_callFromDial){
+    _callFromDial=false;
+    closeCallSummary();
+  }
 }
 
 async function saveCallSummary(){
@@ -2128,8 +2162,15 @@ async function saveCallSummary(){
   const prev=(c.callLog||'').replace(/^\s+|\s+$/g,'');
   const newVal=prev?(newEntry+'\n\n'+prev):newEntry;
   c.callLog=newVal; // optimistic
+  // Capture the dial-flow flag, then close everything in the right order.
+  const fromDial=_callFromDial;
+  _callFromDial=false;
   closeAddCallSummary();
-  renderCallSummaryView();
+  if(fromDial){
+    closeCallSummary();
+  } else {
+    renderCallSummaryView();
+  }
   showToast('שומר...');
   try{
     if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
