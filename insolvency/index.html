@@ -96,6 +96,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .card-header{padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;}
 .client-info{flex:1;min-width:0;}
 .client-name{font-size:15px;font-weight:600;color:var(--text);}
+.client-name-row{display:flex;align-items:center;gap:8px;}
+.phone-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);text-decoration:none;flex-shrink:0;cursor:pointer;}
+.phone-btn:active{background:var(--green-border);}
 .client-meta{font-size:12px;color:var(--muted);margin-top:2px;}
 .status-dots{display:flex;gap:4px;flex-shrink:0;}
 .sdot-lg{width:10px;height:10px;border-radius:2px;}
@@ -228,7 +231,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <!-- APP -->
 <div id="app" style="display:none">
   <div class="header">
-    <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;margin-left:auto;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
     <div class="hdr-right">
       <span class="hdr-count" id="total-count">טוען...</span>
       <button class="hdr-btn" onclick="loadData()" title="רענן">
@@ -240,6 +242,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </button>
       <div class="avatar" id="user-avatar" onclick="signOut()"></div>
     </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
   </div>
 
   <div class="tabs">
@@ -404,6 +407,24 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 </div>
 
+<!-- CALL SUMMARY MODAL — opens after a phone-button tap -->
+<div id="call-summary-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:310;align-items:flex-end;backdrop-filter:blur(4px);">
+  <div class="log-sheet" style="background:var(--white);border-top:2px solid var(--slate);padding:16px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;max-height:90dvh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+    <div class="log-handle"></div>
+    <div class="log-title">סיכום שיחה</div>
+    <div class="log-sub" id="call-summary-name"></div>
+    <textarea class="log-textarea" id="call-summary-text" placeholder="הקלד את סיכום השיחה..." style="min-height:140px"></textarea>
+    <button class="log-mic-btn" id="call-summary-mic" onclick="toggleCallSummaryMic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      <span>הכתב (מיקרופון)</span>
+    </button>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveCallSummary()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeCallSummary()">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Register the service worker for the insolvency PWA
 if('serviceWorker' in navigator){
@@ -477,14 +498,17 @@ const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com',
 
 // Columns (0-based)
 const C_NAME=22,C_CASE=66;
+const C_PHONE=21;      // V: client phone
 // Operations section ("ביצועים" — entered via 4 logo taps)
 const C_X=23;          // X: cumulative summary log (first 2 lines preserved)
 const C_Y=24;          // Y: start / received-instruction date
 const C_Z=25;          // Z: days to complete
-const C_AA=26;         // AA: deadline (Y + Z)
+const C_AA=26;         // AA: deadline (Y + Z) — formula in sheet, do not write
 const C_CG=84;         // CG: status — 'wait' or empty
-const COL_X='X';       // write URL for log
+const C_CH=85;         // CH: cumulative call-summary log
+const COL_X='X';       // write URL for ops log
 const COL_CG='CG';     // write URL for status
+const COL_CH='CH';     // write URL for call-summary log
 const C_DOCS_LIST=28,C_DOCS_AE=30,C_DOCS_AG=32,C_DOCS_AH=33,C_DOCS_AI=34;
 const C_AL=37,C_AZ=51;
 const C_BG=58,C_BH=59,C_BI=60;
@@ -616,6 +640,17 @@ function withStatusIcon(text){
   return text;
 }
 
+// Render a clickable phone button (uses tel: + opens call-summary modal on tap).
+// Returns empty string if no phone.
+function phoneBtn(c){
+  if(!c.phone) return '';
+  const digits=String(c.phone).replace(/\D/g,'');
+  let tel=digits;
+  if(digits.startsWith('0')) tel='+972'+digits.substring(1);
+  // The tel: link triggers the dialer; the JS also opens a summary dialog.
+  return `<a href="tel:${tel}" onclick="event.stopPropagation();openCallSummary(${c.rowNum})" class="phone-btn" title="התקשר ${esc(c.phone)}">${ICON.phone}</a>`;
+}
+
 // ── LOAD ──────────────────────────────────────────────────────────────────────
 let _firstLoadDone=false;
 async function loadData(){
@@ -626,13 +661,13 @@ async function loadData(){
     document.getElementById('cards-list').innerHTML='';
   }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CG?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CH?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const rows=(data.values||[]).slice(2);
     allClients=rows.map((row,i)=>parseClient(row,i+3)).filter(c=>c&&c.name&&c.name.trim());
     const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
-    document.getElementById('total-count').textContent=active.length+' תיקים';
+    document.getElementById('total-count').textContent=active.length;
     updateWaitingTab();
     updateStats(active);
     document.getElementById('loading').style.display='none';
@@ -711,10 +746,11 @@ function parseClient(row,rowNum){
   const isUrgent=overdueCount>0||docsHighUrgent||injUrgent||srvUrgent;
   const isWarning=!isUrgent&&(docsLowUrgent||srvWarning||docsReminder||reminder);
 
-  return{rowNum,name,caseNum:g(C_CASE),reports,reportStatus,overdueCount,
+  return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
     injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
     log:g(C_CF),
+    callLog:g(C_CH),
     // Operations section (columns X, Y, Z, AA, CG)
     opsLog:g(C_X),
     opsStartRaw:g(C_Y),
@@ -906,7 +942,7 @@ function renderCards(clients){
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
           <div class="client-info">
-            <div class="client-name">${esc(c.name)}</div>
+            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
           </div>
           <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum})" title="תיעוד תיק">
@@ -943,7 +979,7 @@ function renderWaiting(){
     content.innerHTML=`<div class="client-card" style="opacity:.75" data-row="${c.rowNum}">
       <div class="card-header" style="cursor:default">
         <div class="client-info">
-          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
           <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}</div>
           <div class="waiting-badge" style="display:inline-flex;align-items:center;gap:4px">${ICON.pause}<span>בהמתנה</span></div>
         </div>
@@ -1011,7 +1047,7 @@ function moveToWaiting(rowNum){
   const el=document.querySelector(`[data-row="${rowNum}"]`);
   if(el)el.closest('.swipe-wrap').remove();
   const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
-  document.getElementById('total-count').textContent=active.length+' תיקים';
+  document.getElementById('total-count').textContent=active.length;
   updateWaitingTab();
   showToast('תיק הועבר להמתנה');
 }
@@ -1354,7 +1390,7 @@ function exitTasksSection(){
   if(history.state&&history.state.page==='tasks')history.back();
   // Refresh counter
   const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
-  document.getElementById('total-count').textContent=active.length+' תיקים';
+  document.getElementById('total-count').textContent=active.length;
 }
 
 function switchTaskTab(t){
@@ -1463,7 +1499,7 @@ function renderTasks(){
     content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;cursor:pointer" onclick="openLogModal(${c.rowNum},'ops')">
       <div class="card-header" style="${lateBadge?'padding-bottom:34px;':''}">
         <div class="client-info">
-          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
           <div class="client-meta" style="margin-top:3px">${metaLine}</div>
           ${logPreview?`<div class="log-preview-text" style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
         </div>
@@ -1569,7 +1605,16 @@ function isoToDdmm(iso){
   if(!iso)return'';
   const m=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(!m)return iso;
-  return `${m[3]}/${m[2]}/${m[1]}`;
+  return `${m[3]}/${m[2]}/${m[1].slice(2)}`;
+}
+
+// Format a JS Date object as DD/MM/YY
+function fmtDdMmYy(d){
+  if(!d)return'';
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(2);
+  return `${dd}/${mm}/${yy}`;
 }
 
 function recomputeOpsDeadlinePreview(){
@@ -1615,38 +1660,48 @@ async function saveOpsEdit(){
   const daysRaw=document.getElementById('ops-edit-days').value.trim();
   const days=parseInt(daysRaw,10);
   if(!startIso&&!daysRaw){
-    // empty both — clear all three columns
-    return doOpsWrite('','','');
+    // empty both — clear Y and Z (AA is a formula, will recalc)
+    return doOpsWrite('','');
   }
   if(!startIso){showToast('בחר תאריך התחלה');return;}
   if(isNaN(days)||days<0){showToast('הזן מספר ימים תקין');return;}
-  const deadline=recomputeOpsDeadlinePreview()||'';
   const startDdMm=isoToDdmm(startIso);
-  doOpsWrite(startDdMm,String(days),deadline);
+  doOpsWrite(startDdMm,String(days));
 }
 
-async function doOpsWrite(yVal,zVal,aaVal){
+async function doOpsWrite(yVal,zVal){
   const rowNum=currentOpsEdit.rowNum;
-  // optimistic update
+  // optimistic update — compute deadline locally so UI shows it immediately
   const c=allClients.find(x=>x.rowNum===rowNum);
   if(c){
     c.opsStartRaw=yVal;
     c.opsDaysRaw=zVal;
-    c.opsDeadlineRaw=aaVal;
-    c.opsDeadline=parseDate(aaVal);
+    // local-side recompute (the sheet's AA formula will set the real value on next reload)
+    if(yVal && zVal){
+      const d=parseDate(yVal);
+      const days=parseInt(zVal,10);
+      if(d && !isNaN(days)){
+        const dl=new Date(d.getTime()+days*86400000);
+        c.opsDeadline=dl;
+        c.opsDeadlineRaw=fmtDdMmYy(dl);
+      } else {
+        c.opsDeadline=null; c.opsDeadlineRaw='';
+      }
+    } else {
+      c.opsDeadline=null; c.opsDeadlineRaw='';
+    }
   }
   closeOpsEdit();
   if(typeof renderTasks==='function')renderTasks();
   showToast('שומר...');
   try{
     if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
-    // Single batchUpdate writes Y, Z, AA all at once
+    // Write only Y and Z. AA is a formula in the sheet — never write to it.
     const body={
       valueInputOption:'RAW',
       data:[
         {range:`Y${rowNum}`,values:[[yVal]]},
-        {range:`Z${rowNum}`,values:[[zVal]]},
-        {range:`AA${rowNum}`,values:[[aaVal]]}
+        {range:`Z${rowNum}`,values:[[zVal]]}
       ]
     };
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`;
@@ -1667,6 +1722,87 @@ async function doOpsWrite(yVal,zVal,aaVal){
   }
 }
 
+// ── CALL SUMMARY (writes to column CH) ─────────────────────────────────────
+let _callSummaryFor=null,_callSummaryRecognition=null;
+function openCallSummary(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c)return;
+  _callSummaryFor=c;
+  document.getElementById('call-summary-name').textContent=
+    c.name+(c.caseNum?` • תיק ${c.caseNum}`:'');
+  document.getElementById('call-summary-text').value='';
+  document.getElementById('call-summary-modal').style.display='flex';
+  history.pushState({page:'call-summary'},'');
+}
+function closeCallSummary(){
+  // stop mic if still recording
+  if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+  _callSummaryRecognition=null;
+  document.getElementById('call-summary-modal').style.display='none';
+  if(history.state&&history.state.page==='call-summary') popHistorySilently();
+  _callSummaryFor=null;
+}
+async function saveCallSummary(){
+  if(!_callSummaryFor)return;
+  const text=document.getElementById('call-summary-text').value.trim();
+  if(!text){closeCallSummary();return;}
+  const c=_callSummaryFor;
+  const rowNum=c.rowNum;
+  const stamp=`${getInsTS()} | ${getUserTag6()}`;
+  const newEntry=`${stamp}\n${text}`;
+  const prev=(c.callLog||'').replace(/^\s+|\s+$/g,'');
+  const newVal=prev?(newEntry+'\n\n'+prev):newEntry;
+  c.callLog=newVal; // optimistic
+  closeCallSummary();
+  showToast('שומר...');
+  try{
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+function toggleCallSummaryMic(){
+  const btn=document.getElementById('call-summary-mic');
+  const ta=document.getElementById('call-summary-text');
+  if(_callSummaryRecognition){
+    try{_callSummaryRecognition.stop();}catch(e){}
+    _callSummaryRecognition=null;
+    btn.classList.remove('recording');
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span>הכתב (מיקרופון)</span>';
+    return;
+  }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('הדפדפן לא תומך בהכתבה','err');return;}
+  const r=new SR();r.lang='he-IL';r.continuous=true;r.interimResults=true;
+  let finalTxt=ta.value?ta.value+' ':'';
+  r.onresult=(ev)=>{
+    let interim='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const t=ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) finalTxt+=t+' ';
+      else interim+=t;
+    }
+    ta.value=finalTxt+interim;
+  };
+  r.onend=()=>{
+    btn.classList.remove('recording');
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span>הכתב (מיקרופון)</span>';
+    _callSummaryRecognition=null;
+  };
+  r.start();_callSummaryRecognition=r;
+  btn.classList.add('recording');
+  btn.innerHTML=ICON.micStop+' <span>עצור הקלטה</span>';
+}
+
 window.addEventListener('popstate',()=>{
   // If we triggered the popstate ourselves to close a modal, don't run the
   // generic close logic (it would cascade and accidentally exit the section).
@@ -1678,6 +1814,14 @@ window.addEventListener('popstate',()=>{
   const editOpen=document.getElementById('log-edit-modal').classList.contains('open');
   const viewOpen=document.getElementById('log-modal').classList.contains('open');
   const opsEditOpen=document.getElementById('ops-edit-modal').style.display==='flex';
+  const callSumOpen=document.getElementById('call-summary-modal').style.display==='flex';
+  if(callSumOpen){
+    if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+    _callSummaryRecognition=null;
+    document.getElementById('call-summary-modal').style.display='none';
+    _callSummaryFor=null;
+    return;
+  }
   if(opsEditOpen){
     document.getElementById('ops-edit-modal').style.display='none';
     return;
