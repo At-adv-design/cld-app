@@ -125,7 +125,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .status-row.orange{background:var(--orange-bg);border-color:var(--orange-border);}
 .status-row.green{background:var(--green-bg);border-color:var(--green-border);}
 .status-label{font-size:12px;font-weight:500;}
-.status-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;}
+.status-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;height:22px;line-height:1;white-space:nowrap;}
+.status-badge svg{width:11px;height:11px;flex-shrink:0;}
 .badge-red{background:var(--red);color:#fff;}
 .badge-orange{background:var(--orange);color:#fff;}
 .badge-green{background:var(--green);color:#fff;}
@@ -732,19 +733,34 @@ function withStatusIcon(text){
 }
 
 // Render contact buttons next to the client name:
-//   1) Phone button — only dials (tel:), no modal popup.
-//   2) Call-log button — opens the call-summary viewer (column CH).
+//   1) Phone button — dials AND opens the call-summary viewer (with the Add
+//      button) so when the user finishes the call they can immediately log it.
+//   2) Call-log button — opens the call-summary viewer directly (without dialing).
 // The call-log button always shows; the phone button is hidden when no phone.
 function phoneBtn(c){
   let html='';
   if(c.phone){
     const digits=String(c.phone).replace(/\D/g,'');
     const tel=digits.startsWith('0')?('+972'+digits.substring(1)):digits;
-    html+=`<a href="tel:${tel}" onclick="event.stopPropagation()" class="phone-btn" title="התקשר ${esc(c.phone)}">${ICON.phone}</a>`;
+    // Dial via tel: AND open the call-summary viewer (with the "Add" button
+    // visible) so the user can record the summary immediately after the call.
+    html+=`<a href="tel:${tel}" onclick="event.stopPropagation();dialAndOpenSummary(${c.rowNum})" class="phone-btn" title="התקשר ${esc(c.phone)}">${ICON.phone}</a>`;
   }
-  // Always show the call-log icon — even if there's no phone yet, the user can still log calls.
+  // Always show the call-log icon — even if there's no phone yet.
   html+=`<button onclick="event.stopPropagation();openCallSummary(${c.rowNum})" class="phone-btn call-log-btn${c.callLog?' has-log':''}" title="סיכומי שיחות" type="button">${ICON.clipboard}</button>`;
   return html;
+}
+
+// Dial the client AND open the call-summary viewer with the Add modal pre-opened,
+// so when the user returns from the phone app, the summary form is ready.
+function dialAndOpenSummary(rowNum){
+  // Open the viewer first, then chain into the "add" form so when the user
+  // returns from the phone app they can type the summary right away.
+  openCallSummary(rowNum);
+  // Slight delay so the viewer animation isn't interrupted on slower devices.
+  setTimeout(()=>{
+    if(typeof openAddCallSummary==='function') openAddCallSummary();
+  },150);
 }
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
