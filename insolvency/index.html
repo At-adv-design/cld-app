@@ -97,8 +97,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .client-info{flex:1;min-width:0;}
 .client-name{font-size:15px;font-weight:600;color:var(--text);}
 .client-name-row{display:flex;align-items:center;gap:8px;}
-.phone-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);text-decoration:none;flex-shrink:0;cursor:pointer;}
-.phone-btn:active{background:var(--green-border);}
+.phone-btn{width:44px;height:44px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);text-decoration:none;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.phone-btn:active{transform:scale(.92);background:var(--bg);}
+.phone-btn svg{width:20px;height:20px;}
 .client-meta{font-size:12px;color:var(--muted);margin-top:2px;}
 .status-dots{display:flex;gap:4px;flex-shrink:0;}
 .sdot-lg{width:10px;height:10px;border-radius:2px;}
@@ -407,6 +408,28 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 </div>
 
+<!-- DOCS LIST EDIT MODAL (fullscreen) -->
+<div id="docs-edit-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:315;flex-direction:column;">
+  <div style="padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;height:100%;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeDocsEdit()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">רשימת מסמכים</div>
+        <div class="log-sub" id="docs-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">העריכה תישמר ישירות לעמודה AC בגוגל-שיט</div>
+    <textarea id="docs-edit-textarea" placeholder="רשימת המסמכים שצריכים להגיע..." style="flex:1;min-height:0;width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.6"></textarea>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveDocsEdit()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeDocsEdit()">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <!-- CALL SUMMARY MODAL — opens after a phone-button tap -->
 <div id="call-summary-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:310;align-items:flex-end;backdrop-filter:blur(4px);">
   <div class="log-sheet" style="background:var(--white);border-top:2px solid var(--slate);padding:16px;padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;max-height:90dvh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
@@ -584,6 +607,12 @@ window.addEventListener('load',()=>{
 function showApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
+  // Set up history so the first 'back' doesn't immediately leave the app:
+  //   entry-A (replace): represents "outside / exit anchor"
+  //   entry-B (push):    represents current app state
+  // popstate handler will keep re-pushing entry-B until the user presses back 3x.
+  history.replaceState({page:'exit'},'');
+  history.pushState({page:'app'},'');
 }
 function fetchUserInfo(){
   fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
@@ -923,7 +952,13 @@ function renderCards(clients){
             ${docsDeadline?`<div style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${docsDeadline}</div>`:''}
           </div>
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
-          ${c.docsList?`<div style="font-size:12px;color:var(--muted);padding:5px 8px;background:var(--bg);border-radius:4px;border:1px solid var(--border)">${esc(c.docsList)}</div>`:''}
+          ${c.docsList
+            ? `<div style="position:relative" onclick="event.stopPropagation();openDocsEdit(${c.rowNum})">
+                 <div style="font-size:12px;color:var(--text);padding:8px 32px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.docsList)}</div>
+                 <button style="position:absolute;left:6px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="ערוך רשימה">${ICON.pencil}</button>
+               </div>`
+            : `<button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים</span></button>`
+          }
           ${c.docsReminder?`<div class="reminder-row"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת — ב-5, 15 ו-25 לחודש</span></div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
@@ -1697,8 +1732,10 @@ async function doOpsWrite(yVal,zVal){
   try{
     if(!accessToken){handleAuthError();throw new Error('אין הרשאה — התחבר מחדש');}
     // Write only Y and Z. AA is a formula in the sheet — never write to it.
+    // USER_ENTERED: Sheets parses the string the same way as if a person typed it
+    // into the cell — so "24/04/26" becomes a real date, not text with a leading '.
     const body={
-      valueInputOption:'RAW',
+      valueInputOption:'USER_ENTERED',
       data:[
         {range:`Y${rowNum}`,values:[[yVal]]},
         {range:`Z${rowNum}`,values:[[zVal]]}
@@ -1717,6 +1754,49 @@ async function doOpsWrite(yVal,zVal){
       throw e;
     }
     showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// ── DOCS LIST EDIT (writes to column AC) ─────────────────────────────────
+let _docsEditFor=null;
+function openDocsEdit(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c)return;
+  _docsEditFor=c;
+  document.getElementById('docs-edit-name').textContent=
+    c.name+(c.caseNum?` • תיק ${c.caseNum}`:'');
+  document.getElementById('docs-edit-textarea').value=c.docsList||'';
+  document.getElementById('docs-edit-modal').style.display='flex';
+  history.pushState({page:'docs-edit'},'');
+}
+function closeDocsEdit(){
+  document.getElementById('docs-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='docs-edit') popHistorySilently();
+  _docsEditFor=null;
+}
+async function saveDocsEdit(){
+  if(!_docsEditFor)return;
+  const c=_docsEditFor;
+  const newVal=document.getElementById('docs-edit-textarea').value;
+  c.docsList=newVal; // optimistic
+  closeDocsEdit();
+  showToast('שומר...');
+  try{
+    if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${c.rowNum}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+    // re-render so the new text appears
+    const active=allClients.filter(x=>!waitingSet.has(x.rowNum));
+    if(typeof applyFilters==='function') applyFilters(); else renderCards(active);
   }catch(e){
     showToast(e.message,'err');
   }
@@ -1803,6 +1883,9 @@ function toggleCallSummaryMic(){
   btn.innerHTML=ICON.micStop+' <span>עצור הקלטה</span>';
 }
 
+// Track consecutive back-presses on the main page to require triple-back to exit
+let _backPressCount=0,_backPressTimer=null;
+
 window.addEventListener('popstate',()=>{
   // If we triggered the popstate ourselves to close a modal, don't run the
   // generic close logic (it would cascade and accidentally exit the section).
@@ -1815,6 +1898,12 @@ window.addEventListener('popstate',()=>{
   const viewOpen=document.getElementById('log-modal').classList.contains('open');
   const opsEditOpen=document.getElementById('ops-edit-modal').style.display==='flex';
   const callSumOpen=document.getElementById('call-summary-modal').style.display==='flex';
+  const docsEditOpen=document.getElementById('docs-edit-modal').style.display==='flex';
+  if(docsEditOpen){
+    document.getElementById('docs-edit-modal').style.display='none';
+    _docsEditFor=null;
+    return;
+  }
   if(callSumOpen){
     if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
     _callSummaryRecognition=null;
@@ -1847,6 +1936,19 @@ window.addEventListener('popstate',()=>{
     history.pushState({page:'tasks'},'');
     return;
   }
+  // On the main page — require 3 consecutive back-presses to exit
+  _backPressCount++;
+  history.pushState({page:'app'},'');
+  if(_backPressCount<3){
+    showToast(`לחץ ${3-_backPressCount} פעמים נוספות כדי לצאת`);
+    clearTimeout(_backPressTimer);
+    _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
+    return;
+  }
+  // 3 presses reached — actually leave the app
+  _backPressCount=0;
+  // Drop our re-pushed state, then go back once more to the exit anchor
+  history.go(-1);
 });
 </script>
 </body>
