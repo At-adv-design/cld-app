@@ -301,6 +301,8 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <div id="app" style="display:none">
   <div class="header">
     <div class="hdr-right">
+      <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
+      <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="lead-count">טוען...</span>
       <button class="hdr-btn" onclick="loadLeads()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
@@ -598,6 +600,190 @@ let userName='',userEmail='';
 let pendingConfirm=null; // callback for confirm dialog
 let modalOpen=false;     // tracks note modal state for back button
 
+/* =========================
+   CONNECTION LAYER — robust API access with token refresh + retry + queue
+   ========================= */
+
+// Track token expiry. We refresh BEFORE Google rejects us so users don't
+// see failures during normal use.
+function tokenIsValid(){
+  if(!accessToken) return false;
+  const exp=parseInt(localStorage.getItem('lte')||'0');
+  return Date.now() < exp;
+}
+
+// Silent re-auth: opens the OAuth page in an invisible iframe with prompt=none.
+// If the user is still signed in to Google in the browser, this returns a fresh
+// token without any UI. If it fails (user signed out, third-party cookies blocked),
+// fall back to the full sign-in page so the user can re-authorize.
+let _silentAuthInFlight=null;
+function silentReauth(){
+  if(_silentAuthInFlight) return _silentAuthInFlight;
+  _silentAuthInFlight=new Promise((resolve)=>{
+    const iframe=document.createElement('iframe');
+    iframe.style.display='none';
+    const url='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+      client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',
+      scope:SCOPES,prompt:'none',
+      // login_hint helps Google pick the right account silently
+      login_hint:userEmail||localStorage.getItem('le')||''
+    });
+    let settled=false;
+    const finish=(success)=>{
+      if(settled) return; settled=true;
+      try{document.body.removeChild(iframe);}catch(_){}
+      _silentAuthInFlight=null;
+      resolve(success);
+    };
+    // Listen for the iframe to land on our redirect URL with #access_token
+    iframe.onload=()=>{
+      try{
+        const href=iframe.contentWindow.location.href;
+        if(href.includes('access_token=')){
+          const hash=href.split('#')[1]||'';
+          const p=new URLSearchParams(hash);
+          const tok=p.get('access_token');
+          const exp=parseInt(p.get('expires_in')||'3600');
+          if(tok){
+            accessToken=tok;
+            localStorage.setItem('lt',tok);
+            localStorage.setItem('lte',(Date.now()+(exp-120)*1000).toString());
+            finish(true); return;
+          }
+        }
+        if(href.includes('error=')){ finish(false); return; }
+      }catch(e){
+        // Cross-origin: as long as we got onload, we couldn't read the URL.
+        // We rely on the timeout below.
+      }
+    };
+    iframe.src=url;
+    document.body.appendChild(iframe);
+    // Hard timeout — if Google doesn't respond in 8s, give up
+    setTimeout(()=>finish(false), 8000);
+  });
+  return _silentAuthInFlight;
+}
+
+// Returns a valid access token, refreshing silently if needed.
+// Throws only if even silent refresh failed (then we ask user to log in).
+async function getValidToken(){
+  if(tokenIsValid()) return accessToken;
+  const ok=await silentReauth();
+  if(ok && accessToken) return accessToken;
+  throw new Error('TOKEN_EXPIRED');
+}
+
+// Robust fetch wrapper. Use this for ALL API calls (reads and writes).
+//   - injects Authorization header
+//   - validates/refreshes token before the call
+//   - on 401: refreshes once and retries
+//   - on network error: retries up to 3 times with backoff
+//   - returns parsed JSON, throws on terminal failure
+async function apiFetch(url,opts={},attempt=0){
+  // Make sure we have a fresh token. This call may pop up a silent reauth.
+  let tok;
+  try{ tok=await getValidToken(); }
+  catch(e){
+    setOnlineBadge('offline','אין הרשאה');
+    throw e;
+  }
+  const headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+tok});
+  // Apply a timeout so a stalled request doesn't hang forever
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),20000);
+  try{
+    const res=await fetch(url,Object.assign({},opts,{headers,signal:ctrl.signal}));
+    clearTimeout(t);
+    // 401: token rejected mid-flight (e.g. revoked or clock skew). Refresh + retry once.
+    if(res.status===401 && attempt===0){
+      // Force token to be considered expired so getValidToken refreshes
+      localStorage.setItem('lte','0');
+      return apiFetch(url,opts,attempt+1);
+    }
+    let data=null;
+    try{ data=await res.json(); }catch(_){}
+    if(!res.ok){
+      const msg=(data&&data.error&&data.error.message)||('HTTP '+res.status);
+      throw new Error(msg);
+    }
+    setOnlineBadge('online');
+    return data;
+  }catch(e){
+    clearTimeout(t);
+    // Network error: retry with backoff (up to 3 attempts)
+    const isNetwork=(e.name==='AbortError'||e.name==='TypeError'||/network/i.test(e.message||''));
+    if(isNetwork && attempt<3){
+      setOnlineBadge('retrying','מחבר מחדש...');
+      await new Promise(r=>setTimeout(r, 600*(attempt+1)));
+      return apiFetch(url,opts,attempt+1);
+    }
+    setOnlineBadge('offline');
+    throw e;
+  }
+}
+
+// Persistent write queue — when a write fails (offline, token expired, etc.)
+// we save it to localStorage so it can be replayed when connectivity returns.
+// Each entry: {id, url, opts, label, ts}
+function loadQueue(){ try{return JSON.parse(localStorage.getItem('wq')||'[]');}catch(_){return [];} }
+function saveQueue(q){ localStorage.setItem('wq',JSON.stringify(q)); }
+function enqueueWrite(url,opts,label){
+  const q=loadQueue();
+  q.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),url,opts,label,ts:Date.now()});
+  saveQueue(q);
+  updateQueueBadge();
+}
+async function flushQueue(){
+  let q=loadQueue();
+  if(q.length===0) return;
+  // Process oldest first. If any one fails, stop — we'll try again next event.
+  while(q.length){
+    const item=q[0];
+    try{
+      await apiFetch(item.url,item.opts);
+      q.shift(); saveQueue(q); updateQueueBadge();
+    }catch(e){
+      // If terminal (token gone), leave queue intact and bail
+      break;
+    }
+  }
+}
+function updateQueueBadge(){
+  const n=loadQueue().length;
+  const el=document.getElementById('queue-badge');
+  if(!el) return;
+  if(n>0){ el.style.display='inline-flex'; el.textContent=`${n} ממתין לשמירה`; }
+  else el.style.display='none';
+}
+
+// Connection status indicator in the header. States: online (hidden), retrying, offline.
+function setOnlineBadge(state,msg){
+  const el=document.getElementById('conn-badge');
+  if(!el) return;
+  if(state==='online'){ el.style.display='none'; return; }
+  el.style.display='inline-flex';
+  if(state==='retrying'){ el.textContent=msg||'מחבר מחדש...'; el.style.background='#fff3cd'; el.style.color='#856404'; }
+  else { el.textContent=msg||'אין חיבור'; el.style.background='#f8d7da'; el.style.color='#721c24'; }
+}
+
+// When network or visibility comes back — try to flush the queue and reload.
+window.addEventListener('online',()=>{ setOnlineBadge('online'); flushQueue(); maybeReload(); });
+window.addEventListener('offline',()=>setOnlineBadge('offline'));
+
+// Proactive token refresh: every 5 minutes, check if expiry is within 10 min
+// and refresh silently. Keeps the user signed in indefinitely as long as
+// they have an active Google session.
+setInterval(()=>{
+  const exp=parseInt(localStorage.getItem('lte')||'0');
+  if(!accessToken || !exp) return;
+  if(Date.now() > exp - 10*60*1000){ silentReauth().then(ok=>{ if(ok) flushQueue(); }); }
+},5*60*1000);
+
+// Try flushing the queue every 30s in case anything is stuck
+setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
+
+
 function doLogin(){
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
     client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',scope:SCOPES,prompt:'select_account'
@@ -865,6 +1051,10 @@ let loadTimer=null;
 async function loadLeads(){
   if(loadingLeads)return;
   loadingLeads=true;
+  // Try to flush any queued writes first — this is a good moment because
+  // we know we have network (we're about to read).
+  if(navigator.onLine && accessToken) flushQueue();
+  updateQueueBadge();
   // Only show the spinner for the very first load (when allLeads is empty)
   const firstLoad=!allLeads||allLeads.length===0;
   if(firstLoad){
@@ -1121,26 +1311,25 @@ async function setLeadStatus(idx,status,toastMsg){
   // optimistic UI
   const lead=allLeads.find(l=>l.index===idx);
   if(lead){
-    const wasNonActive=lead.status&&lead.status!==STATUS_ACTIVE;
     lead.status=status;
-    // When a lead is being RESTORED to active (coming back from המשך/הוסרו),
-    // bump it to the top of the array so it appears first in the list.
-    if(wasNonActive && (status===STATUS_ACTIVE||!status)){
-      const i=allLeads.indexOf(lead);
-      if(i>0){ allLeads.splice(i,1); allLeads.unshift(lead); }
-    }
+    // Bump the lead to the top of allLeads so it appears first in whichever
+    // tab it lands in. This applies to all status transitions: moving to
+    // המשך, moving to הוסרו, or restoring to לידים.
+    const i=allLeads.indexOf(lead);
+    if(i>0){ allLeads.splice(i,1); allLeads.unshift(lead); }
   }
   filterLeads();
   if(toastMsg)showToast(toastMsg);
 
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[status]]})};
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`,
-      {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-       body:JSON.stringify({values:[[status]]})});
-    const data=await res.json();
-    if(data.error)throw new Error(data.error.message);
+    await apiFetch(url,opts);
   }catch(e){
-    showToast('שמירה נכשלה: '+e.message,'err');
+    // Network/auth failure → save to queue so we don't lose the action.
+    // The queue is replayed on reconnect / next visibility event.
+    enqueueWrite(url,opts,'סטטוס ליד');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
 
@@ -1161,11 +1350,10 @@ async function markCalled(idx){
   const newVal=list.join(', ');
   if(lead)lead.callers=newVal;
   filterLeads();
-  try{
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/W${idx}?valueInputOption=RAW`,
-      {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-       body:JSON.stringify({values:[[newVal]]})});
-  }catch(e){/* silent */}
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/W${idx}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+  try{ await apiFetch(url,opts); }
+  catch(e){ enqueueWrite(url,opts,'סימון מתקשר'); }
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
@@ -1741,13 +1929,16 @@ async function saveNote(){
   const combined=prev?entry+'\n\n'+prev:entry;
   if(lead)lead.note=combined;
   document.getElementById('saving-overlay').classList.add('show');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`,
-      {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})});
-    const data=await res.json();
-    if(data.error)throw new Error(data.error.message);
+    await apiFetch(url,opts);
     expandedSet.add(row);showToast('נשמר','ok');filterLeads();
-  }catch(e){showToast(e.message,'err');}
+  }catch(e){
+    enqueueWrite(url,opts,'סיכום שיחה');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
+    expandedSet.add(row);filterLeads();
+  }
   finally{document.getElementById('saving-overlay').classList.remove('show');}
 }
 
@@ -1768,12 +1959,10 @@ async function saveAndMove(target){
     const combined=prev?entry+'\n\n'+prev:entry;
     if(lead)lead.note=combined;
     document.getElementById('saving-overlay').classList.add('show');
-    try{
-      const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`,
-        {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})});
-      const data=await res.json();
-      if(data.error)throw new Error(data.error.message);
-    }catch(e){showToast('שמירת סיכום נכשלה: '+e.message,'err');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
+    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
+    try{ await apiFetch(url,opts); }
+    catch(e){ enqueueWrite(url,opts,'סיכום שיחה'); }
     finally{document.getElementById('saving-overlay').classList.remove('show');}
   }
   // Now set the new status (this also re-renders the lists)
