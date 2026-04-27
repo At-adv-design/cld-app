@@ -1055,7 +1055,10 @@ function renderCards(clients){
         <div>
           <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
           <div style="height:30px;overflow:hidden"><div class="reports-grid">${reportCells}</div></div>
-          ${c.reminder?`<div class="reminder-row" style="margin-top:6px"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span><button onclick="event.stopPropagation();clearReminder(${c.rowNum},'AZ')" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`:''}
+          ${c.reminder
+            ? `<div class="reminder-row" style="margin-top:6px"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span><button onclick="event.stopPropagation();setReminder(${c.rowNum},'AZ',false)" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`
+            : `<button onclick="event.stopPropagation();setReminder(${c.rowNum},'AZ',true)" title="הפעל תזכורת" style="margin-top:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);cursor:pointer;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:11px;font-weight:600">${ICON.bell}<span>הפעל תזכורת דוחות</span></button>`
+          }
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
@@ -1070,7 +1073,10 @@ function renderCards(clients){
                </div>`
             : `<button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים</span></button>`
           }
-          ${c.docsReminder?`<div class="reminder-row"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת — ב-5, 15 ו-25 לחודש</span><button onclick="event.stopPropagation();clearReminder(${c.rowNum},'AI')" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`:''}
+          ${c.docsReminder
+            ? `<div class="reminder-row"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת — ב-5, 15 ו-25 לחודש</span><button onclick="event.stopPropagation();setReminder(${c.rowNum},'AI',false)" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`
+            : `<button onclick="event.stopPropagation();setReminder(${c.rowNum},'AI',true)" title="הפעל תזכורת" style="background:transparent;border:1px dashed var(--border);color:var(--muted);cursor:pointer;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:11px;font-weight:600;align-self:flex-start">${ICON.bell}<span>הפעל תזכורת מסמכים</span></button>`
+          }
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div class="section-title" style="color:var(--slate)">אישורי מסירה</div>
@@ -1842,29 +1848,29 @@ async function clearReminder(rowNum,col){
   }
 }
 
-// Clear a reminder checkbox (set the cell to empty/FALSE).
+// Set a reminder checkbox to TRUE or FALSE on the sheet.
 // col: 'AZ' = report reminder; 'AI' = docs reminder.
-async function clearReminder(rowNum,col){
+// value: true to enable the reminder, false to clear it.
+async function setReminder(rowNum,col,value){
   const c=allClients.find(x=>x.rowNum===rowNum);
   if(!c)return;
-  // Optimistic — flip the local flag right away so the row hides immediately.
-  if(col==='AZ') c.reminder=false;
-  else if(col==='AI') c.docsReminder=false;
-  // Recompute the warning level (since the reminder contributes to it).
+  // Optimistic — flip the local flag right away so the row updates immediately.
+  if(col==='AZ') c.reminder=!!value;
+  else if(col==='AI') c.docsReminder=!!value;
+  // Recompute warning level (since the reminder contributes to it).
   const isUrgent=c.docsHighUrgent||c.srvUrgent||(c.overdueCount>0)||c.injUrgent;
   c.isUrgent=isUrgent;
   c.isWarning=!isUrgent&&(c.docsLowUrgent||c.srvWarning||c.docsReminder||c.reminder);
-  // Re-render whatever is currently shown
   if(typeof applyFilters==='function') applyFilters();
   showToast('שומר...');
   try{
     if(!accessToken){handleAuthError();throw new Error('אין הרשאה');}
-    // Write FALSE so the checkbox is unchecked (cell still recognized as a checkbox).
+    // Write TRUE/FALSE so the cell stays a checkbox (just toggles state).
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
     const r=await fetch(url,{
       method:'PUT',
       headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[['FALSE']]})
+      body:JSON.stringify({values:[[value?'TRUE':'FALSE']]})
     });
     const d=await r.json();
     if(d.error){
@@ -1875,12 +1881,15 @@ async function clearReminder(rowNum,col){
     showToast('נשמר','ok');
   }catch(e){
     showToast(e.message,'err');
-    // Revert the optimistic update on failure
-    if(col==='AZ') c.reminder=true;
-    else if(col==='AI') c.docsReminder=true;
+    // Revert on failure
+    if(col==='AZ') c.reminder=!value;
+    else if(col==='AI') c.docsReminder=!value;
     if(typeof applyFilters==='function') applyFilters();
   }
 }
+
+// Backward-compat alias — kept in case any older inline handler still calls it.
+async function clearReminder(rowNum,col){return setReminder(rowNum,col,false);}
 
 async function setTaskStatus(rowNum,status){
   const c=allClients.find(x=>x.rowNum===rowNum);
