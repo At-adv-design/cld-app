@@ -241,6 +241,11 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .msub{font-size:13px;color:var(--red);font-weight:500;margin-top:-4px;}
 #note-input{width:100%;min-height:90px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:15px;resize:none;direction:rtl;font-family:inherit;transition:border-color .2s;}
 #note-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+/* Corner action buttons in summary modal: save + set lead status in one tap */
+.corner-btn{position:absolute;top:14px;display:inline-flex;align-items:center;gap:5px;padding:7px 11px;font-size:13px;font-weight:700;font-family:inherit;border:none;cursor:pointer;color:#fff;z-index:2;}
+.corner-btn-right{right:14px;background:var(--slate);}
+.corner-btn-left{left:14px;background:var(--red);}
+.corner-btn:active{transform:scale(.95);}
 #note-input::placeholder{color:#c0c0cc;}
 .btn{padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .12s;}
 .btn:active{transform:scale(.97);}
@@ -345,8 +350,18 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 
 <!-- MODAL -->
 <div id="note-modal">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="position:relative">
     <div class="mhandle"></div>
+    <!-- Corner action buttons: tap to save (if anything was typed) AND set status.
+         The right one moves to "המשך", the left to "הוסרו". -->
+    <button class="corner-btn corner-btn-right" onclick="saveAndMove('continue')" title="שמור והעבר להמשך">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>המשך</span>
+    </button>
+    <button class="corner-btn corner-btn-left" onclick="saveAndMove('removed')" title="שמור והעבר להוסרו">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      <span>הוסר</span>
+    </button>
     <div class="mtitle">סיכום שיחה</div>
     <div class="msub" id="modal-name"></div>
     <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
@@ -1105,7 +1120,16 @@ function initSwipe(wrap,idx,kind){
 async function setLeadStatus(idx,status,toastMsg){
   // optimistic UI
   const lead=allLeads.find(l=>l.index===idx);
-  if(lead)lead.status=status;
+  if(lead){
+    const wasNonActive=lead.status&&lead.status!==STATUS_ACTIVE;
+    lead.status=status;
+    // When a lead is being RESTORED to active (coming back from המשך/הוסרו),
+    // bump it to the top of the array so it appears first in the list.
+    if(wasNonActive && (status===STATUS_ACTIVE||!status)){
+      const i=allLeads.indexOf(lead);
+      if(i>0){ allLeads.splice(i,1); allLeads.unshift(lead); }
+    }
+  }
   filterLeads();
   if(toastMsg)showToast(toastMsg);
 
@@ -1725,6 +1749,37 @@ async function saveNote(){
     expandedSet.add(row);showToast('נשמר','ok');filterLeads();
   }catch(e){showToast(e.message,'err');}
   finally{document.getElementById('saving-overlay').classList.remove('show');}
+}
+
+// Corner button action: save the typed note (if any) and move the lead to a
+// new tab in one tap. Used by the two corner buttons on the summary modal.
+async function saveAndMove(target){
+  if(!currentLead) return;
+  const idx=currentLead.index;
+  const note=document.getElementById('note-input').value.trim();
+  // Pop modal history entry first
+  if(history.state&&history.state.page==='modal') popHistorySilently();
+  if(currentLead) localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  // Save the note text first if anything was typed (reuses saveNote's write logic)
+  if(note){
+    const lead=allLeads.find(l=>l.index===idx);
+    const entry=getTS()+'\n'+note, prev=lead?lead.note:'';
+    const combined=prev?entry+'\n\n'+prev:entry;
+    if(lead)lead.note=combined;
+    document.getElementById('saving-overlay').classList.add('show');
+    try{
+      const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`,
+        {method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})});
+      const data=await res.json();
+      if(data.error)throw new Error(data.error.message);
+    }catch(e){showToast('שמירת סיכום נכשלה: '+e.message,'err');}
+    finally{document.getElementById('saving-overlay').classList.remove('show');}
+  }
+  // Now set the new status (this also re-renders the lists)
+  const status=target==='continue'?STATUS_CONTINUE:STATUS_REMOVED;
+  const msg=target==='continue'?'נשמר והועבר להמשך':'נשמר והועבר להוסרו';
+  setLeadStatus(idx,status,msg);
 }
 
 /* =========================
