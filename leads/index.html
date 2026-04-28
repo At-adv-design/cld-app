@@ -116,13 +116,11 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .swipe-bg.right{background:var(--blue);justify-content:flex-start;}
 .swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
 
-.lead-row{padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;position:relative;}
+.lead-row{padding:20px 14px 13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;position:relative;}
 /* Small "joined on" date badge in the top-right corner of each lead row.
-   Pulled from the earliest timestamp in the audit log. Hidden if no log. */
-/* Small "joined on" date badge in the top-right corner of each lead row.
-   Pulled from the earliest timestamp in the audit log. Hidden if no log.
-   In RTL "top-right" is the visual right side, so we use right:8px. */
-.lead-entry-date{position:absolute;top:6px;right:8px;font-size:9px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:2px;font-weight:600;line-height:1.4;pointer-events:none;z-index:3;}
+   Pushed to top:2px so it sits above the lead name; row gets extra top
+   padding to prevent overlap. */
+.lead-entry-date{position:absolute;top:2px;right:8px;font-size:9px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:2px;font-weight:600;line-height:1.4;pointer-events:none;z-index:3;}
 /* Call-count dot indicator — sits above the lead row, spanning its full width.
    Each dot = one call attempt. Grey = empty slot, red = call made.
    direction:ltr so the dots fill left→right consistently regardless of RTL parent. */
@@ -2677,6 +2675,19 @@ function checkLeadFromHash(){
       if(t && (t.closest('button') || t.closest('input') || t.closest('textarea') || t.closest('select') || t.closest('a') || t.closest('[role="button"]'))){
         dragging=false;
         return;
+      }
+      // Don't intercept touches inside a scrollable container — the user is
+      // probably trying to scroll content, not close the sheet.
+      let el=t;
+      while(el && el!==sheet){
+        if(el.nodeType===1){
+          const cs=getComputedStyle(el);
+          if((cs.overflowY==='auto' || cs.overflowY==='scroll') && el.scrollHeight>el.clientHeight){
+            dragging=false;
+            return;
+          }
+        }
+        el=el.parentElement;
       }
       startY=e.touches[0].clientY;
       startX=e.touches[0].clientX;
