@@ -1756,8 +1756,10 @@ function renderLogContent(log){
     return `<div class="entry-card${expandedCls}" onclick="toggleEntryCard(this)">
       ${tsHtml}
       <div class="entry-body">${linkifyPhones(esc(body.trim()))}</div>
-      <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="position:absolute;left:8px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.pencil}</button>
-      <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="position:absolute;left:44px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.trash}</button>
+      <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
+        <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
+        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--red);font-family:inherit;padding:0">${ICON.trash}</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -2780,8 +2782,10 @@ function renderCallSummaryView(){
     <div class="entry-card${expandedCls}" onclick="toggleEntryCard(this)">
       ${en.head?`<div class="entry-ts">${esc(en.head)}</div>`:''}
       <div class="entry-body">${linkifyPhones(esc(en.body.trim()))}</div>
-      <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="position:absolute;left:8px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.pencil}</button>
-      <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="position:absolute;left:44px;top:8px;width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0;z-index:2">${ICON.trash}</button>
+      <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
+        <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
+        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--red);font-family:inherit;padding:0">${ICON.trash}</button>
+      </div>
     </div>`).join('');
 }
 function toggleCallSummaryExpandAll(){
