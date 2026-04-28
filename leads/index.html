@@ -116,7 +116,10 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .swipe-bg.right{background:var(--blue);justify-content:flex-start;}
 .swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
 
-.lead-row{padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;}
+.lead-row{padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;position:relative;}
+/* Small "joined on" date badge in the top-right corner of each lead row.
+   Pulled from the earliest timestamp in the audit log. Hidden if no log. */
+.lead-entry-date{position:absolute;top:6px;left:8px;font-size:9px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:2px;font-weight:600;line-height:1.4;pointer-events:none;}
 /* Call-count dot indicator — sits above the lead row, spanning its full width.
    Each dot = one call attempt. Grey = empty slot, red = call made.
    direction:ltr so the dots fill left→right consistently regardless of RTL parent. */
@@ -127,7 +130,9 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lead-info{flex:1;min-width:0;}
 .lead-name{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
 .lead-phone{font-size:13px;color:var(--muted);margin-top:2px;direction:ltr;text-align:right;font-weight:400;}
-.lead-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--green);background:rgba(26,122,69,0.08);border:1px solid rgba(26,122,69,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;}
+/* Three badges sit side-by-side under a lead row: "calls", "continue",
+   "removed". They share the same size and padding so they line up nicely. */
+.lead-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);background:rgba(26,122,69,0.07);border:1px solid rgba(26,122,69,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;}
 .lead-preview{font-size:12px;color:#555;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
 
 /* CALL BUTTON */
@@ -1166,21 +1171,43 @@ async function loadLeads(){
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const all=(data.values||[]).slice(1)
-      .map((row,i)=>({
-        index:i+2,
-        name:(row[0]||'').trim()||'(ללא שם)',
-        phone:(row[1]||'').toString().trim(),
-        note:(row[2]||'').trim(),
-        status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
-        callers:((row[22]||'')+'').trim(),                // column W (0-based 22) — comma-separated user tags
-        // Column AB (0-based 27) — full audit log: status changes, calls,
-        // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event"
-        metaLog:((row[27]||'')+'').trim(),
-        // Number of calls made to this lead (parsed from W which contains
-        // a comma-separated list of caller tags, one per call). This is the
-        // count we use to fill in the dot indicator above the lead's name.
-        callCount:((row[22]||'')+'').trim() ? ((row[22]||'')+'').split(',').filter(s=>s.trim()).length : 0
-      }))
+      .map((row,i)=>{
+        const meta=((row[27]||'')+'').trim();
+        // Pull the earliest date from the audit log. Each entry begins with
+        // "DD/MM/YY HH:MM" so we scan all entries and keep the smallest one.
+        // If the log is empty (a lead that's never been touched) we fall
+        // back to an empty string and the UI will hide the badge.
+        let entryDate='';
+        if(meta){
+          const dates=meta.split('\n').map(line=>{
+            const m=line.match(/^(\d{2})\/(\d{2})\/(\d{2})/);
+            if(!m) return null;
+            return {raw:`${m[1]}/${m[2]}/${m[3]}`, sortable:`20${m[3]}-${m[2]}-${m[1]}`};
+          }).filter(Boolean);
+          if(dates.length){
+            dates.sort((a,b)=>a.sortable.localeCompare(b.sortable));
+            entryDate=dates[0].raw;
+          }
+        }
+        return {
+          index:i+2,
+          name:(row[0]||'').trim()||'(ללא שם)',
+          phone:(row[1]||'').toString().trim(),
+          note:(row[2]||'').trim(),
+          status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
+          callers:((row[22]||'')+'').trim(),                // column W (0-based 22) — comma-separated user tags
+          // Column AB (0-based 27) — full audit log: status changes, calls,
+          // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event"
+          metaLog:meta,
+          // Number of calls made to this lead (parsed from W which contains
+          // a comma-separated list of caller tags, one per call). This is the
+          // count we use to fill in the dot indicator above the lead's name.
+          callCount:((row[22]||'')+'').trim() ? ((row[22]||'')+'').split(',').filter(s=>s.trim()).length : 0,
+          // Earliest date the lead was logged — used as a "joined on" badge
+          // in the top-right corner of the lead row.
+          entryDate
+        };
+      })
       .filter(l=>l.phone).reverse();
 
     const active=all.filter(l=>!l.status||l.status===STATUS_ACTIVE);
@@ -1301,9 +1328,10 @@ function renderLeadCard(l,kind){
       ${label}
       ${latestBody?`<div class="lead-preview">${esc(latestBody)}</div>`:''}
     </div>
+    ${l.entryDate?`<div class="lead-entry-date" title="תאריך כניסה למערכת">${esc(l.entryDate)}</div>`:''}
     <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
       ${actionBtn}
-      ${kind!=='removed' ? `<button class="anon-btn" onclick="event.stopPropagation();callLeadAnonymous(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="התקשר חסוי (#31#)">${ICON.phone}<span class="anon-badge">31</span></button>` : ''}
+      ${kind!=='removed' ? `<button class="anon-btn" onclick="event.stopPropagation();callLeadAnonymous(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="התקשר חסוי (#31#)">${ICON.phone}</button>` : ''}
       ${kind!=='removed' ? `<button class="cal-btn" onclick="event.stopPropagation();openMeetingDialog(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="קבע פגישה">${ICON.calendar}</button>` : ''}
       ${kind!=='removed' ? `<button class="note-btn" onclick="event.stopPropagation();openLogView(${l.index})" title="סיכומי שיחות">${ICON.noteAdd}</button>` : ''}
       ${kind!=='removed' ? `<button class="wa-btn" onclick="event.stopPropagation();openWA('${ej(l.phone)}')" title="WhatsApp">${ICON.whatsapp}</button>` : ''}
