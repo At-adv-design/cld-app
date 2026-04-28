@@ -3429,7 +3429,9 @@ window.addEventListener('popstate',()=>{
     'call-summary-modal':()=>{ if(typeof closeCallSummary==='function') closeCallSummary(); },
     'call-add-modal':()=>{ if(typeof closeAddCallSummary==='function') closeAddCallSummary(); },
     'call-edit-modal':()=>{ if(typeof closeEditCallSummary==='function') closeEditCallSummary(); },
-    'log-entry-edit-modal':()=>{ document.getElementById('log-entry-edit-modal').style.display='none'; }
+    'log-entry-edit-modal':()=>{ document.getElementById('log-entry-edit-modal').style.display='none'; },
+    // Date picker — drag down to close = cancel (no save)
+    'date-picker-modal':()=>{ if(typeof closeDatePicker==='function') closeDatePicker(); }
   };
 
   function attach(modalId){
@@ -3461,6 +3463,22 @@ window.addEventListener('popstate',()=>{
       if(t && (t.closest('button') || t.closest('input') || t.closest('textarea') || t.closest('select') || t.closest('a') || t.closest('[role="button"]'))){
         dragging=false;
         return;
+      }
+      // Don't intercept touches inside a scrollable container — the user is
+      // probably trying to scroll content, not close the sheet. We detect
+      // scrollable ancestors by walking up looking for overflow-y:auto/scroll.
+      // This way drag-to-close only fires when the user starts on the
+      // header / non-scrollable area at the top of the sheet.
+      let el=t;
+      while(el && el!==sheet){
+        if(el.nodeType===1){
+          const cs=getComputedStyle(el);
+          if((cs.overflowY==='auto' || cs.overflowY==='scroll') && el.scrollHeight>el.clientHeight){
+            dragging=false;
+            return;
+          }
+        }
+        el=el.parentElement;
       }
       startY=e.touches[0].clientY;
       startX=e.touches[0].clientX;
