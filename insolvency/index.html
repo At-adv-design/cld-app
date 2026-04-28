@@ -335,7 +335,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       <!-- Collection-mode-only filter row. Same chip shape as the reports
            filter (1-6 + הכל). The number = exact missed-payment count. -->
       <div class="filter-row" id="collection-filter-row" style="display:none">
-        <span class="filter-label">תשלומים שלא בוצעו:</span>
+        <span class="filter-label">פיגורים:</span>
         <div class="filter-chips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;flex:1">
           <div class="chip active" id="fc-all" onclick="setCollFilter('all',this)">הכל</div>
           <div class="chip red" id="fc-1" onclick="setCollFilter(1,this)">1</div>
@@ -345,7 +345,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
           <div class="chip red" id="fc-5" onclick="setCollFilter(5,this)">5</div>
           <div class="chip red" id="fc-6" onclick="setCollFilter(6,this)">6</div>
           <!-- "Close collection" toggle, sits at the visual end of the row -->
-          <div class="chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור גבייה</div>
+          <div class="chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור</div>
         </div>
       </div>
     </div>
