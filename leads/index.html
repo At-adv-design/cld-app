@@ -254,11 +254,15 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .msub{font-size:13px;color:var(--red);font-weight:500;margin-top:-4px;}
 #note-input{width:100%;min-height:90px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:15px;resize:none;direction:rtl;font-family:inherit;transition:border-color .2s;}
 #note-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
-/* Corner action buttons in summary modal: save + set lead status in one tap */
-.corner-btn{position:absolute;top:14px;display:inline-flex;align-items:center;gap:5px;padding:7px 11px;font-size:13px;font-weight:700;font-family:inherit;border:none;cursor:pointer;color:#fff;z-index:2;}
-.corner-btn-right{right:14px;background:var(--slate);}
-.corner-btn-left{left:14px;background:var(--red);}
-.corner-btn:active{transform:scale(.95);}
+/* Top action row of the call-summary modal — 4 equal-width buttons,
+   each holding an icon + a tiny label. */
+.modal-top-actions{display:flex;gap:6px;margin-bottom:8px;}
+.top-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:8px 4px;font-size:12px;font-weight:700;font-family:inherit;border:none;cursor:pointer;color:#fff;}
+.top-btn:active{transform:scale(.96);}
+.top-btn-close{background:#9a9a9a;}
+.top-btn-reminder{background:#9a6800;}
+.top-btn-removed{background:var(--red);}
+.top-btn-continue{background:var(--slate);}
 #note-input::placeholder{color:#c0c0cc;}
 .btn{padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .12s;}
 .btn:active{transform:scale(.97);}
@@ -367,24 +371,35 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <div id="note-modal">
   <div class="modal-sheet" style="position:relative">
     <div class="mhandle"></div>
-    <!-- Corner action buttons: tap to save (if anything was typed) AND set status.
-         The right one moves to "המשך", the left to "הוסרו". -->
-    <button class="corner-btn corner-btn-right" onclick="saveAndMove('continue')" title="שמור והעבר להמשך">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span>המשך</span>
-    </button>
-    <button class="corner-btn corner-btn-left" onclick="saveAndMove('removed')" title="שמור והעבר להוסרו">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-      <span>הוסר</span>
-    </button>
-    <div class="msub" id="modal-name" style="margin-top:42px"></div>
+    <!-- Top action row — 4 equally sized icon buttons:
+         close (×), continue, removed, and reminder. The "close-without-save"
+         button used to live at the bottom; it now sits up here so all top-row
+         actions are reachable in one glance. -->
+    <div class="modal-top-actions">
+      <button class="top-btn top-btn-close" onclick="closeModal()" title="סגור בלי לשמור">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span>סגור</span>
+      </button>
+      <button class="top-btn top-btn-reminder" onclick="openReminderDialog()" title="קבע תזכורת">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span>תזכורת</span>
+      </button>
+      <button class="top-btn top-btn-removed" onclick="saveAndMove('removed')" title="שמור והעבר להוסרו">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>הוסר</span>
+      </button>
+      <button class="top-btn top-btn-continue" onclick="saveAndMove('continue')" title="שמור והעבר להמשך">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>המשך</span>
+      </button>
+    </div>
+    <div class="msub" id="modal-name" style="margin-top:6px"></div>
     <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
     <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
       <span>הכתב (מיקרופון)</span>
     </button>
     <button class="btn btn-save" onclick="saveNote()">שמור ב-Google Sheets</button>
-    <button class="btn btn-skip" onclick="closeModal()">סגור בלי לשמור</button>
   </div>
 </div>
 
@@ -1799,10 +1814,62 @@ let _meetingPick={
   hour:9,minute:0
 };
 
+// Flag — when true, the meeting modal is being used as a reminder dialog.
+// saveMeeting() reads this and writes to AB/AC/AD instead of X/Y/Z.
+let _isReminderMode=false;
+
+// Reuse the meeting dialog as a reminder dialog. Same UI (calendar + time
+// slots + manual entry) but writes to columns AB/AC/AD when saved.
+// Default = today, next half-hour slot. Source lead is the lead whose call
+// summary modal is currently open (currentLead).
+function openReminderDialog(){
+  if(!currentLead) return;
+  const lead=allLeads.find(l=>l.index===currentLead.index);
+  if(!lead) return;
+  _meetingLead=lead;
+  _isReminderMode=true;
+  // Update the title text to reflect that this is a reminder, not a meeting
+  const sheet=document.querySelector('#meeting-modal .modal-sheet');
+  if(sheet){
+    const titleEl=sheet.querySelector('div[style*="font-size:16px"]');
+    if(titleEl) titleEl.textContent='קביעת תזכורת';
+    const saveBtn=sheet.querySelector('.btn-save');
+    if(saveBtn) saveBtn.textContent='שמור תזכורת';
+  }
+  document.getElementById('meeting-name').textContent=lead.name+(lead.phone?` • ${lead.phone}`:'');
+  // Default selection — today
+  const now=new Date();
+  _meetingPick.day=now.getDate();
+  _meetingPick.month=now.getMonth()+1;
+  _meetingPick.year=now.getFullYear();
+  _meetingPick.viewMonth=_meetingPick.month;
+  _meetingPick.viewYear=_meetingPick.year;
+  let h=now.getHours(), m=now.getMinutes();
+  if(m<30){m=30;}else{m=0; h++;}
+  if(h<8){h=8;m=0;}
+  if(h>=20){h=8;m=0;}
+  _meetingPick.hour=h; _meetingPick.minute=m;
+  renderCalendar();
+  renderTimeSlots();
+  syncHiddenInputs();
+  document.getElementById('meeting-modal').style.display='flex';
+  history.pushState({page:'meeting'},'');
+}
+
 function openMeetingDialog(idx,name,phone){
   const lead=allLeads.find(l=>l.index===idx);
   if(!lead) return;
   _meetingLead=lead;
+  _isReminderMode=false;
+  // Restore the title and save button to "meeting" labels in case a previous
+  // reminder dialog left them set to reminder text.
+  const sheet=document.querySelector('#meeting-modal .modal-sheet');
+  if(sheet){
+    const titleEl=sheet.querySelector('div[style*="font-size:16px"]');
+    if(titleEl) titleEl.textContent='קביעת פגישה';
+    const saveBtn=sheet.querySelector('.btn-save');
+    if(saveBtn) saveBtn.textContent='שמור פגישה';
+  }
   document.getElementById('meeting-name').textContent=name+(phone?` • ${phone}`:'');
   // Default selection — today + the next half-hour slot
   const now=new Date();
@@ -1976,9 +2043,12 @@ async function saveMeeting(){
     }
     const sheetId=_leadsSheetId;
     const rowIdx=rowNum-1; // 0-based
-    const xColIdx=23; // X
-    const yColIdx=24; // Y
-    const zColIdx=25; // Z
+    // Column choice depends on whether this is a meeting (X/Y/Z) or a
+    // reminder (AB/AC/AD). The shape of the write is identical; only the
+    // target columns differ.
+    const xColIdx=_isReminderMode?27:23; // AB or X
+    const yColIdx=_isReminderMode?28:24; // AC or Y
+    const zColIdx=_isReminderMode?29:25; // AD or Z
     const body={
       requests:[
         {updateCells:{
@@ -2007,18 +2077,23 @@ async function saveMeeting(){
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const ddP=String(dd).padStart(2,'0'),mmP=String(mm).padStart(2,'0'),yyP=String(yyyy).slice(2);
-    showToast(`פגישה נקבעה ${ddP}/${mmP}/${yyP} ${startTime}–${endTime}`,'ok');
-    // Fire the Make webhook so the calendar event + WhatsApp run immediately,
-    // without waiting for the polling cycle. We don't await the response — the
-    // sheet write already succeeded, so Make can pick up the work in parallel.
-    fireMeetingWebhook({
-      rowNum,
-      name:lead.name||'',
-      phone:lead.phone||'',
-      date:`${ddP}/${mmP}/${yyyy}`,
-      startTime:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`,
-      endTime:`${endTime}:00`
-    });
+    if(_isReminderMode){
+      showToast(`תזכורת נקבעה ${ddP}/${mmP}/${yyP} ${startTime}`,'ok');
+      // Reminders don't fire the Make webhook (which is wired to meetings)
+    } else {
+      showToast(`פגישה נקבעה ${ddP}/${mmP}/${yyP} ${startTime}–${endTime}`,'ok');
+      // Fire the Make webhook so the calendar event + WhatsApp run immediately,
+      // without waiting for the polling cycle. We don't await the response — the
+      // sheet write already succeeded, so Make can pick up the work in parallel.
+      fireMeetingWebhook({
+        rowNum,
+        name:lead.name||'',
+        phone:lead.phone||'',
+        date:`${ddP}/${mmP}/${yyyy}`,
+        startTime:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`,
+        endTime:`${endTime}:00`
+      });
+    }
   }catch(e){
     showToast(e.message,'err');
   }
