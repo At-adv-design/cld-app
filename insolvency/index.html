@@ -3590,7 +3590,15 @@ window.addEventListener('popstate',()=>{
 (function(){
   'use strict';
 
-  const LEGAL_API = 'http://127.0.0.1:7531';
+  // Server address. The legal-system server runs on the desktop machine.
+  // From the desktop browser → 127.0.0.1 reaches it directly.
+  // From a phone on the same Wi-Fi → must use the desktop's LAN IP.
+  // We auto-detect: if loaded on a non-localhost device, swap to LAN IP.
+  const LAN_IP = '10.100.102.14'; // change here if your desktop's IP changes
+  const LEGAL_PORT = 7531;
+  const LEGAL_API = (location.hostname==='localhost' || location.hostname==='127.0.0.1' || location.hostname==='')
+    ? `http://127.0.0.1:${LEGAL_PORT}`
+    : `http://${LAN_IP}:${LEGAL_PORT}`;
 
   // אייקון Lucide-style — תיקייה עם קווים פנימיים
   const FOLDER_ICON =
