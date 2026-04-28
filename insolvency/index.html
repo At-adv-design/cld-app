@@ -336,7 +336,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
            filter (1-6 + הכל). The number = exact missed-payment count. -->
       <div class="filter-row" id="collection-filter-row" style="display:none">
         <span class="filter-label">תשלומים שלא בוצעו:</span>
-        <div class="filter-chips" style="display:flex;gap:4px;flex-wrap:wrap">
+        <div class="filter-chips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;flex:1">
           <div class="chip active" id="fc-all" onclick="setCollFilter('all',this)">הכל</div>
           <div class="chip red" id="fc-1" onclick="setCollFilter(1,this)">1</div>
           <div class="chip red" id="fc-2" onclick="setCollFilter(2,this)">2</div>
@@ -344,14 +344,26 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
           <div class="chip red" id="fc-4" onclick="setCollFilter(4,this)">4</div>
           <div class="chip red" id="fc-5" onclick="setCollFilter(5,this)">5</div>
           <div class="chip red" id="fc-6" onclick="setCollFilter(6,this)">6</div>
+          <!-- "Close collection" toggle, sits at the visual end of the row -->
+          <div class="chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור גבייה</div>
         </div>
       </div>
     </div>
     <div class="stats-bar">
-      <div class="stat"><div class="sdot" style="background:var(--red)"></div><span id="s-urgent">0 דחוף</span></div>
-      <div class="stat"><div class="sdot" style="background:var(--orange)"></div><span id="s-warning">0 אזהרה</span></div>
-      <div class="stat"><div class="sdot" style="background:var(--green)"></div><span id="s-ok">0 תקין</span></div>
-      <div class="stat"><div class="sdot" style="background:#9a6800"></div><span id="s-reminder">0 תזכורת</span></div>
+      <!-- Regular stats — hidden in collection mode -->
+      <div class="stats-regular" style="display:flex;gap:16px;flex:1">
+        <div class="stat"><div class="sdot" style="background:var(--red)"></div><span id="s-urgent">0 דחוף</span></div>
+        <div class="stat"><div class="sdot" style="background:var(--orange)"></div><span id="s-warning">0 אזהרה</span></div>
+        <div class="stat"><div class="sdot" style="background:var(--green)"></div><span id="s-ok">0 תקין</span></div>
+        <div class="stat"><div class="sdot" style="background:#9a6800"></div><span id="s-reminder">0 תזכורת</span></div>
+      </div>
+      <!-- Collection stats — visible only in collection mode. Three numbers:
+           total clients in collection, missed-payment count, total missed amount. -->
+      <div class="stats-collection" style="display:none;gap:16px;flex:1;align-items:center">
+        <div class="stat"><div class="sdot" style="background:var(--slate)"></div><span id="s-coll-clients">0 לקוחות</span></div>
+        <div class="stat"><div class="sdot" style="background:var(--red)"></div><span id="s-coll-missed">0 פיגורים</span></div>
+        <div class="stat" style="margin-inline-start:auto;font-weight:700;color:var(--text)"><span id="s-coll-total">₪0</span></div>
+      </div>
     </div>
     <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:13px">טוען תיקים...</div></div>
     <div id="cards-list"></div>
@@ -1315,24 +1327,18 @@ function toggleCollectionView(){
   otherRows.forEach(r=>{
     if(r.id==='collection-filter-row'){
       r.style.display=collectionMode?'flex':'none';
-    } else if(r.querySelector('#collection-chip')){
-      // Reports row that contains the gviya button — leave the row visible
-      // but hide the number chips when in collection mode.
-      r.querySelectorAll('.chip:not(.chip-collection)').forEach(c=>{
-        c.style.display=collectionMode?'none':'';
-      });
     } else {
+      // All other filter rows (including the reports row that holds the
+      // "גבייה" button) are hidden in collection mode. The close button
+      // already lives on the collection row itself.
       r.style.display=collectionMode?'none':'';
     }
   });
-  const collChip=document.getElementById('collection-chip');
-  if(collChip){
-    collChip.textContent=collectionMode?'✕ גבייה':'גבייה';
-    collChip.classList.toggle('active', collectionMode);
-  }
   fColl='all';
   document.querySelectorAll('#collection-filter-row .chip').forEach(c=>c.classList.remove('active'));
   const fcAll=document.getElementById('fc-all'); if(fcAll) fcAll.classList.add('active');
+  // Toggle the stats-bar between regular and collection summaries
+  updateStatsBarMode();
   applyFilters();
 }
 
@@ -1352,6 +1358,41 @@ function updateStats(active){
   document.getElementById('s-warning').textContent=warning+' אזהרה';
   document.getElementById('s-ok').textContent=ok+' תקין';
   document.getElementById('s-reminder').textContent=rem+' תזכורת';
+  // Always update collection stats too — they're cheap and we want them
+  // current the moment the user toggles into collection mode.
+  updateCollectionStats(active);
+}
+
+// Compute and render the collection summary numbers shown in the stats bar
+// while in collection mode.
+//   "X לקוחות"   — number of clients with a monthly fee (S > 0)
+//   "Y פיגורים"   — total count of missed payments across all those clients
+//   "₪TOTAL"     — sum of the monthly fees of all clients with at least one
+//                  missed payment, multiplied by their missed-payment count.
+function updateCollectionStats(active){
+  const collClients=active.filter(c=>c.inCollection);
+  const totalMissed=collClients.reduce((s,c)=>s+c.missedPayments,0);
+  const totalAmount=collClients.reduce((s,c)=>s+(c.monthlyAmount*c.missedPayments),0);
+  const cEl=document.getElementById('s-coll-clients');
+  const mEl=document.getElementById('s-coll-missed');
+  const tEl=document.getElementById('s-coll-total');
+  if(cEl) cEl.textContent=collClients.length+' לקוחות';
+  if(mEl) mEl.textContent=totalMissed+' פיגורים';
+  if(tEl) tEl.textContent='₪'+totalAmount.toLocaleString('he-IL');
+}
+
+// Switch the visible group inside the stats bar based on the current mode.
+function updateStatsBarMode(){
+  const reg=document.querySelector('.stats-regular');
+  const col=document.querySelector('.stats-collection');
+  if(!reg||!col) return;
+  if(collectionMode){
+    reg.style.display='none';
+    col.style.display='flex';
+  } else {
+    reg.style.display='flex';
+    col.style.display='none';
+  }
 }
 
 // ── RENDER CARDS ──────────────────────────────────────────────────────────────
