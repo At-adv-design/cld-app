@@ -63,6 +63,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 /* FILTERS */
 .filters-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+/* Inline date/days editor row inside each section block (docs, inj, srv).
+   Two compact buttons that open a prompt() to update the corresponding
+   spreadsheet cell. Tight layout: 2 small chips side-by-side. */
+.section-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+.ctl-btn{flex:1;min-width:0;display:inline-flex;align-items:center;justify-content:space-between;gap:6px;background:var(--bg);border:1px solid var(--border);padding:6px 9px;font-size:11px;font-family:inherit;cursor:pointer;color:var(--text);}
+.ctl-btn:hover{background:var(--white);}
+.ctl-label{color:var(--muted);font-weight:600;}
+.ctl-val{font-weight:700;color:var(--slate);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* Search bar sticks under the tabs while scrolling the cards list. */
 .search-sticky{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px 8px;position:sticky;top:137px;z-index:98;}
 .search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
@@ -103,8 +111,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* ── Unified action buttons (used next to client name and inside cards) ──
    Single rule for: phone-btn, call-log-btn, restore-btn, log-btn, note-btn.
    All buttons are 40×40, sharp corners, with 18×18 icons. */
-.phone-btn,.call-log-btn,.restore-btn,.log-btn,.note-btn{
-  width:40px;height:40px;
+/* All card-header icon buttons share the same dimensions so they line up
+   neatly: phone, call summary, WhatsApp, and case log. */
+.phone-btn,.call-log-btn,.restore-btn,.log-btn,.note-btn,.wa-btn{
+  width:38px;height:38px;
   background:var(--white);border:1px solid var(--border);
   cursor:pointer;flex-shrink:0;
   display:inline-flex;align-items:center;justify-content:center;
@@ -113,10 +123,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   box-shadow:0 1px 3px rgba(0,0,0,0.06);
   position:relative;
 }
-.phone-btn:active,.call-log-btn:active,.restore-btn:active,.log-btn:active,.note-btn:active{
+.phone-btn:active,.call-log-btn:active,.restore-btn:active,.log-btn:active,.note-btn:active,.wa-btn:active{
   transform:scale(.92);background:var(--bg);
 }
-.phone-btn svg,.call-log-btn svg,.restore-btn svg,.log-btn svg,.note-btn svg{
+.phone-btn svg,.call-log-btn svg,.restore-btn svg,.log-btn svg,.note-btn svg,.wa-btn svg{
   width:18px;height:18px;
 }
 /* Restore button keeps the green hint (used for "back to active") */
@@ -181,10 +191,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
 
 /* LOG ICON */
-.log-btn{width:38px;height:38px;border-radius:6px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);position:relative;}
+.log-btn.has-log,.call-log-btn.has-log{}
 /* WhatsApp button — matches the clean white style used in the leads app
    (white background, subtle border, slate-colored outline icon) */
-.wa-btn{width:38px;height:38px;border-radius:6px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.wa-btn{}
 .wa-btn:active{transform:scale(.94);background:var(--bg);}
 .log-btn:active{transform:scale(.92);background:var(--bg);}
 .log-btn.has-log{border-color:var(--slate);background:#fafafd;}
@@ -385,11 +395,16 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       <div class="tab active" id="tasks-tab-do" onclick="switchTaskTab('do')">בביצוע</div>
       <div class="tab" id="tasks-tab-wait" onclick="switchTaskTab('wait')">בהמתנה</div>
     </div>
-    <div class="filters-wrap" style="background:#fafafd">
+    <!-- Tasks section search lives in its own sticky wrapper (matches the
+         main section's search-sticky behavior) so it stays visible while
+         the user scrolls through the task list. -->
+    <div class="search-sticky" style="background:#fafafd;top:96px">
       <div class="search-box">
         <span style="color:var(--muted);display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
         <input type="search" id="tasks-search" placeholder="חיפוש שם או מספר תיק..." oninput="renderTasks()"/>
       </div>
+    </div>
+    <div class="filters-wrap" style="background:#fafafd">
       <div class="filter-row">
         <span class="filter-label">דדליין:</span>
         <div class="chip active" onclick="setTaskRange('all',this)">הכל</div>
@@ -516,7 +531,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
         <span>חזרה</span>
       </button>
       <div style="flex:1;min-width:0">
-        <div class="log-title" style="font-size:15px">מסמכים נדרשים לדוחות</div>
+        <div class="log-title" style="font-size:15px">מסמכים לדוחות</div>
         <div class="log-sub" id="report-docs-edit-name" style="margin-top:2px"></div>
       </div>
     </div>
@@ -1176,6 +1191,18 @@ function parseClient(row,rowNum){
   // DOCS
   const docsList=g(C_DOCS_LIST);
   const docsAGRaw=g(C_DOCS_AG);
+  // Raw text values for the editable date/days fields in each section.
+  // These are what we put into the prompt() calls when the user taps an
+  // edit button — fall back to '' if the cell is empty.
+  const docsAERaw=g(C_DOCS_AE);                  // docs start date
+  const docsDaysRaw=g(31);                        // AF = days for docs completion
+  const injDaysRaw=g(36);                         // AK = days for injunction
+  // Note: column letters used by the user:
+  //   docs:    AE (start) + AF (days) → AG (last) is computed/displayed
+  //   inj:     AG (start) + AK (days) → AL (last)
+  //   service: BG (mailed)            → BG+45 (last)
+  const alRaw=g(C_AL);                            // AL = inj end date raw
+  const bgRaw=g(C_BG);                            // BG = service mailed date
   const agDate=parseDate(docsAGRaw),aeDate=parseDate(g(C_DOCS_AE));
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
@@ -1190,6 +1217,9 @@ function parseClient(row,rowNum){
   const bgDate=parseDate(g(C_BG));
   const serviceDone=g(C_BI).includes('בוצע');
   let bg45=null;if(bgDate){bg45=new Date(bgDate);bg45.setDate(bgDate.getDate()+45);}
+  // Pre-format a "deadline" string for the service section so the card
+  // template can show it inside the section box like the other sections do.
+  const srvDeadline=bg45?(String(bg45.getDate()).padStart(2,'0')+'/'+String(bg45.getMonth()+1).padStart(2,'0')+'/'+String(bg45.getFullYear()).slice(2)):'';
   const srvWarning=!serviceDone&&bgDate&&bgDate<today&&!(bg45&&bg45<today);
   const srvUrgent=!serviceDone&&bg45&&bg45<today;
 
@@ -1222,6 +1252,8 @@ function parseClient(row,rowNum){
 
   return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
+    // Raw values used by the inline edit buttons in each section
+    docsAERaw, docsDaysRaw, injDaysRaw, alRaw, bgRaw, srvDeadline,
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
@@ -1496,7 +1528,7 @@ function renderCards(clients){
               <div style="display:inline-flex;align-items:center;gap:6px">
                 <span style="font-weight:700;color:var(--slate);margin-inline-end:4px">${c.monthlyAmount?'₪'+c.monthlyAmount:'—'}</span>
                 <button onclick="event.stopPropagation();editMonthlyAmount(${c.rowNum})" title="ערוך תשלום חודשי" style="background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.pencil}</button>
-                <button onclick="event.stopPropagation();deleteMonthlyAmount(${c.rowNum})" title="מחק תשלום חודשי" style="background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.trash}</button>
+                <button onclick="event.stopPropagation();deleteMonthlyAmount(${c.rowNum})" title="מחק תשלום חודשי" style="background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.trash}</button>
               </div>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);padding:10px 12px;font-size:13px">
@@ -1504,7 +1536,7 @@ function renderCards(clients){
               <div style="display:inline-flex;align-items:center;gap:6px">
                 <span style="font-weight:700;color:${paid?'var(--green)':'var(--red)'};margin-inline-end:4px">${paid?'₪'+esc(paid):'לא שולם'}</span>
                 <button onclick="event.stopPropagation();editCurrentPayment(${c.rowNum})" title="עדכן תשלום" style="background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.pencil}</button>
-                <button onclick="event.stopPropagation();deleteCurrentPayment(${c.rowNum})" title="מחק תשלום" style="background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.trash}</button>
+                <button onclick="event.stopPropagation();deleteCurrentPayment(${c.rowNum})" title="מחק תשלום" style="background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.trash}</button>
               </div>
             </div>
             ${c.missedPayments>0
@@ -1525,13 +1557,13 @@ function renderCards(clients){
           }
           <!-- Report-docs list (column BA): documents the client must provide for the reports.
                Same UI as the existing docs-list under "השלמת מסמכים" — single read+edit box. -->
-          <div style="font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 4px">מסמכים נדרשים לדוחות</div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 4px">מסמכים לדוחות</div>
           ${c.reportDocsList
             ? `<div style="position:relative">
                  <div onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 70px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.reportDocsList)}</div>
                  <div style="position:absolute;left:6px;top:6px;display:flex;gap:4px">
                    <button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="ערוך רשימה">${ICON.pencil}</button>
-                   <button onclick="event.stopPropagation();deleteReportDocs(${c.rowNum})" style="width:28px;height:28px;background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
+                   <button onclick="event.stopPropagation();deleteReportDocs(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
                  </div>
                </div>`
             : `<button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים לדוחות</span></button>`
@@ -1543,12 +1575,22 @@ function renderCards(clients){
             ${docsDeadline?`<div style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${docsDeadline}</div>`:''}
           </div>
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
+          <!-- Date + days editable controls. Tapping them opens a prompt() and
+               writes back to the corresponding spreadsheet column on save. -->
+          <div class="section-controls">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AE','תאריך התחלה',${JSON.stringify(c.docsAERaw||'')})" class="ctl-btn" title="ערוך תאריך התחלה">
+              <span class="ctl-label">התחלה:</span><span class="ctl-val">${esc(fmtDateFull(c.docsAERaw)||'—')}</span>
+            </button>
+            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AF','ימים להשלמת מסמכים',${JSON.stringify(c.docsDaysRaw||'')})" class="ctl-btn" title="ערוך מספר ימים">
+              <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.docsDaysRaw||'—')}</span>
+            </button>
+          </div>
           ${c.docsList
             ? `<div style="position:relative">
                  <div onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 70px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.docsList)}</div>
                  <div style="position:absolute;left:6px;top:6px;display:flex;gap:4px">
                    <button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="ערוך רשימה">${ICON.pencil}</button>
-                   <button onclick="event.stopPropagation();deleteDocsList(${c.rowNum})" style="width:28px;height:28px;background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
+                   <button onclick="event.stopPropagation();deleteDocsList(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
                  </div>
                </div>`
             : `<button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים</span></button>`
@@ -1559,15 +1601,33 @@ function renderCards(clients){
           }
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
-          <div class="section-title" style="color:var(--slate)">אישורי מסירה</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+            <div class="section-title" style="color:var(--slate);margin-bottom:0">אישורי מסירה</div>
+            ${c.srvDeadline?`<div style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${c.srvDeadline}</div>`:''}
+          </div>
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
+          <!-- Service mailed date (BG). Last date = BG + 45 days. -->
+          <div class="section-controls">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'BG','תאריך שליחה בדואר',${JSON.stringify(c.bgRaw||'')})" class="ctl-btn" title="ערוך תאריך שליחה">
+              <span class="ctl-label">נשלח:</span><span class="ctl-val">${esc(fmtDateFull(c.bgRaw)||'—')}</span>
+            </button>
+          </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
             <div class="section-title" style="color:var(--slate);margin-bottom:0">עיכוב הליכים</div>
-            ${c.injEndDate?`<div style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תום: ${c.injEndDate}</div>`:''}
+            ${c.injEndDate?`<div style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${c.injEndDate}</div>`:''}
           </div>
           <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
+          <!-- Inj start date + days. AG = start, AK = days. -->
+          <div class="section-controls">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AG','תאריך תחילת עיכוב',${JSON.stringify(c.docsAGRaw||'')})" class="ctl-btn" title="ערוך תאריך תחילת עיכוב">
+              <span class="ctl-label">תחילה:</span><span class="ctl-val">${esc(fmtDateFull(c.docsAGRaw)||'—')}</span>
+            </button>
+            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AK','ימים לעיכוב',${JSON.stringify(c.injDaysRaw||'')})" class="ctl-btn" title="ערוך מספר ימים">
+              <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.injDaysRaw||'—')}</span>
+            </button>
+          </div>
         </div>
       </div>`;
       }
@@ -2282,6 +2342,16 @@ function renderTasks(){
           <div class="client-meta" style="margin-top:3px">${metaLine}</div>
           ${waitMark}
           ${logPreview?`<div class="log-preview-text" style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
+          <!-- Inline editors for ops start date (Y) and ops days (Z).
+               Tapping opens prompt() and writes back to the spreadsheet. -->
+          <div class="section-controls" onclick="event.stopPropagation()" style="margin-top:8px">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'Y','תאריך התחלת ביצוע',${JSON.stringify(c.opsStartRaw||'')})" class="ctl-btn" title="ערוך תאריך התחלה">
+              <span class="ctl-label">התחלה:</span><span class="ctl-val">${esc(fmtDateFull(c.opsStartRaw)||'—')}</span>
+            </button>
+            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'Z','ימים לביצוע',${JSON.stringify(c.opsDaysRaw||'')})" class="ctl-btn" title="ערוך מספר ימים">
+              <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.opsDaysRaw||'—')}</span>
+            </button>
+          </div>
         </div>
       </div>
       ${lateBadge}
@@ -2425,6 +2495,53 @@ async function _writeCellBlank(rowNum, colLetter, label){
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
   try{ await apiFetch(url,opts); showToast('נמחק','ok'); }
   catch(e){ enqueueWrite(url,opts,label); showToast('מחיקה תסונכרן כשהחיבור יחזור','ok'); }
+}
+
+/* =========================
+   GENERIC FIELD EDITORS — used by the section "expand"-card editor rows
+   (docs / injunction / service). All write directly to the relevant Sheet
+   cell using USER_ENTERED parsing, so dates entered as DD/MM/YYYY become
+   real date values just like in the editMeeting flow.
+   ========================= */
+async function editDateField(rowNum, colLetter, label, currentValue){
+  const v=prompt(`${label} (DD/MM/YY, השאר ריק לביטול):`, currentValue||'');
+  if(v===null) return;
+  const trimmed=(v||'').trim();
+  if(trimmed && !/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)){
+    alert('פורמט לא תקין. השתמש ב-DD/MM/YY');
+    return;
+  }
+  showToast('שומר...');
+  // Use batchUpdate for proper date formula + format preservation
+  const m=trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    const dd=parseInt(m[1],10), mm=parseInt(m[2],10);
+    let yy=parseInt(m[3],10); if(m[3].length===2) yy=2000+yy;
+    const formula=`=DATE(${yy},${mm},${dd})`;
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
+    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[formula]]})};
+    try{ await apiFetch(url,opts); showToast('נשמר','ok'); }
+    catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  } else {
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
+    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
+    try{ await apiFetch(url,opts); showToast('נמחק','ok'); }
+    catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  }
+  // Reload to reflect changes
+  setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
+}
+
+async function editDaysField(rowNum, colLetter, label, currentValue){
+  const v=prompt(`${label} (מספר ימים):`, currentValue||'');
+  if(v===null) return;
+  const trimmed=(v||'').trim();
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[trimmed]]})};
+  showToast('שומר...');
+  try{ await apiFetch(url,opts); showToast('נשמר','ok'); }
+  catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
 }
 
 async function deleteMonthlyAmount(rowNum){
