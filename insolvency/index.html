@@ -47,8 +47,16 @@ button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
 }
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
+/* AUTO-HIDING STICKY SHELL
+   Wraps header+tabs+filters+search. When user scrolls down past a small
+   threshold we slide the entire shell up via translateY (CSS variable
+   --shell-offset). On upward scroll we put it back. The body padding-top
+   stays constant so cards don't jump. */
+.sticky-shell{position:sticky;top:0;z-index:100;background:var(--white);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
+.sticky-shell.no-anim{transition:none;}
+
 /* HEADER */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 .hdr-right{display:flex;gap:8px;align-items:center;}
 .hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -57,12 +65,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
-.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;position:sticky;top:96px;z-index:99;}
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;position:sticky;top:96px;z-index:99;transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 .tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
 .tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
 
 /* FILTERS */
-.filters-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+.filters-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;position:sticky;top:188px;z-index:97;transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 /* Inline date/days editor row inside each section block (docs, inj, srv).
    Two compact buttons that open a prompt() to update the corresponding
    spreadsheet cell. Tight layout: 2 small chips side-by-side. */
@@ -79,13 +87,28 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .ctl-btn:hover{background:var(--white);}
 .ctl-label{color:var(--muted);font-weight:600;}
 .ctl-val{font-weight:700;color:var(--slate);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-/* Search bar sticks under the tabs while scrolling the cards list. */
-.search-sticky{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px 8px;position:sticky;top:137px;z-index:98;}
+/* Search bar — sticks under the tabs while scrolling. Moves with the
+   global --shell-offset so all the sticky elements hide together. */
+.search-sticky{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px 8px;position:sticky;top:137px;z-index:98;transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 .search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
 .search-box:focus-within{border-color:var(--slate);}
 .search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
 .search-box input::placeholder{color:var(--muted);}
 .filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+/* When a filter row has an active (non-"all") value, pin it to the header
+   so it stays visible while scrolling. Multiple active filter rows stack
+   under one another. The base padding/background match .filters-wrap so
+   it looks identical when pinned vs. inline. */
+.filter-row.filter-active{
+  position:sticky;
+  top:137px;
+  z-index:97;
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:8px 14px;
+  margin:0 -14px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.04);
+}
 .filter-label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
 .chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .12s;white-space:nowrap;}
 .chip.active{background:var(--slate);color:#fff;border-color:var(--slate);}
@@ -748,7 +771,62 @@ document.addEventListener('DOMContentLoaded',()=>{
       el.innerHTML=`<span style="display:inline-flex;align-items:center;gap:4px">${ICON[key]}<span>${txt}</span></span>`;
     }
   });
+  initAutoHideHeader();
 });
+
+/* =========================
+   AUTO-HIDE HEADER
+   When the user scrolls down past the header, slide it up out of view to
+   give more room for the cards. On any upward scroll, slide it back so
+   the user can see the filters they picked. We do this by setting a CSS
+   custom property --shell-offset on document.documentElement; the header,
+   tabs, search, and filters all reference it via transform:translateY().
+   ========================= */
+function initAutoHideHeader(){
+  // Total height we hide: header(96) + tabs(~40) + search(~52) + filters(varies)
+  // We compute it dynamically each scroll because filters can have variable
+  // height (collapsed vs expanded).
+  let lastY=window.scrollY||0;
+  let hidden=false;
+  const TRIGGER_DOWN=12; // px down before hiding
+  const TRIGGER_UP=4;    // px up before showing
+  let raf=null;
+  function update(){
+    raf=null;
+    const y=window.scrollY||0;
+    const dy=y-lastY;
+    // Always show when near the top
+    if(y<60){
+      if(hidden){ document.documentElement.style.setProperty('--shell-offset','0px'); hidden=false; }
+      lastY=y; return;
+    }
+    if(dy>TRIGGER_DOWN && !hidden){
+      // Compute total shell height to hide
+      const hdr=document.querySelector('.header');
+      const tabs=document.querySelector('.tabs');
+      const search=document.querySelector('.search-sticky');
+      const filters=document.querySelector('.filters-wrap');
+      let total=0;
+      if(hdr) total+=hdr.offsetHeight;
+      if(tabs) total+=tabs.offsetHeight;
+      if(search) total+=search.offsetHeight;
+      if(filters) total+=filters.offsetHeight;
+      document.documentElement.style.setProperty('--shell-offset', `-${total}px`);
+      hidden=true;
+      lastY=y;
+    } else if(dy<-TRIGGER_UP && hidden){
+      document.documentElement.style.setProperty('--shell-offset','0px');
+      hidden=false;
+      lastY=y;
+    } else if(Math.abs(dy)<2){
+      lastY=y;
+    }
+  }
+  window.addEventListener('scroll',()=>{
+    if(raf) return;
+    raf=requestAnimationFrame(update);
+  },{passive:true});
+}
 
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
@@ -1392,16 +1470,27 @@ function setReportFilter(val,el){
   fReport=val;
   document.querySelectorAll('#report-chips .chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
+  // Pin the row to the header when a real filter is applied (anything
+  // other than "all"). Removing the class when back to "all" lets the row
+  // scroll away again like normal.
+  const row=el.closest('.filter-row');
+  if(row) row.classList.toggle('filter-active', val!=='all');
   applyFilters();
 }
 function setF(type,val){
   if(type==='docs')fDocs=val;
   else if(type==='inj')fInj=val;
   else if(type==='srv')fSrv=val;
+  let activeEl=null;
   ['all','urgent','warning'].forEach(v=>{
     const el=document.getElementById('f'+type[0]+'-'+v);
-    if(el)el.classList.toggle('active',v===val);
+    if(el){ el.classList.toggle('active',v===val); if(v===val) activeEl=el; }
   });
+  // Pin only when a real filter is applied
+  if(activeEl){
+    const row=activeEl.closest('.filter-row');
+    if(row) row.classList.toggle('filter-active', val!=='all');
+  }
   applyFilters();
 }
 function applyFilters(){
@@ -1481,6 +1570,8 @@ function setCollFilter(val,el){
   fColl=val;
   document.querySelectorAll('#collection-filter-row .chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
+  const row=el.closest('.filter-row');
+  if(row) row.classList.toggle('filter-active', val!=='all');
   applyFilters();
 }
 
@@ -3599,6 +3690,9 @@ window.addEventListener('popstate',()=>{
   const LEGAL_API = (location.hostname==='localhost' || location.hostname==='127.0.0.1' || location.hostname==='')
     ? `http://127.0.0.1:${LEGAL_PORT}`
     : `http://${LAN_IP}:${LEGAL_PORT}`;
+  // Expose globally so we can debug from the page if needed
+  window.__LEGAL_API = LEGAL_API;
+  console.log('[DocsFeature] Using API:', LEGAL_API, 'hostname:', location.hostname);
 
   // אייקון Lucide-style — תיקייה עם קווים פנימיים
   const FOLDER_ICON =
