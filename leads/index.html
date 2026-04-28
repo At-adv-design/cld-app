@@ -332,7 +332,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       </button>
       <div class="avatar" id="user-avatar" onclick="confirmSignOut()"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-inline-end:18px;">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-inline-end:60px;">
   </div>
 
   <!-- Tab order in RTL: visually right=המשך, middle=לידים, left=הוסרו -->
@@ -394,7 +394,16 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
         <span>הסר</span>
       </button>
     </div>
-    <div class="msub" id="modal-name" style="margin-top:6px"></div>
+    <!-- Lead name + a one-tap phone button. The phone button initiates a
+         call to currentLead — this is what the "התקשר" notification action
+         visually leads users toward (notification opens this modal, then a
+         single tap on the phone icon dials). -->
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <div class="msub" id="modal-name" style="flex:1;min-width:0;margin:0"></div>
+      <button onclick="callCurrentLead()" title="התקשר" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </button>
+    </div>
     <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
     <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
@@ -494,9 +503,15 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
   <div class="modal-sheet" style="padding:10px 12px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:100dvh;overflow:hidden;">
     <div class="mhandle"></div>
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-      <div style="font-size:16px;font-weight:700">קביעת פגישה</div>
-      <div id="meeting-name" style="font-size:12px;color:var(--slate);font-weight:600;flex:1;text-align:start;margin-inline-start:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <!-- Title row + save button. Save lives at the top so the user can hit
+         it without scrolling past the calendar/time grids. The label updates
+         to "שמור תזכורת" when in reminder mode (see openReminderDialog). -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:700">קביעת פגישה</div>
+        <div id="meeting-name" style="font-size:12px;color:var(--slate);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <button class="btn btn-save" style="padding:9px 18px;font-size:14px;font-weight:700;width:auto;flex-shrink:0" onclick="saveMeeting()">שמור פגישה</button>
     </div>
 
     <!-- Section: VISUAL CALENDAR (compact) -->
@@ -537,11 +552,6 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
     <!-- hidden inputs the saveMeeting code reads -->
     <input type="hidden" id="meeting-date"/>
     <input type="hidden" id="meeting-start"/>
-
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-save" style="flex:1.4;padding:12px;font-size:15px;font-weight:700" onclick="saveMeeting()">שמור פגישה</button>
-      <button class="btn btn-skip" style="flex:1;padding:12px;font-size:14px;font-weight:600" onclick="closeMeetingDialog()">ביטול</button>
-    </div>
   </div>
 </div>
 </div>
@@ -1567,6 +1577,15 @@ function addNote(idx,name){
   currentLead={index:idx,name,phone};
   openModal(name);
 }
+// Tapping the phone button inside the call-summary modal — fires a tel:
+// to the current lead and marks the call. Used by users who arrived at the
+// modal via a reminder notification.
+function callCurrentLead(){
+  if(!currentLead || !currentLead.phone){ showToast('אין מספר טלפון','err'); return; }
+  markCalled(currentLead.index);
+  window.location.href='tel:'+currentLead.phone.replace(/[^0-9+]/g,'');
+}
+
 function openModal(name){
   document.getElementById('modal-name').textContent=name;
   // restore any saved draft for this lead
@@ -2367,9 +2386,10 @@ function fireReminder(rec){
     const body='להתקשר ל-'+rec.name;
     try{
       // Prefer Service Worker registration so notifications show even if
-      // the page is in background. We attach action buttons:
-      //   "התקשר"  → opens tel:phone (handled in SW notificationclick)
-      //   "פתח"    → opens the call-summary modal for this lead
+      // the page is in background. Two action buttons:
+      //   "📞 התקשר" → SW opens tel: directly + focuses app on the lead so
+      //     when the call ends the user lands in the call-summary modal.
+      //   "פתח"      → just opens the call-summary modal for this lead.
       if(navigator.serviceWorker && navigator.serviceWorker.ready){
         navigator.serviceWorker.ready.then(reg=>{
           reg.showNotification(title, {
@@ -2378,7 +2398,7 @@ function fireReminder(rec){
             data:{leadIdx:rec.leadIdx, phone:rec.phone||'', name:rec.name||''},
             requireInteraction:true,
             actions:[
-              {action:'call', title:'התקשר'},
+              {action:'call', title:'📞 התקשר'},
               {action:'open', title:'פתח'}
             ]
           });
@@ -2500,14 +2520,23 @@ window.addEventListener('load', ()=>{
 // app is already open). We pop open the call-summary modal for the lead.
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', (e)=>{
-    if(e && e.data && e.data.kind==='open-lead' && e.data.leadIdx){
+    if(!e || !e.data) return;
+    if(e.data.kind==='open-lead' && e.data.leadIdx){
+      openReminderLead(e.data.leadIdx);
+    } else if(e.data.kind==='open-lead-and-call' && e.data.leadIdx){
+      // The dialer is already opening (or open). We pre-open the call-summary
+      // modal so it's ready when the user comes back from the call.
       openReminderLead(e.data.leadIdx);
     }
   });
 }
 
 function checkLeadFromHash(){
-  const m=(location.hash||'').match(/lead=(\d+)/);
+  // #lead=NNN  → just open the lead's call-summary modal
+  // #leadAndCall=NNN|+972...  → same, plus we also assume the dialer is open
+  let m=(location.hash||'').match(/lead=(\d+)/);
+  let leadAndCall=(location.hash||'').match(/leadAndCall=(\d+)\|/);
+  if(leadAndCall) m=leadAndCall;
   if(!m) return;
   const idx=parseInt(m[1],10);
   // Clear hash so refreshing doesn't keep re-opening
