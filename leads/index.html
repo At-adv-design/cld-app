@@ -332,7 +332,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       </button>
       <div class="avatar" id="user-avatar" onclick="confirmSignOut()"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-inline-end:18px;">
   </div>
 
   <!-- Tab order in RTL: visually right=המשך, middle=לידים, left=הוסרו -->
@@ -1842,10 +1842,15 @@ let _isReminderMode=false;
 // summary modal is currently open (currentLead).
 // Open the meeting dialog from inside the call-summary modal. Reuses the
 // regular openMeetingDialog flow but pulls the lead from currentLead.
+// We also close the note-modal so we don't have two stacked sheets.
 function openMeetingFromSummary(){
   if(!currentLead) return;
   const lead=allLeads.find(l=>l.index===currentLead.index);
   if(!lead) return;
+  // Save any typed note before closing — same as saveAndMove does
+  const note=document.getElementById('note-input').value.trim();
+  if(history.state&&history.state.page==='modal') popHistorySilently();
+  if(note) saveNote(); else _closeModalCore();
   openMeetingDialog(lead.index, lead.name||'', lead.phone||'');
 }
 
@@ -1853,6 +1858,10 @@ function openReminderDialog(){
   if(!currentLead) return;
   const lead=allLeads.find(l=>l.index===currentLead.index);
   if(!lead) return;
+  // Save any typed note before closing — same logic as openMeetingFromSummary
+  const note=document.getElementById('note-input').value.trim();
+  if(history.state&&history.state.page==='modal') popHistorySilently();
+  if(note) saveNote(); else _closeModalCore();
   _meetingLead=lead;
   _isReminderMode=true;
   // Update the title text to reflect that this is a reminder, not a meeting
@@ -2052,6 +2061,13 @@ async function saveMeeting(){
   const lead=_meetingLead;
   const rowNum=lead.index;
   closeMeetingDialog();
+  // Also close the underlying call-summary modal if it was open (the user
+  // tapped "פגישה" or "תזכורת" from inside the summary). This way after
+  // saving they're back at the leads list, not stuck on a stale modal.
+  const noteModal=document.getElementById('note-modal');
+  if(noteModal && noteModal.classList.contains('open')){
+    if(typeof closeModal==='function') closeModal();
+  }
   showToast('שומר פגישה...');
   try{
     if(!accessToken){signOut();throw new Error('אין הרשאה');}
@@ -2351,14 +2367,20 @@ function fireReminder(rec){
     const body='להתקשר ל-'+rec.name;
     try{
       // Prefer Service Worker registration so notifications show even if
-      // the page is in background
+      // the page is in background. We attach action buttons:
+      //   "התקשר"  → opens tel:phone (handled in SW notificationclick)
+      //   "פתח"    → opens the call-summary modal for this lead
       if(navigator.serviceWorker && navigator.serviceWorker.ready){
         navigator.serviceWorker.ready.then(reg=>{
           reg.showNotification(title, {
             body, icon:'../icon.png', badge:'../icon.png',
             tag:'reminder-'+rec.leadIdx,
-            data:{leadIdx:rec.leadIdx},
-            requireInteraction:true
+            data:{leadIdx:rec.leadIdx, phone:rec.phone||'', name:rec.name||''},
+            requireInteraction:true,
+            actions:[
+              {action:'call', title:'התקשר'},
+              {action:'open', title:'פתח'}
+            ]
           });
         });
       } else {
