@@ -1,6 +1,6 @@
 // Service worker for the LEADS app
 // IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v31';
+const CACHE_NAME = 'at-leads-v33';
 const ASSETS = [
   './',
   './index.html',
@@ -28,28 +28,33 @@ self.addEventListener('activate', (event) => {
 });
 
 // When the user taps a reminder notification we open (or focus) the app.
-// The "התקשר" action button → focus the app and send it a "call" message.
-// The app then runs `window.location.href = 'tel:...'` which is the most
-// reliable way to launch the dialer from a PWA on Android.
+// "התקשר" action: open tel: DIRECTLY via clients.openWindow — this is what
+// reliably triggers the Android dialer from a notification. After the dialer
+// hand-off, we also send a postMessage so when the user returns to the app
+// after the call, the call-summary modal is already open with the action
+// buttons (continue/meeting/reminder/remove).
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   const leadIdx = data.leadIdx;
   const phone = (data.phone || '').replace(/[^0-9+]/g, '');
 
-  if (event.action === 'call') {
+  if (event.action === 'call' && phone) {
     event.waitUntil((async () => {
-      const wins = await clients.matchAll({type:'window', includeUncontrolled:true});
-      for (const c of wins) {
-        if ('focus' in c) {
-          try { c.postMessage({kind:'call-lead', leadIdx, phone}); } catch(_){}
-          return c.focus();
+      // Tell the app to pre-open the call-summary modal so it's ready when
+      // the user finishes the call. Do this BEFORE the tel: hand-off.
+      try {
+        const wins = await clients.matchAll({type:'window', includeUncontrolled:true});
+        for (const c of wins) {
+          if ('focus' in c) {
+            try { c.postMessage({kind:'open-lead', leadIdx}); } catch(_){}
+            break;
+          }
         }
-      }
-      // No open window → open the app with a special hash that triggers the
-      // dial as soon as the leads list is ready.
-      const url = `./#callLead=${leadIdx}|${phone}`;
-      return clients.openWindow(url);
+      } catch(_){}
+      // Now launch the dialer. clients.openWindow with a tel: URL is the only
+      // reliable path from a service worker notificationclick on Android.
+      try { await clients.openWindow('tel:' + phone); } catch(_){}
     })());
     return;
   }
