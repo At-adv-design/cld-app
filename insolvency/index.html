@@ -2971,8 +2971,20 @@ window.addEventListener('popstate',()=>{
       });
     };
 
+    const resetStyles=()=>{
+      sheet.style.animation='';
+      sheet.style.transition='';
+      sheet.style.transform='';
+    };
+
     const onStart=e=>{
       if(!isOpen()) return;
+      // Don't intercept touches on buttons/inputs — they need their click events
+      const t=e.target;
+      if(t && (t.closest('button') || t.closest('input') || t.closest('textarea') || t.closest('select') || t.closest('a') || t.closest('[role="button"]'))){
+        dragging=false;
+        return;
+      }
       startY=e.touches[0].clientY;
       startX=e.touches[0].clientX;
       lastY=startY;
@@ -2989,7 +3001,7 @@ window.addEventListener('popstate',()=>{
       const dx=Math.abs(e.touches[0].clientX-startX);
       if(!gestureCommitted){
         if(dy<8 && dx<8) return;
-        if(dx>Math.abs(dy)){ dragging=false; sheet.style.animation=''; return; }
+        if(dx>Math.abs(dy)){ dragging=false; resetStyles(); return; }
         gestureCommitted=true;
         const focused=document.activeElement;
         if(focused && (focused.tagName==='TEXTAREA' || focused.tagName==='INPUT')){
@@ -3002,8 +3014,7 @@ window.addEventListener('popstate',()=>{
       if(!dragging) return;
       dragging=false;
       if(pendingFrame!==null){ cancelAnimationFrame(pendingFrame); pendingFrame=null; }
-      sheet.style.animation='';
-      if(!gestureCommitted){ sheet.style.transform=''; return; }
+      if(!gestureCommitted){ resetStyles(); return; }
       const dy=lastY-startY;
       const dt=Math.max(1, Date.now()-startTime);
       const velocity=dy/dt;
@@ -3012,16 +3023,12 @@ window.addEventListener('popstate',()=>{
         sheet.style.transform='translateY(100%)';
         const closer=closerMap[modalId];
         setTimeout(()=>{
-          sheet.style.transition='';
-          sheet.style.transform='';
+          resetStyles();
           if(closer) closer();
         }, 220);
       } else {
         sheet.style.transform='translateY(0)';
-        setTimeout(()=>{
-          sheet.style.transition='';
-          sheet.style.transform='';
-        }, 230);
+        setTimeout(resetStyles, 230);
       }
     };
     sheet.addEventListener('touchstart', onStart, {passive:true});
