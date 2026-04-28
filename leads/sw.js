@@ -1,6 +1,6 @@
 // Service worker for the LEADS app
 // IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v26';
+const CACHE_NAME = 'at-leads-v28';
 const ASSETS = [
   './',
   './index.html',
@@ -29,20 +29,41 @@ self.addEventListener('activate', (event) => {
 
 // When the user taps a reminder notification we open (or focus) the app.
 // The app will see the leadIdx in the URL hash and auto-open the lead.
+// If the user tapped the "התקשר" action button, we instead open a tel: URL
+// directly so the dialer launches.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   const leadIdx = data.leadIdx;
+  const phone = (data.phone || '').replace(/[^0-9+]/g, '');
+  // "Call" action: open dialer immediately. We still try to focus the app
+  // afterwards so the call-summary modal pops up for the user to write notes.
+  if (event.action === 'call') {
+    event.waitUntil((async () => {
+      // Open the dialer
+      try { await clients.openWindow('tel:' + phone); } catch (_) {}
+      // Then focus / open the app on the lead's card
+      const wins = await clients.matchAll({type:'window', includeUncontrolled:true});
+      for (const c of wins) {
+        if ('focus' in c) {
+          if (leadIdx) c.postMessage({kind:'open-lead', leadIdx});
+          return c.focus();
+        }
+      }
+      const url = leadIdx ? `./#lead=${leadIdx}` : './';
+      return clients.openWindow(url);
+    })());
+    return;
+  }
+  // Default tap (or "open" action): just focus / open the app
   event.waitUntil(
     clients.matchAll({type:'window', includeUncontrolled:true}).then((wins) => {
-      // Re-use an existing window if there is one
       for (const client of wins) {
         if ('focus' in client) {
           if (leadIdx) client.postMessage({kind:'open-lead', leadIdx});
           return client.focus();
         }
       }
-      // Otherwise open fresh — encode leadIdx in the hash so the page can use it
       const url = leadIdx ? `./#lead=${leadIdx}` : './';
       return clients.openWindow(url);
     })
