@@ -1493,18 +1493,18 @@ function renderCards(clients){
           <div style="display:flex;flex-direction:column;gap:6px">
             <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);padding:10px 12px;font-size:13px">
               <span style="color:var(--muted);font-weight:600">תשלום חודשי</span>
-              <div style="display:inline-flex;align-items:center;gap:8px">
-                <span style="font-weight:700;color:var(--slate)">${c.monthlyAmount?'₪'+c.monthlyAmount:'—'}</span>
-                <button onclick="event.stopPropagation();editMonthlyAmount(${c.rowNum})" title="ערוך תשלום חודשי" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex">${ICON.pencil}</button>
-                <button onclick="event.stopPropagation();deleteMonthlyAmount(${c.rowNum})" title="מחק תשלום חודשי" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex">${ICON.trash}</button>
+              <div style="display:inline-flex;align-items:center;gap:6px">
+                <span style="font-weight:700;color:var(--slate);margin-inline-end:4px">${c.monthlyAmount?'₪'+c.monthlyAmount:'—'}</span>
+                <button onclick="event.stopPropagation();editMonthlyAmount(${c.rowNum})" title="ערוך תשלום חודשי" style="background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.pencil}</button>
+                <button onclick="event.stopPropagation();deleteMonthlyAmount(${c.rowNum})" title="מחק תשלום חודשי" style="background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.trash}</button>
               </div>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);padding:10px 12px;font-size:13px">
               <span style="color:var(--muted);font-weight:600">שולם החודש</span>
-              <div style="display:inline-flex;align-items:center;gap:8px">
-                <span style="font-weight:700;color:${paid?'var(--green)':'var(--red)'}">${paid?'₪'+esc(paid):'לא שולם'}</span>
-                <button onclick="event.stopPropagation();editCurrentPayment(${c.rowNum})" title="עדכן תשלום" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex">${ICON.pencil}</button>
-                <button onclick="event.stopPropagation();deleteCurrentPayment(${c.rowNum})" title="מחק תשלום" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex">${ICON.trash}</button>
+              <div style="display:inline-flex;align-items:center;gap:6px">
+                <span style="font-weight:700;color:${paid?'var(--green)':'var(--red)'};margin-inline-end:4px">${paid?'₪'+esc(paid):'לא שולם'}</span>
+                <button onclick="event.stopPropagation();editCurrentPayment(${c.rowNum})" title="עדכן תשלום" style="background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.pencil}</button>
+                <button onclick="event.stopPropagation();deleteCurrentPayment(${c.rowNum})" title="מחק תשלום" style="background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;padding:5px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px">${ICON.trash}</button>
               </div>
             </div>
             ${c.missedPayments>0
@@ -1527,10 +1527,12 @@ function renderCards(clients){
                Same UI as the existing docs-list under "השלמת מסמכים" — single read+edit box. -->
           <div style="font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 4px">מסמכים נדרשים לדוחות</div>
           ${c.reportDocsList
-            ? `<div style="position:relative" onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})">
-                 <div style="font-size:12px;color:var(--text);padding:8px 56px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.reportDocsList)}</div>
-                 <button style="position:absolute;left:6px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="ערוך רשימה">${ICON.pencil}</button>
-                 <button onclick="event.stopPropagation();deleteReportDocs(${c.rowNum})" style="position:absolute;left:30px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="מחק רשימה">${ICON.trash}</button>
+            ? `<div style="position:relative">
+                 <div onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 70px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.reportDocsList)}</div>
+                 <div style="position:absolute;left:6px;top:6px;display:flex;gap:4px">
+                   <button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="ערוך רשימה">${ICON.pencil}</button>
+                   <button onclick="event.stopPropagation();deleteReportDocs(${c.rowNum})" style="width:28px;height:28px;background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
+                 </div>
                </div>`
             : `<button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים לדוחות</span></button>`
           }
@@ -1542,10 +1544,12 @@ function renderCards(clients){
           </div>
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
           ${c.docsList
-            ? `<div style="position:relative" onclick="event.stopPropagation();openDocsEdit(${c.rowNum})">
-                 <div style="font-size:12px;color:var(--text);padding:8px 56px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.docsList)}</div>
-                 <button style="position:absolute;left:6px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="ערוך רשימה">${ICON.pencil}</button>
-                 <button onclick="event.stopPropagation();deleteDocsList(${c.rowNum})" style="position:absolute;left:30px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="מחק רשימה">${ICON.trash}</button>
+            ? `<div style="position:relative">
+                 <div onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 70px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.docsList)}</div>
+                 <div style="position:absolute;left:6px;top:6px;display:flex;gap:4px">
+                   <button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="ערוך רשימה">${ICON.pencil}</button>
+                   <button onclick="event.stopPropagation();deleteDocsList(${c.rowNum})" style="width:28px;height:28px;background:#fff5f5;border:1px solid #d97070;color:#b01010;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
+                 </div>
                </div>`
             : `<button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים</span></button>`
           }
@@ -1781,8 +1785,8 @@ function renderLogContent(log){
       ${tsHtml}
       <div class="entry-body">${linkifyPhones(esc(body.trim()))}</div>
       <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
-        <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
-        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--red);font-family:inherit;padding:0">${ICON.trash}</button>
+        <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="width:32px;height:32px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
+        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:32px;height:32px;background:#fff5f5;border:1px solid #d97070;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#b01010;font-family:inherit;padding:0">${ICON.trash}</button>
       </div>
     </div>`;
   }).join('');
@@ -2807,8 +2811,8 @@ function renderCallSummaryView(){
       ${en.head?`<div class="entry-ts">${esc(en.head)}</div>`:''}
       <div class="entry-body">${linkifyPhones(esc(en.body.trim()))}</div>
       <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
-        <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
-        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:30px;height:30px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--red);font-family:inherit;padding:0">${ICON.trash}</button>
+        <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="width:32px;height:32px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
+        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:32px;height:32px;background:#fff5f5;border:1px solid #d97070;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#b01010;font-family:inherit;padding:0">${ICON.trash}</button>
       </div>
     </div>`).join('');
 }
