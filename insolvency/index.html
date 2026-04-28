@@ -67,6 +67,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
    Two compact buttons that open a prompt() to update the corresponding
    spreadsheet cell. Tight layout: 2 small chips side-by-side. */
 .section-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+/* Date-picker grid buttons. Compact (24x32) so a full month fits without
+   scrolling on a phone. Selected day = filled slate, today = bordered. */
+.dp-day{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
+.dp-day:active{transform:scale(.94);}
+.dp-day.empty{visibility:hidden;}
+.dp-day.today{border-color:var(--slate);border-width:2px;}
+.dp-day.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
+.dp-day.past{color:var(--muted);background:#f7f7f5;}
 .ctl-btn{flex:1;min-width:0;display:inline-flex;align-items:center;justify-content:space-between;gap:6px;background:var(--bg);border:1px solid var(--border);padding:6px 9px;font-size:11px;font-family:inherit;cursor:pointer;color:var(--text);}
 .ctl-btn:hover{background:var(--white);}
 .ctl-label{color:var(--muted);font-weight:600;}
@@ -108,6 +116,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .card-header > .log-btn{flex-shrink:0;margin-inline-start:auto;}
 .client-name{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
 .client-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+/* Container for the row of action icons in each card header (phone, call
+   log, WhatsApp, case log). Forces them all to the same vertical baseline. */
+.hdr-icons{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 /* ── Unified action buttons (used next to client name and inside cards) ──
    Single rule for: phone-btn, call-log-btn, restore-btn, log-btn, note-btn.
    All buttons are 40×40, sharp corners, with 18×18 icons. */
@@ -122,6 +133,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   transition:all .12s;
   box-shadow:0 1px 3px rgba(0,0,0,0.06);
   position:relative;
+  box-sizing:border-box;
+  vertical-align:middle;
+  line-height:1;
 }
 .phone-btn:active,.call-log-btn:active,.restore-btn:active,.log-btn:active,.note-btn:active,.wa-btn:active{
   transform:scale(.92);background:var(--bg);
@@ -475,6 +489,42 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </div>
 
 <!-- OPS EDIT MODAL — edit Y (start date) + Z (days). AA is auto-computed. -->
+<!-- DATE PICKER MODAL — used by every "edit date" button in cards.
+     Opens a Hebrew calendar (Sun-first), the user taps a day, the picker
+     calls back with the selected DD/MM/YY string + closes. -->
+<div id="date-picker-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:380;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div class="modal-sheet" style="background:var(--white);width:100%;max-width:480px;padding:14px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto;border-top-left-radius:0;border-top-right-radius:0;">
+    <div class="mhandle" style="width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 8px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="flex:1">
+        <div id="dp-title" style="font-size:15px;font-weight:700">בחר תאריך</div>
+        <div id="dp-subtitle" style="font-size:12px;color:var(--muted);margin-top:1px"></div>
+      </div>
+      <button onclick="closeDatePicker()" style="background:var(--bg);border:1px solid var(--border);padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer">ביטול</button>
+      <button onclick="confirmDatePicker()" style="background:var(--slate);color:#fff;border:1px solid var(--slate);padding:6px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">אישור</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <button onclick="dpNavMonth(-1)" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;font-family:inherit;cursor:pointer;min-width:36px">‹</button>
+      <div id="dp-month-label" style="flex:1;text-align:center;font-size:14px;font-weight:700"></div>
+      <button onclick="dpNavMonth(1)" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;font-family:inherit;cursor:pointer;min-width:36px">›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;direction:rtl">
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">א</div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ב</div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ג</div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ד</div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ה</div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ו</div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ש</div>
+    </div>
+    <div id="dp-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;direction:rtl"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button onclick="dpSelectToday()" style="flex:1;padding:8px;font-size:12px;font-weight:600;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-family:inherit">היום</button>
+      <button onclick="dpClear()" style="flex:1;padding:8px;font-size:12px;font-weight:600;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-family:inherit;color:var(--red)">מחק</button>
+    </div>
+  </div>
+</div>
+
 <div id="ops-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);">
   <div class="log-sheet" style="border-radius:8px;border-top:none;width:100%;max-width:380px;max-height:90dvh;animation:none;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
     <div class="log-title">עריכת דדליין</div>
@@ -1477,10 +1527,11 @@ function renderCards(clients){
   clients.forEach(c=>{
     const exp=expandedSet.has(c.rowNum);
 
-    // Report cells - show date for ALL
+    // Report cells - show date for ALL. Top line shows just the number
+    // (1..6) — no 'ד' prefix — and bottom line shows the date if any.
     const reportCells=c.reportStatus.map((s,i)=>{
       const cls=s==='overdue'?'red':s==='done'?'green':s==='progress'?'progress':s==='future'?'future':'empty';
-      const lbl=['ד1','ד2','ד3','ד4','ד5','ד6'][i];
+      const lbl=String(i+1);
       const dateStr=fmtDate(c.reports[i]);
       let topLine,botLine;
       if(s==='done'){topLine=lbl;botLine=dateStr;}
@@ -1639,15 +1690,11 @@ function renderCards(clients){
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
           <div class="client-info">
-            <div class="client-name">${esc(c.name)}</div>
+            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
           </div>
-          <!-- All 4 header icons share one row so they align perfectly -->
-          <div class="hdr-icons">
-            ${phoneBtn(c)}
-            <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
-            <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
-          </div>
+          <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
+          <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
         </div>
         ${bodyHtml}
       </div>`;
@@ -1687,11 +1734,10 @@ function renderWaiting(){
     content.innerHTML=`<div class="client-card" style="opacity:.75" data-row="${c.rowNum}">
       <div class="card-header" style="cursor:default">
         <div class="client-info">
-          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
           <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}</div>
           <div class="waiting-badge" style="display:inline-flex;align-items:center;gap:4px">${ICON.pause}<span>בהמתנה</span></div>
         </div>
-        ${phoneBtn(c)}
         <button class="restore-btn" onclick="restoreClient(${c.rowNum})">${ICON.back}</button>
       </div>
     </div>`;
@@ -1851,8 +1897,8 @@ function renderLogContent(log){
       ${tsHtml}
       <div class="entry-body">${linkifyPhones(esc(body.trim()))}</div>
       <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
-        <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="width:32px;height:32px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
-        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:32px;height:32px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.trash}</button>
+        <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
+        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.trash}</button>
       </div>
     </div>`;
   }).join('');
@@ -2344,7 +2390,7 @@ function renderTasks(){
     content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;cursor:pointer" onclick="openLogModal(${c.rowNum},'ops')">
       <div class="card-header" style="${lateBadge?'padding-bottom:34px;':''}">
         <div class="client-info">
-          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
           <div class="client-meta" style="margin-top:3px">${metaLine}</div>
           ${waitMark}
           ${logPreview?`<div class="log-preview-text" style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
@@ -2357,7 +2403,6 @@ function renderTasks(){
             </button>
           </div>
         </div>
-        ${phoneBtn(c)}
       </div>
       ${lateBadge}
     </div>`;
@@ -2508,33 +2553,135 @@ async function _writeCellBlank(rowNum, colLetter, label){
    cell using USER_ENTERED parsing, so dates entered as DD/MM/YYYY become
    real date values just like in the editMeeting flow.
    ========================= */
-async function editDateField(rowNum, colLetter, label, currentValue){
-  const v=prompt(`${label} (DD/MM/YY, השאר ריק לביטול):`, currentValue||'');
-  if(v===null) return;
-  const trimmed=(v||'').trim();
-  if(trimmed && !/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)){
-    alert('פורמט לא תקין. השתמש ב-DD/MM/YY');
-    return;
+/* =========================
+   DATE PICKER — visual calendar used by every date field (AE, AG, AJ, BG, Y).
+   No more free-text prompts. State lives in _dpState; openDatePicker sets it
+   up, the user picks a day, confirmDatePicker writes it back.
+   ========================= */
+const HEBREW_MONTHS=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+let _dpState={
+  rowNum:null, colLetter:null, label:'',
+  // Currently-selected day. null until user picks one.
+  selDay:null, selMonth:null, selYear:null,
+  // Currently-displayed month (may differ from selected after user navigates)
+  viewMonth:null, viewYear:null
+};
+
+function _daysInMonth(y,m){return new Date(y,m,0).getDate();}
+
+// Open the picker. currentValue may be DD/MM/YY or DD/MM/YYYY (or empty).
+function openDatePicker(rowNum, colLetter, label, currentValue){
+  const today=new Date();
+  let d=null,mo=null,yr=null;
+  if(currentValue){
+    const m=currentValue.toString().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if(m){
+      d=parseInt(m[1],10); mo=parseInt(m[2],10);
+      yr=parseInt(m[3],10); if(m[3].length===2) yr=2000+yr;
+    }
   }
+  // If no current value, default to today (but don't pre-select — view only)
+  _dpState={
+    rowNum, colLetter, label,
+    selDay:d, selMonth:mo, selYear:yr,
+    viewMonth: mo || (today.getMonth()+1),
+    viewYear:  yr || today.getFullYear()
+  };
+  document.getElementById('dp-title').textContent=label||'בחר תאריך';
+  const sub=document.getElementById('dp-subtitle');
+  if(sub){
+    const c=allClients.find(x=>x.rowNum===rowNum);
+    sub.textContent=c?c.name:'';
+  }
+  renderDatePicker();
+  document.getElementById('date-picker-modal').style.display='flex';
+  history.pushState({page:'datepicker'},'');
+}
+
+function closeDatePicker(){
+  document.getElementById('date-picker-modal').style.display='none';
+  if(history.state&&history.state.page==='datepicker') popHistorySilently();
+}
+
+function dpNavMonth(delta){
+  let m=_dpState.viewMonth+delta;
+  let y=_dpState.viewYear;
+  if(m<1){m=12;y--;}
+  if(m>12){m=1;y++;}
+  _dpState.viewMonth=m; _dpState.viewYear=y;
+  renderDatePicker();
+}
+
+function dpSelectDay(day){
+  _dpState.selDay=day;
+  _dpState.selMonth=_dpState.viewMonth;
+  _dpState.selYear=_dpState.viewYear;
+  renderDatePicker();
+}
+
+function dpSelectToday(){
+  const t=new Date();
+  _dpState.selDay=t.getDate();
+  _dpState.selMonth=t.getMonth()+1;
+  _dpState.selYear=t.getFullYear();
+  _dpState.viewMonth=_dpState.selMonth;
+  _dpState.viewYear=_dpState.selYear;
+  renderDatePicker();
+}
+
+function dpClear(){
+  _dpState.selDay=null; _dpState.selMonth=null; _dpState.selYear=null;
+  renderDatePicker();
+}
+
+function renderDatePicker(){
+  const lbl=document.getElementById('dp-month-label');
+  if(lbl) lbl.textContent=`${HEBREW_MONTHS[_dpState.viewMonth-1]} ${_dpState.viewYear}`;
+  const grid=document.getElementById('dp-grid');
+  if(!grid) return;
+  // First day of month: getDay() returns 0=Sun..6=Sat. Hebrew week starts Sunday so this maps directly.
+  const firstDay=new Date(_dpState.viewYear, _dpState.viewMonth-1, 1).getDay();
+  const lastDate=_daysInMonth(_dpState.viewYear, _dpState.viewMonth);
+  const today=new Date(); today.setHours(0,0,0,0);
+  let html='';
+  // Empty slots before day 1
+  for(let i=0;i<firstDay;i++) html+='<div class="dp-day empty"></div>';
+  for(let d=1;d<=lastDate;d++){
+    const dt=new Date(_dpState.viewYear, _dpState.viewMonth-1, d);
+    const isPast=dt<today;
+    const isToday=dt.getTime()===today.getTime();
+    const isSel=_dpState.selDay===d && _dpState.selMonth===_dpState.viewMonth && _dpState.selYear===_dpState.viewYear;
+    const cls=['dp-day'];
+    if(isPast && !isSel) cls.push('past');
+    if(isToday) cls.push('today');
+    if(isSel) cls.push('selected');
+    html+=`<button class="${cls.join(' ')}" onclick="dpSelectDay(${d})">${d}</button>`;
+  }
+  grid.innerHTML=html;
+}
+
+async function confirmDatePicker(){
+  const {rowNum, colLetter, label, selDay, selMonth, selYear} = _dpState;
+  closeDatePicker();
   showToast('שומר...');
-  // Use batchUpdate for proper date formula + format preservation
-  const m=trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if(m){
-    const dd=parseInt(m[1],10), mm=parseInt(m[2],10);
-    let yy=parseInt(m[3],10); if(m[3].length===2) yy=2000+yy;
-    const formula=`=DATE(${yy},${mm},${dd})`;
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
-    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[formula]]})};
-    try{ await apiFetch(url,opts); showToast('נשמר','ok'); }
-    catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  let url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
+  let opts;
+  if(selDay && selMonth && selYear){
+    const formula=`=DATE(${selYear},${selMonth},${selDay})`;
+    opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[formula]]})};
   } else {
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
-    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
-    try{ await apiFetch(url,opts); showToast('נמחק','ok'); }
-    catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+    // Cleared — write empty
+    opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
   }
-  // Reload to reflect changes
+  try{ await apiFetch(url,opts); showToast(selDay?'נשמר':'נמחק','ok'); }
+  catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
   setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
+}
+
+// Wrapper used by all section "edit date" buttons. Now opens the visual
+// picker instead of a free-text prompt.
+async function editDateField(rowNum, colLetter, label, currentValue){
+  openDatePicker(rowNum, colLetter, label, currentValue);
 }
 
 async function editDaysField(rowNum, colLetter, label, currentValue){
@@ -2961,8 +3108,8 @@ function renderCallSummaryView(){
       ${en.head?`<div class="entry-ts">${esc(en.head)}</div>`:''}
       <div class="entry-body">${linkifyPhones(esc(en.body.trim()))}</div>
       <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
-        <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="width:32px;height:32px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
-        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:32px;height:32px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.trash}</button>
+        <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
+        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.trash}</button>
       </div>
     </div>`).join('');
 }
