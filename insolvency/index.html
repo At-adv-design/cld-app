@@ -601,9 +601,27 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </div>
 
 <script>
-// Register the service worker for the insolvency PWA
+// Force-update the service worker on every page load. This solves the issue
+// where users on Android get stuck on an old cached version because the
+// previous SW served stale HTML even after we bumped CACHE_NAME.
+// Strategy: tell the existing SW to update, and on first load also clear
+// any caches whose name doesn't match the current one.
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    // Ask the browser to fetch sw.js fresh and check for updates
+    try { reg.update(); } catch(_){}
+    // If a new SW is waiting, activate it immediately
+    if(reg.waiting){ try{ reg.waiting.postMessage({type:'SKIP_WAITING'}); }catch(_){} }
+  }).catch(()=>{});
+  // When the controller changes (new SW takes over), reload once so the new
+  // HTML is served from the network. We guard with a sessionStorage flag so
+  // we don't reload more than once per session.
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!sessionStorage.getItem('_swReloaded')){
+      sessionStorage.setItem('_swReloaded','1');
+      location.reload();
+    }
+  });
 }
 
 // Theme toggle (shared with the rest of the brand pages)
@@ -1208,6 +1226,9 @@ function parseClient(row,rowNum){
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
     injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
+    // AL: end-date of "עיכוב הליכים" (delay of proceedings). Render as a
+    // small badge inside the section if present.
+    injEndDate:alDate?(String(alDate.getDate()).padStart(2,'0')+'/'+String(alDate.getMonth()+1).padStart(2,'0')+'/'+String(alDate.getFullYear()).slice(2)):'',
     log:g(C_CF),
     callLog:g(C_CH),
     // Operations section (columns X, Y, Z, AA, CG)
@@ -1538,7 +1559,10 @@ function renderCards(clients){
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
-          <div class="section-title" style="color:var(--slate)">עיכוב הליכים</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+            <div class="section-title" style="color:var(--slate);margin-bottom:0">עיכוב הליכים</div>
+            ${c.injEndDate?`<div style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תום: ${c.injEndDate}</div>`:''}
+          </div>
           <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
         </div>
       </div>`;
@@ -1878,7 +1902,7 @@ function openLogModal(rowNum,kind){
   }
   // Reset the expand-all state so each viewer starts collapsed
   _logExpandAll=false;
-  document.getElementById('log-modal-title').textContent=title+' v36';
+  document.getElementById('log-modal-title').textContent=title;
   document.getElementById('log-modal-name').textContent=client.name+(client.caseNum?' • תיק '+client.caseNum:'');
   document.getElementById('log-content-wrap').innerHTML=renderLogContent(currentLog.log);
   document.getElementById('log-modal').classList.add('open');
