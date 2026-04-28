@@ -2879,30 +2879,45 @@ window.addEventListener('popstate',()=>{
   const callAddOpen=document.getElementById('call-add-modal').style.display==='flex';
   const callEditOpen=document.getElementById('call-edit-modal').style.display==='flex';
   const docsEditOpen=document.getElementById('docs-edit-modal').style.display==='flex';
+  const reportDocsEditOpen=document.getElementById('report-docs-edit-modal').style.display==='flex';
   const logEntryEditOpen=document.getElementById('log-entry-edit-modal').style.display==='flex';
+  // Reset back-press counter — we're popping into a real screen, not the
+  // root, so the "press 3x to exit" countdown should restart.
+  _backPressCount=0;
+  // ── EDIT MODES — back press SAVES + closes (instead of discarding) ─────
   // Inner-most call modals first (on top of the viewer)
   if(logEntryEditOpen){
-    document.getElementById('log-entry-edit-modal').style.display='none';
-    _logEntryEditIdx=null;
+    if(typeof saveLogEntryEdit==='function'){ saveLogEntryEdit(); }
+    else { document.getElementById('log-entry-edit-modal').style.display='none'; _logEntryEditIdx=null; }
     return;
   }
   if(callEditOpen){
-    document.getElementById('call-edit-modal').style.display='none';
-    _callEditIdx=null;
+    if(typeof saveCallEdit==='function'){ saveCallEdit(); }
+    else { document.getElementById('call-edit-modal').style.display='none'; _callEditIdx=null; }
     return;
   }
   if(callAddOpen){
-    if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
-    _callSummaryRecognition=null;
-    document.getElementById('call-add-modal').style.display='none';
+    if(typeof saveCallAdd==='function'){ saveCallAdd(); }
+    else {
+      if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
+      _callSummaryRecognition=null;
+      document.getElementById('call-add-modal').style.display='none';
+    }
     return;
   }
   if(docsEditOpen){
-    document.getElementById('docs-edit-modal').style.display='none';
-    _docsEditFor=null;
+    // Docs editor — save what's typed before closing
+    if(typeof saveDocsEdit==='function'){ saveDocsEdit(); }
+    else { document.getElementById('docs-edit-modal').style.display='none'; _docsEditFor=null; }
+    return;
+  }
+  if(reportDocsEditOpen){
+    if(typeof saveReportDocsEdit==='function'){ saveReportDocsEdit(); }
+    else { document.getElementById('report-docs-edit-modal').style.display='none'; _reportDocsEditFor=null; }
     return;
   }
   if(callSumOpen){
+    // Call summary panel — closing is fine, no edit-in-flight to lose
     if(_callSummaryRecognition){try{_callSummaryRecognition.stop();}catch(e){}}
     _callSummaryRecognition=null;
     document.getElementById('call-summary-modal').style.display='none';
@@ -2910,20 +2925,26 @@ window.addEventListener('popstate',()=>{
     return;
   }
   if(opsEditOpen){
-    document.getElementById('ops-edit-modal').style.display='none';
+    // Ops editor — save before closing
+    if(typeof saveOpsEdit==='function'){ saveOpsEdit(); }
+    else { document.getElementById('ops-edit-modal').style.display='none'; }
     return;
   }
   if(addOpen){
+    // Log "add" modal already auto-saves a draft on close
     saveDraftAndCloseAddLog();
     history.replaceState({page:'log'},'');
     return;
   }
   if(editOpen){
-    document.getElementById('log-edit-modal').classList.remove('open');
+    // Log "edit" modal — save edited text before closing
+    if(typeof saveLogEdit==='function'){ saveLogEdit(); }
+    else { document.getElementById('log-edit-modal').classList.remove('open'); }
     history.replaceState({page:'log'},'');
     return;
   }
   if(viewOpen){
+    // Log viewer — read-only; back just closes it
     document.getElementById('log-modal').classList.remove('open');
     return;
   }
@@ -2941,8 +2962,21 @@ window.addEventListener('popstate',()=>{
     exitTasksSection();
     return;
   }
-  // On the main page — back is a no-op (never exits the app).
+  // On the main page — require 3 consecutive back-presses inside 1.5s to
+  // actually exit. A single back press is easy to hit by accident; this acts
+  // as a built-in "are you sure?" confirmation. Each press shows a toast
+  // telling the user how many more presses are needed.
+  _backPressCount++;
   history.pushState({page:'app'},'');
+  if(_backPressCount<3){
+    showToast(`לחץ ${3-_backPressCount} פעמים נוספות ליציאה`);
+    clearTimeout(_backPressTimer);
+    _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
+    return;
+  }
+  // Three consecutive presses — let the browser actually go back this time.
+  _backPressCount=0;
+  history.back();
 });
 
 /* =========================
