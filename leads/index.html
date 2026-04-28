@@ -314,7 +314,8 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <!-- APP -->
 <div id="app" style="display:none">
   <div class="header">
-    <div class="hdr-right">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-inline-start:24px;">
+    <div class="hdr-right" style="margin-inline-start:auto">
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="lead-count">טוען...</span>
@@ -332,7 +333,6 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       </button>
       <div class="avatar" id="user-avatar" onclick="confirmSignOut()"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;margin-inline-end:60px;">
   </div>
 
   <!-- Tab order in RTL: visually right=המשך, middle=לידים, left=הוסרו -->
@@ -2523,25 +2523,58 @@ if('serviceWorker' in navigator){
     if(!e || !e.data) return;
     if(e.data.kind==='open-lead' && e.data.leadIdx){
       openReminderLead(e.data.leadIdx);
-    } else if(e.data.kind==='open-lead-and-call' && e.data.leadIdx){
-      // The dialer is already opening (or open). We pre-open the call-summary
-      // modal so it's ready when the user comes back from the call.
-      openReminderLead(e.data.leadIdx);
+    } else if(e.data.kind==='call-lead' && e.data.leadIdx){
+      // Dial first, then open the call-summary modal (just like the regular
+      // callLead flow when a user taps the phone icon on a card).
+      const idx=e.data.leadIdx;
+      const phone=e.data.phone||'';
+      const lead=allLeads.find(l=>l.index===idx);
+      if(lead){
+        currentLead={index:idx, name:lead.name, phone:lead.phone};
+        markCalled(idx);
+        if(phone){
+          window.location.href='tel:'+phone.replace(/[^0-9+]/g,'');
+        }
+        // Pop the summary modal so when the user returns from the call the
+        // continue/meeting/reminder/remove buttons are right there.
+        setTimeout(()=>openModal(lead.name), 1800);
+      } else {
+        // Leads not loaded yet — fall back to opening the modal once they are
+        openReminderLead(idx);
+      }
     }
   });
 }
 
 function checkLeadFromHash(){
-  // #lead=NNN  → just open the lead's call-summary modal
-  // #leadAndCall=NNN|+972...  → same, plus we also assume the dialer is open
-  let m=(location.hash||'').match(/lead=(\d+)/);
-  let leadAndCall=(location.hash||'').match(/leadAndCall=(\d+)\|/);
-  if(leadAndCall) m=leadAndCall;
+  // #lead=NNN     → open the lead's call-summary modal
+  // #callLead=NNN|+972...  → dial the phone AND open the modal
+  const hash=location.hash||'';
+  let m=hash.match(/lead=(\d+)/);
+  const callMatch=hash.match(/callLead=(\d+)\|([^&]*)/);
+  if(callMatch){
+    history.replaceState(null,'',location.pathname+location.search);
+    const idx=parseInt(callMatch[1],10);
+    const phone=decodeURIComponent(callMatch[2]||'');
+    const tryCall=()=>{
+      if(allLeads && allLeads.length){
+        const lead=allLeads.find(l=>l.index===idx);
+        if(lead){
+          currentLead={index:idx, name:lead.name, phone:lead.phone};
+          markCalled(idx);
+          if(phone) window.location.href='tel:'+phone.replace(/[^0-9+]/g,'');
+          setTimeout(()=>openModal(lead.name), 1800);
+        }
+      } else {
+        setTimeout(tryCall, 500);
+      }
+    };
+    tryCall();
+    return;
+  }
   if(!m) return;
   const idx=parseInt(m[1],10);
-  // Clear hash so refreshing doesn't keep re-opening
   history.replaceState(null,'',location.pathname+location.search);
-  // Wait for leads to load before opening
   const tryOpen=()=>{
     if(allLeads && allLeads.length){
       openReminderLead(idx);
