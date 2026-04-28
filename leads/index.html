@@ -77,12 +77,12 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lm-red{color:var(--red);}
 
 /* HEADER */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
-.hdr-right{display:flex;gap:8px;align-items:center;}
-.hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;padding:6px 12px;font-family:inherit;display:inline-flex;align-items:center;height:32px;}
-.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.header{background:var(--white);height:96px;padding:0 16px 0 40px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:4px;align-items:center;}
+.hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;font-weight:600;padding:0 5px;font-family:inherit;display:inline-flex;align-items:center;height:26px;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:26px;height:26px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .hdr-btn:active{background:var(--border);}
-.avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar{width:28px;height:28px;border-radius:4px;background:var(--slate);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
@@ -1871,10 +1871,16 @@ function openMeetingFromSummary(){
   if(!currentLead) return;
   const lead=allLeads.find(l=>l.index===currentLead.index);
   if(!lead) return;
-  // Save any typed note before closing — same as saveAndMove does
+  // Save any typed note before closing. saveNote() handles the modal close
+  // and history pop itself, so we just call it. If there's no note we close
+  // manually. AVOID double-popping history (saveNote does its own pop).
   const note=document.getElementById('note-input').value.trim();
-  if(history.state&&history.state.page==='modal') popHistorySilently();
-  if(note) saveNote(); else _closeModalCore();
+  if(note){
+    saveNote();
+  } else {
+    if(history.state&&history.state.page==='modal') popHistorySilently();
+    _closeModalCore();
+  }
   openMeetingDialog(lead.index, lead.name||'', lead.phone||'');
 }
 
@@ -1882,10 +1888,16 @@ function openReminderDialog(){
   if(!currentLead) return;
   const lead=allLeads.find(l=>l.index===currentLead.index);
   if(!lead) return;
-  // Save any typed note before closing — same logic as openMeetingFromSummary
+  // Same as openMeetingFromSummary — let saveNote handle close+pop, or do
+  // it manually if there's nothing to save. Avoids double-pop bug that
+  // would corrupt the history state and break subsequent button clicks.
   const note=document.getElementById('note-input').value.trim();
-  if(history.state&&history.state.page==='modal') popHistorySilently();
-  if(note) saveNote(); else _closeModalCore();
+  if(note){
+    saveNote();
+  } else {
+    if(history.state&&history.state.page==='modal') popHistorySilently();
+    _closeModalCore();
+  }
   _meetingLead=lead;
   _isReminderMode=true;
   // Update the title text to reflect that this is a reminder, not a meeting
@@ -2591,17 +2603,33 @@ function checkLeadFromHash(){
       });
     };
 
+    // Reset all transient styles. Critical: must restore animation+transition
+    // even when the touch was actually a button tap, otherwise future opens
+    // are blank (animation:none stays set forever) and subsequent button
+    // clicks may be inert because of stale inline styles.
+    const resetStyles=()=>{
+      sheet.style.animation='';
+      sheet.style.transition='';
+      sheet.style.transform='';
+    };
+
     const onStart=e=>{
       if(modalEl.style.display==='none' && !modalEl.classList.contains('open')) return;
+      // Don't intercept touches that started on form controls or buttons —
+      // we don't want to disable their animation/click for a drag that
+      // probably won't happen.
+      const t=e.target;
+      if(t && (t.closest('button') || t.closest('input') || t.closest('textarea') || t.closest('select') || t.closest('a') || t.closest('[role="button"]'))){
+        dragging=false;
+        return;
+      }
       startY=e.touches[0].clientY;
       startX=e.touches[0].clientX;
       lastY=startY;
       startTime=Date.now();
       dragging=true;
       gestureCommitted=false;
-      // Kill any in-flight animation/transition so our drag isn't fighting it.
-      // The slideUp keyframe animation that runs on .modal-sheet open can
-      // still be active when the user starts dragging immediately.
+      // Kill any in-flight animation/transition so our drag isn't fighting it
       sheet.style.animation='none';
       sheet.style.transition='none';
     };
@@ -2611,14 +2639,16 @@ function checkLeadFromHash(){
       lastY=e.touches[0].clientY;
       const dy=lastY-startY;
       const dx=Math.abs(e.touches[0].clientX-startX);
-      // Wait until the gesture clearly looks like a vertical drag before
-      // claiming it. Prevents taps & horizontal scrolls from triggering close.
+      // Wait until movement clearly looks like a vertical drag
       if(!gestureCommitted){
         if(dy<8 && dx<8) return;
-        if(dx>Math.abs(dy)){ dragging=false; sheet.style.animation=''; return; }
+        if(dx>Math.abs(dy)){
+          // Horizontal — abort and restore styles
+          dragging=false;
+          resetStyles();
+          return;
+        }
         gestureCommitted=true;
-        // Dismiss the keyboard if open so the sheet visually moves under
-        // the user's finger immediately.
         const focused=document.activeElement;
         if(focused && (focused.tagName==='TEXTAREA' || focused.tagName==='INPUT')){
           focused.blur();
@@ -2631,30 +2661,25 @@ function checkLeadFromHash(){
       if(!dragging) return;
       dragging=false;
       if(pendingFrame!==null){ cancelAnimationFrame(pendingFrame); pendingFrame=null; }
-      // Restore animation property (cleared in onStart) so future opens animate
-      sheet.style.animation='';
-      if(!gestureCommitted){ sheet.style.transform=''; return; }
+      if(!gestureCommitted){
+        // No actual drag — fully restore styles so buttons + future opens work
+        resetStyles();
+        return;
+      }
       const dy=lastY-startY;
       const dt=Math.max(1, Date.now()-startTime);
       const velocity=dy/dt;
-      // Smooth transition for either close or snap-back
       sheet.style.transition='transform 0.22s cubic-bezier(.32,.72,0,1)';
       if(dy>80 || velocity>0.5){
-        // Close: slide all the way down, then call closer + reset
         sheet.style.transform='translateY(100%)';
         const closer=closerMap[modalId];
         setTimeout(()=>{
-          sheet.style.transition='';
-          sheet.style.transform='';
+          resetStyles();
           if(closer) closer();
         }, 220);
       } else {
-        // Snap back smoothly to resting position
         sheet.style.transform='translateY(0)';
-        setTimeout(()=>{
-          sheet.style.transition='';
-          sheet.style.transform='';
-        }, 230);
+        setTimeout(resetStyles, 230);
       }
     };
 
