@@ -136,19 +136,25 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .call-btn.done{background:var(--green);border-color:var(--green);color:#fff;}
 .note-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
 .cal-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+/* Anonymous-call button — smaller, with a tiny "31" badge to indicate
+   anonymous mode. Triggers callLeadAnonymous which prefixes #31#. */
+.anon-btn{position:relative;width:32px;height:32px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 2px rgba(0,0,0,0.06);padding:0;}
+.anon-btn svg{width:14px !important;height:14px !important;}
+.anon-btn:active{transform:scale(.92);background:var(--bg);}
+.anon-badge{position:absolute;top:-4px;left:-4px;background:#3a3a48;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:8px;line-height:1;font-family:inherit;}
 /* Custom date/time picker stepper buttons — large tap targets for hands-busy use */
 .picker-btn{width:100%;min-height:44px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;color:var(--slate);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 .picker-btn:active{background:var(--slate);color:#fff;transform:scale(.96);}
 /* Visual calendar grid in meeting dialog — Sunday-first */
 .cal-dow{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:6px 0;}
-.cal-day{height:46px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:16px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
+.cal-day{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
 .cal-day:active{transform:scale(.94);}
 .cal-day.empty{visibility:hidden;}
 .cal-day.today{border-color:var(--slate);}
 .cal-day.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
 .cal-day.past{color:var(--muted);background:#f5f5f5;}
 /* Time slot grid (half-hour buttons 08:00–20:00) */
-.time-slot{height:46px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:15px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;direction:ltr;}
+.time-slot{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;direction:ltr;}
 .time-slot:active{transform:scale(.94);}
 .time-slot.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
 .cal-btn:active{transform:scale(.92);background:var(--bg);}
@@ -453,61 +459,55 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <!-- MEETING DIALOG — schedule a 1-hour meeting; writes to columns X, Y, Z -->
 <!-- MEETING DIALOG — larger fields and buttons for quick interaction (e.g. while driving) -->
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
-  <div class="modal-sheet" style="padding:18px 16px 22px;padding-bottom:calc(22px + env(safe-area-inset-bottom));max-height:94dvh;overflow-y:auto;">
+  <div class="modal-sheet" style="padding:10px 12px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:100dvh;overflow:hidden;">
     <div class="mhandle"></div>
-    <div class="mtitle" style="font-size:19px;font-weight:700;margin-bottom:4px">קביעת פגישה</div>
-    <div class="msub" id="meeting-name" style="font-size:14px;color:var(--slate);margin-bottom:14px;font-weight:600"></div>
-
-    <!-- Section: VISUAL CALENDAR -->
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <button type="button" onclick="navMonth(-1)" class="picker-btn" style="width:46px;min-height:46px;font-size:22px">‹</button>
-        <div id="cal-title" style="flex:1;text-align:center;font-size:18px;font-weight:700;color:var(--slate)">—</div>
-        <button type="button" onclick="navMonth(1)" class="picker-btn" style="width:46px;min-height:46px;font-size:22px">›</button>
-      </div>
-      <!-- Day-of-week header — Sunday first -->
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:4px">
-        <div class="cal-dow">א'</div>
-        <div class="cal-dow">ב'</div>
-        <div class="cal-dow">ג'</div>
-        <div class="cal-dow">ד'</div>
-        <div class="cal-dow">ה'</div>
-        <div class="cal-dow">ו'</div>
-        <div class="cal-dow">ש'</div>
-      </div>
-      <!-- Calendar days grid — populated by renderCalendar() -->
-      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+      <div style="font-size:16px;font-weight:700">קביעת פגישה</div>
+      <div id="meeting-name" style="font-size:12px;color:var(--slate);font-weight:600;flex:1;text-align:start;margin-inline-start:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
     </div>
 
-    <!-- Section: TIME SLOTS — half-hours from 08:00 to 20:00 -->
-    <div style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <label style="font-size:14px;font-weight:700;color:var(--slate)">שעת התחלה</label>
-        <div style="font-size:18px;font-weight:700;color:var(--slate);background:var(--bg);border:1px solid var(--border);padding:6px 12px" id="time-current">--:--</div>
-      </div>
-      <div id="time-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"></div>
-      <!-- Manual entry row — for times outside the preset range or odd minutes -->
-      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--bg);border:1px solid var(--border);padding:10px;direction:ltr">
-        <span style="font-size:12px;color:var(--muted);font-weight:600;writing-mode:horizontal-tb">או הזן ידנית:</span>
-        <input type="number" id="manual-hour" min="0" max="23" placeholder="HH" style="width:70px;padding:10px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
-        <span style="font-size:24px;font-weight:700;color:var(--slate)">:</span>
-        <input type="number" id="manual-minute" min="0" max="59" placeholder="MM" style="width:70px;padding:10px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
-      </div>
+    <!-- Section: VISUAL CALENDAR (compact) -->
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <button type="button" onclick="navMonth(-1)" class="picker-btn" style="width:36px;min-height:30px;font-size:18px">‹</button>
+      <div id="cal-title" style="flex:1;text-align:center;font-size:14px;font-weight:700;color:var(--slate)">—</div>
+      <button type="button" onclick="navMonth(1)" class="picker-btn" style="width:36px;min-height:30px;font-size:18px">›</button>
     </div>
+    <!-- Day-of-week header — Sunday first -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">א'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ב'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ג'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ד'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ה'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ו'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ש'</div>
+    </div>
+    <!-- Calendar days grid — compact 32px rows -->
+    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
 
-    <!-- end time preview -->
-    <div style="background:var(--bg);padding:12px 14px;border:1px solid var(--border);font-size:14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <span style="color:var(--muted);font-weight:600">שעת סיום (+1 שעה)</span>
-      <span id="meeting-end-preview" style="font-weight:700;color:var(--slate);font-size:20px">—</span>
+    <!-- Section: TIME SLOTS — half-hours, compact 6 columns -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <label style="font-size:12px;font-weight:700;color:var(--slate)">שעת התחלה</label>
+      <div style="font-size:14px;font-weight:700;color:var(--slate);background:var(--bg);border:1px solid var(--border);padding:2px 8px" id="time-current">--:--</div>
+    </div>
+    <div id="time-slots" style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:6px"></div>
+
+    <!-- Manual entry — single tight row -->
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:var(--bg);border:1px solid var(--border);padding:6px 8px;direction:ltr">
+      <span style="font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0">ידני:</span>
+      <input type="number" id="manual-hour" min="0" max="23" placeholder="HH" style="width:50px;padding:4px;background:var(--white);border:1px solid var(--border);font-size:14px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
+      <span style="font-size:14px;font-weight:700;color:var(--slate)">:</span>
+      <input type="number" id="manual-minute" min="0" max="59" placeholder="MM" style="width:50px;padding:4px;background:var(--white);border:1px solid var(--border);font-size:14px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
+      <span style="margin-inline-start:auto;font-size:11px;color:var(--muted);font-weight:600">סיום: <span id="meeting-end-preview" style="color:var(--slate);font-weight:700">—</span></span>
     </div>
 
     <!-- hidden inputs the saveMeeting code reads -->
     <input type="hidden" id="meeting-date"/>
     <input type="hidden" id="meeting-start"/>
 
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-save" style="flex:1.4;padding:18px 12px;font-size:17px;font-weight:700" onclick="saveMeeting()">שמור פגישה</button>
-      <button class="btn btn-skip" style="flex:1;padding:18px 12px;font-size:16px;font-weight:600" onclick="closeMeetingDialog()">ביטול</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-save" style="flex:1.4;padding:12px;font-size:15px;font-weight:700" onclick="saveMeeting()">שמור פגישה</button>
+      <button class="btn btn-skip" style="flex:1;padding:12px;font-size:14px;font-weight:600" onclick="closeMeetingDialog()">ביטול</button>
     </div>
   </div>
 </div>
@@ -1252,8 +1252,9 @@ function renderLeadCard(l,kind){
       ${label}
       ${latestBody?`<div class="lead-preview">${esc(latestBody)}</div>`:''}
     </div>
-    <div style="display:flex;gap:6px;flex-shrink:0;">
+    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
       ${actionBtn}
+      ${kind!=='removed' ? `<button class="anon-btn" onclick="event.stopPropagation();callLeadAnonymous(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="התקשר חסוי (#31#)">${ICON.phone}<span class="anon-badge">31</span></button>` : ''}
       ${kind!=='removed' ? `<button class="cal-btn" onclick="event.stopPropagation();openMeetingDialog(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="קבע פגישה">${ICON.calendar}</button>` : ''}
       ${kind!=='removed' ? `<button class="note-btn" onclick="event.stopPropagation();openLogView(${l.index})" title="סיכומי שיחות">${ICON.noteAdd}</button>` : ''}
       ${kind!=='removed' ? `<button class="wa-btn" onclick="event.stopPropagation();openWA('${ej(l.phone)}')" title="WhatsApp">${ICON.whatsapp}</button>` : ''}
@@ -1512,6 +1513,16 @@ function callLead(idx,name,phone){
   currentLead={index:idx,name,phone};
   markCalled(idx);
   window.location.href='tel:'+phone.replace(/[^0-9+]/g,'');
+  setTimeout(()=>openModal(name),1800);
+}
+// Anonymous call variant — prefixes the Israeli "block caller ID for this call"
+// code (#31#) so the recipient sees "Unknown number". Same call-summary flow
+// afterwards. The "%23" is the URL-encoded form of "#" (mandatory in tel: URIs).
+function callLeadAnonymous(idx,name,phone){
+  currentLead={index:idx,name,phone};
+  markCalled(idx);
+  const cleaned=phone.replace(/[^0-9+]/g,'');
+  window.location.href='tel:%2331%23'+cleaned;
   setTimeout(()=>openModal(name),1800);
 }
 // Open the same summary modal but WITHOUT making a phone call.
