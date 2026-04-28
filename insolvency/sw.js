@@ -1,5 +1,5 @@
 // Service worker for the INSOLVENCY app
-const CACHE_NAME = 'at-insolvency-v34';
+const CACHE_NAME = 'at-insolvency-v35';
 const ASSETS = [
   './',
   './index.html',
