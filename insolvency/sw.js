@@ -1,5 +1,5 @@
 // Service worker for the INSOLVENCY app
-const CACHE_NAME = 'at-insolvency-v37';
+const CACHE_NAME = 'at-insolvency-v38';
 const ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Allow the page to instruct us to skip waiting and become active right now.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 function isLiveDataHost(url) {
   return (
     url.includes('googleapis.com') ||
@@ -44,7 +51,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+  // Network-first for HTML and JS so updates appear without waiting for a
+  // SW reinstall. Falls back to cache only when offline.
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || /\.(html|js)(\?|$)/.test(url)) {
     event.respondWith(
       fetch(req)
         .then((res) => {
