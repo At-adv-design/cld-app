@@ -119,7 +119,10 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lead-row{padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;position:relative;}
 /* Small "joined on" date badge in the top-right corner of each lead row.
    Pulled from the earliest timestamp in the audit log. Hidden if no log. */
-.lead-entry-date{position:absolute;top:6px;left:8px;font-size:9px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:2px;font-weight:600;line-height:1.4;pointer-events:none;}
+/* Small "joined on" date badge in the top-right corner of each lead row.
+   Pulled from the earliest timestamp in the audit log. Hidden if no log.
+   In RTL "top-right" is the visual right side, so we use right:8px. */
+.lead-entry-date{position:absolute;top:6px;right:8px;font-size:9px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:2px;font-weight:600;line-height:1.4;pointer-events:none;z-index:3;}
 /* Call-count dot indicator — sits above the lead row, spanning its full width.
    Each dot = one call attempt. Grey = empty slot, red = call made.
    direction:ltr so the dots fill left→right consistently regardless of RTL parent. */
@@ -1306,7 +1309,9 @@ function renderLeadCard(l,kind){
 
   let actionBtn;
   if(kind==='removed'){
-    actionBtn=`<button class="restore-btn" onclick="event.stopPropagation();restoreLead(${l.index})" title="שחזר">${ICON.restore}</button>`;
+    // No restore button — swipe right (with green "השב ללידים" background)
+    // is the only restore action.
+    actionBtn='';
   } else {
     // Phone icon stays neutral always — the call indicator is the dot row
     // above the lead's name (filled red dots = past calls). No green color
@@ -1328,7 +1333,7 @@ function renderLeadCard(l,kind){
       ${label}
       ${latestBody?`<div class="lead-preview">${esc(latestBody)}</div>`:''}
     </div>
-    ${l.entryDate?`<div class="lead-entry-date" title="תאריך כניסה למערכת">${esc(l.entryDate)}</div>`:''}
+    ${l.entryDate?`<div class="lead-entry-date" title="תאריך כניסה למערכת">${esc(l.entryDate)}</div>`:`<div class="lead-entry-date" style="color:var(--green);border-color:var(--green)" title="ליד חדש">חדש</div>`}
     <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
       ${actionBtn}
       ${kind!=='removed' ? `<button class="anon-btn" onclick="event.stopPropagation();callLeadAnonymous(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="התקשר חסוי (#31#)">${ICON.phone}</button>` : ''}
@@ -1395,12 +1400,16 @@ function renderRemoved(leads){
   list.innerHTML='';
   if(!leads.length){list.innerHTML='<div class="empty">אין לידים שהוסרו</div>';return;}
   leads.forEach(l=>{
-    // Removed tab keeps the original behavior — no swipe, just a restore button (✓).
-    const d=document.createElement('div');
-    d.className='lead-card'+(l.note?' has-note':'')+(expandedSet.has(l.index)?' expanded':'');
-    d.id='removed-card-'+l.index;
-    d.innerHTML=renderLeadCard(l,'removed');
-    list.appendChild(d);
+    // Removed tab now supports swipe-right to restore (back to active).
+    // No restore button on the card — the swipe IS the action.
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML=`<div class="swipe-bg left" style="background:var(--bg)"></div><div class="swipe-bg right" style="background:var(--green)">השב ללידים</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}" id="removed-card-${l.index}">
+        ${renderLeadCard(l,'removed')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'removed');
   });
 }
 
@@ -1448,6 +1457,11 @@ function initSwipe(wrap,idx,kind){
         } else if(kind==='continue'){
           if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
           else          setLeadStatus(idx,STATUS_ACTIVE,'ליד הוחזר ללידים');
+        } else if(kind==='removed'){
+          // From "removed": only swipe-right is a meaningful action (restore).
+          // Swipe-left does nothing — snap back instead.
+          if(!goingLeft) setLeadStatus(idx,STATUS_ACTIVE,'ליד הוחזר ללידים');
+          else { content.style.transform=''; bgL.style.opacity=0; bgR.style.opacity=0; }
         }
       },220);
     } else {
