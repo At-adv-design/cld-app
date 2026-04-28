@@ -701,6 +701,9 @@ const C_REP_DATES=[39,41,43,45,47,49]; // AN AP AR AT AV AX
 const C_REP_STATUS=[40,42,44,46,48,50]; // AO AQ AS AU AW AY
 
 let accessToken=null,allClients=[],expandedSet=new Set();
+// Collection total — read from cell T1 in the spreadsheet on every load.
+// Apps Script keeps T1 updated based on T-cell background colors.
+let _t1Value=0;
 let waitingSet=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
 let curTab='main';
 // Tasks section (hidden by 4 logo taps)
@@ -1088,7 +1091,14 @@ async function loadData(){
     const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:GZ?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
-    const rows=(data.values||[]).slice(2);
+    const allRows=(data.values||[]);
+    // T1 (row 1, col 20 = index 19) holds the live collection total computed
+    // by the spreadsheet's Apps Script (updateRedSum: sum of S where T-cell
+    // background is red). We read it here and use it directly instead of
+    // recomputing — the Apps Script has access to cell colors which we don't.
+    const t1Row=allRows[0]||[];
+    _t1Value=parseFloat((t1Row[19]||'').toString().replace(/[^0-9.\-]/g,''))||0;
+    const rows=allRows.slice(2);
     allClients=rows.map((row,i)=>parseClient(row,i+3)).filter(c=>c&&c.name&&c.name.trim());
     const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
     document.getElementById('total-count').textContent=active.length;
@@ -1377,23 +1387,17 @@ function updateStats(active){
 function updateCollectionStats(active){
   const collClients=active.filter(c=>c.inCollection);
   const totalMissed=collClients.reduce((s,c)=>s+c.missedPayments,0);
-  // Total still owed THIS MONTH = sum of monthly fees (S) for clients whose
-  // current-month payment cell (T) is empty or 0 — i.e. they haven't paid
-  // yet. Clients who paid this month are excluded even if they have past
-  // missed payments. This matches what the user asked for: "the amount
-  // remaining to be paid this month".
-  const totalAmount=collClients.reduce((s,c)=>{
-    const paid=(c.currentPayment||'').toString().replace(/[^0-9.]/g,'');
-    const paidNum=paid?parseFloat(paid):0;
-    if(!paid || paidNum===0) return s + c.monthlyAmount;
-    return s;
-  },0);
+  // Total still owed THIS MONTH is computed by the spreadsheet's Apps Script
+  // (the updateRedSum function): it sums column S for every row where the T
+  // cell has a red background. The result is written to T1. We just read T1
+  // here — it's already correct, kept up-to-date by onEdit triggers.
+  const t1Value = (typeof _t1Value!=='undefined' && _t1Value!=null) ? _t1Value : 0;
   const cEl=document.getElementById('s-coll-clients');
   const mEl=document.getElementById('s-coll-missed');
   const tEl=document.getElementById('s-coll-total');
   if(cEl) cEl.textContent=collClients.length+' לקוחות';
   if(mEl) mEl.textContent=totalMissed+' פיגורים';
-  if(tEl) tEl.textContent='₪'+totalAmount.toLocaleString('he-IL');
+  if(tEl) tEl.textContent='₪'+Number(t1Value||0).toLocaleString('he-IL');
 }
 
 // Switch the visible group inside the stats bar based on the current mode.
