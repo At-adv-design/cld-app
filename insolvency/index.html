@@ -2954,27 +2954,40 @@ window.addEventListener('popstate',()=>{
     const modalEl=document.getElementById(modalId);
     if(!modalEl) return;
     const sheet=modalEl.querySelector('.log-sheet, .modal-sheet, .log-fullscreen-sheet') || modalEl.firstElementChild || modalEl;
-    let startY=0, lastY=0, dragging=false, startTime=0;
+    let startY=0, startX=0, lastY=0, dragging=false, startTime=0, gestureCommitted=false;
     const isOpen=()=> getComputedStyle(modalEl).display !== 'none';
     const onStart=e=>{
       if(!isOpen()) return;
-      const t=e.target;
-      if(t.closest('input,textarea,select,button')) return;
       startY=e.touches[0].clientY;
+      startX=e.touches[0].clientX;
       lastY=startY;
       startTime=Date.now();
       dragging=true;
+      gestureCommitted=false;
       sheet.style.transition='none';
     };
     const onMove=e=>{
       if(!dragging) return;
       lastY=e.touches[0].clientY;
-      const dy=Math.max(0, lastY-startY);
-      sheet.style.transform=`translateY(${dy}px)`;
+      const dy=lastY-startY;
+      const dx=Math.abs(e.touches[0].clientX-startX);
+      if(!gestureCommitted){
+        if(dy<8 && dx<8) return;
+        if(dx>Math.abs(dy)){ dragging=false; return; }
+        gestureCommitted=true;
+        // Dismiss the keyboard if it's open so the sheet can move under the finger
+        const focused=document.activeElement;
+        if(focused && (focused.tagName==='TEXTAREA' || focused.tagName==='INPUT')){
+          focused.blur();
+        }
+      }
+      const v=Math.max(0, dy);
+      sheet.style.transform=`translateY(${v}px)`;
     };
     const onEnd=()=>{
       if(!dragging) return;
       dragging=false;
+      if(!gestureCommitted){ sheet.style.transform=''; return; }
       const dy=lastY-startY;
       const dt=Math.max(1, Date.now()-startTime);
       const velocity=dy/dt;
