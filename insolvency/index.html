@@ -99,18 +99,20 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .search-box input::placeholder{color:var(--muted);}
 .filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
 /* When a filter row has an active (non-"all") value, pin it to the header
-   so it stays visible while scrolling. Multiple active filter rows stack
-   under one another. The base padding/background match .filters-wrap so
-   it looks identical when pinned vs. inline. */
+   so it stays visible even after the rest of the shell slides away.
+   We use position:fixed so it's truly anchored to the top of the viewport
+   regardless of what its parent (.filters-wrap) is doing. JS positions
+   them in a stack starting from top:0. */
 .filter-row.filter-active{
-  position:sticky;
-  top:137px;
+  position:fixed;
+  left:0;
+  right:0;
   z-index:97;
   background:var(--white);
   border-bottom:1px solid var(--border);
   padding:8px 14px;
-  margin:0 -14px;
   box-shadow:0 2px 4px rgba(0,0,0,0.04);
+  /* top is set by JS (stackActiveFilterRows) */
 }
 .filter-label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
 .chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .12s;white-space:nowrap;}
@@ -1348,6 +1350,9 @@ function parseClient(row,rowNum){
   //   service: BG (mailed)            → BG+45 (last)
   const alRaw=g(C_AL);                            // AL = inj end date raw
   const bgRaw=g(C_BG);                            // BG = service mailed date
+  // BD (index 55) — free-text tag for the service section. We take the
+  // FIRST LINE only (split on \n) and clip later in the template to fit.
+  const bdRaw=(g(55)||'').split(/\r?\n/)[0].trim();
   const agDate=parseDate(docsAGRaw),aeDate=parseDate(g(C_DOCS_AE));
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
@@ -1401,7 +1406,7 @@ function parseClient(row,rowNum){
   return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
     // Raw values used by the inline edit buttons in each section
-    docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, srvDeadline,
+    docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, bdRaw, srvDeadline,
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
@@ -1479,6 +1484,7 @@ function setReportFilter(val,el){
   // scroll away again like normal.
   const row=el.closest('.filter-row');
   if(row) row.classList.toggle('filter-active', val!=='all');
+  stackActiveFilterRows();
   applyFilters();
 }
 function setF(type,val){
@@ -1495,6 +1501,7 @@ function setF(type,val){
     const row=activeEl.closest('.filter-row');
     if(row) row.classList.toggle('filter-active', val!=='all');
   }
+  stackActiveFilterRows();
   applyFilters();
 }
 function applyFilters(){
@@ -1576,7 +1583,23 @@ function setCollFilter(val,el){
   el.classList.add('active');
   const row=el.closest('.filter-row');
   if(row) row.classList.toggle('filter-active', val!=='all');
+  stackActiveFilterRows();
   applyFilters();
+}
+
+/* Position any .filter-row.filter-active elements as a vertical stack
+   pinned to the very top of the viewport, so when the user scrolls and
+   the header slides away, the chosen filters stay visible. Each row's
+   `top` is set inline to the cumulative height of preceding rows. */
+function stackActiveFilterRows(){
+  const rows=document.querySelectorAll('.filter-row.filter-active');
+  let offset=0;
+  rows.forEach(r=>{
+    r.style.top=offset+'px';
+    // After this paint, measure the row's height so the next one stacks
+    // correctly underneath it. We use offsetHeight which forces a layout.
+    offset += r.offsetHeight || 36;
+  });
 }
 
 function updateStats(active){
@@ -1774,8 +1797,13 @@ function renderCards(clients){
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-            <div class="section-title" style="color:var(--slate);margin-bottom:0">אישורי מסירה</div>
-            ${c.srvDeadline?`<div style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${c.srvDeadline}</div>`:''}
+            <!-- Title + BD column free-text tag, all on one line. The tag
+                 takes the leftover space and gets ellipsis when too long. -->
+            <div style="display:flex;align-items:baseline;gap:6px;flex:1;min-width:0">
+              <span class="section-title" style="color:var(--slate);margin-bottom:0;flex-shrink:0">אישורי מסירה:</span>
+              <span style="font-size:11px;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1" title="${esc(c.bdRaw||'')}">${esc(c.bdRaw||'')}</span>
+            </div>
+            ${c.srvDeadline?`<div style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;flex-shrink:0">תאריך אחרון: ${c.srvDeadline}</div>`:''}
           </div>
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
           <div class="section-controls">
