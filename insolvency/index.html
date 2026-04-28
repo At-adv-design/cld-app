@@ -63,6 +63,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 /* FILTERS */
 .filters-wrap{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+/* Search bar sticks under the tabs while scrolling the cards list. */
+.search-sticky{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px 8px;position:sticky;top:137px;z-index:98;}
 .search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
 .search-box:focus-within{border-color:var(--slate);}
 .search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
@@ -294,11 +296,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 
   <div id="main-section">
-    <div class="filters-wrap">
+    <!-- Sticky search bar — stays visible while the user scrolls the cards list. -->
+    <div class="search-sticky">
       <div class="search-box">
         <span style="color:var(--muted);display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
         <input type="search" id="search" placeholder="חיפוש שם לקוח או מספר תיק..." oninput="applyFilters()"/>
       </div>
+    </div>
+    <div class="filters-wrap">
       <div class="filter-row">
         <span class="filter-label">דוחות פתוחים:</span>
         <div class="filter-chips" id="report-chips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;flex:1;">
@@ -2955,7 +2960,17 @@ window.addEventListener('popstate',()=>{
     if(!modalEl) return;
     const sheet=modalEl.querySelector('.log-sheet, .modal-sheet, .log-fullscreen-sheet') || modalEl.firstElementChild || modalEl;
     let startY=0, startX=0, lastY=0, dragging=false, startTime=0, gestureCommitted=false;
+    let pendingFrame=null;
     const isOpen=()=> getComputedStyle(modalEl).display !== 'none';
+
+    const applyTransform=(translateY)=>{
+      if(pendingFrame!==null) cancelAnimationFrame(pendingFrame);
+      pendingFrame=requestAnimationFrame(()=>{
+        pendingFrame=null;
+        sheet.style.transform=`translateY(${Math.max(0,translateY)}px)`;
+      });
+    };
+
     const onStart=e=>{
       if(!isOpen()) return;
       startY=e.touches[0].clientY;
@@ -2964,6 +2979,7 @@ window.addEventListener('popstate',()=>{
       startTime=Date.now();
       dragging=true;
       gestureCommitted=false;
+      sheet.style.animation='none';
       sheet.style.transition='none';
     };
     const onMove=e=>{
@@ -2973,35 +2989,39 @@ window.addEventListener('popstate',()=>{
       const dx=Math.abs(e.touches[0].clientX-startX);
       if(!gestureCommitted){
         if(dy<8 && dx<8) return;
-        if(dx>Math.abs(dy)){ dragging=false; return; }
+        if(dx>Math.abs(dy)){ dragging=false; sheet.style.animation=''; return; }
         gestureCommitted=true;
-        // Dismiss the keyboard if it's open so the sheet can move under the finger
         const focused=document.activeElement;
         if(focused && (focused.tagName==='TEXTAREA' || focused.tagName==='INPUT')){
           focused.blur();
         }
       }
-      const v=Math.max(0, dy);
-      sheet.style.transform=`translateY(${v}px)`;
+      applyTransform(dy);
     };
     const onEnd=()=>{
       if(!dragging) return;
       dragging=false;
+      if(pendingFrame!==null){ cancelAnimationFrame(pendingFrame); pendingFrame=null; }
+      sheet.style.animation='';
       if(!gestureCommitted){ sheet.style.transform=''; return; }
       const dy=lastY-startY;
       const dt=Math.max(1, Date.now()-startTime);
       const velocity=dy/dt;
-      sheet.style.transition='transform 0.18s ease-out';
+      sheet.style.transition='transform 0.22s cubic-bezier(.32,.72,0,1)';
       if(dy>80 || velocity>0.5){
-        sheet.style.transform=`translateY(100%)`;
+        sheet.style.transform='translateY(100%)';
         const closer=closerMap[modalId];
         setTimeout(()=>{
           sheet.style.transition='';
           sheet.style.transform='';
           if(closer) closer();
-        }, 180);
+        }, 220);
       } else {
-        sheet.style.transform='';
+        sheet.style.transform='translateY(0)';
+        setTimeout(()=>{
+          sheet.style.transition='';
+          sheet.style.transform='';
+        }, 230);
       }
     };
     sheet.addEventListener('touchstart', onStart, {passive:true});
