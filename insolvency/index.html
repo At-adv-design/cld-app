@@ -1377,7 +1377,17 @@ function updateStats(active){
 function updateCollectionStats(active){
   const collClients=active.filter(c=>c.inCollection);
   const totalMissed=collClients.reduce((s,c)=>s+c.missedPayments,0);
-  const totalAmount=collClients.reduce((s,c)=>s+(c.monthlyAmount*c.missedPayments),0);
+  // Total still owed THIS MONTH = sum of monthly fees (S) for clients whose
+  // current-month payment cell (T) is empty or 0 — i.e. they haven't paid
+  // yet. Clients who paid this month are excluded even if they have past
+  // missed payments. This matches what the user asked for: "the amount
+  // remaining to be paid this month".
+  const totalAmount=collClients.reduce((s,c)=>{
+    const paid=(c.currentPayment||'').toString().replace(/[^0-9.]/g,'');
+    const paidNum=paid?parseFloat(paid):0;
+    if(!paid || paidNum===0) return s + c.monthlyAmount;
+    return s;
+  },0);
   const cEl=document.getElementById('s-coll-clients');
   const mEl=document.getElementById('s-coll-missed');
   const tEl=document.getElementById('s-coll-total');
