@@ -91,7 +91,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
 
 /* SEARCH */
-.search-wrap{background:var(--white);padding:10px 14px;border-bottom:1px solid var(--border);}
+.search-wrap{background:var(--white);padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:137px;z-index:98;}
 .search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
 .search-box:focus-within{border-color:var(--slate);}
 .search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
@@ -313,7 +313,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 
 <!-- APP -->
 <div id="app" style="display:none">
-  <div class="header" style="padding:0 12px;gap:8px">
+  <div class="header">
     <div class="hdr-right">
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
@@ -332,7 +332,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       </button>
       <div class="avatar" id="user-avatar" onclick="confirmSignOut()"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" style="height:75px;object-fit:contain;margin-inline-end:6px;flex-shrink:1;min-width:0;">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;">
   </div>
 
   <!-- Tab order in RTL: visually right=המשך, middle=לידים, left=הוסרו -->
@@ -511,6 +511,11 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
         <div style="font-size:16px;font-weight:700">קביעת פגישה</div>
         <div id="meeting-name" style="font-size:12px;color:var(--slate);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
       </div>
+      <!-- Optional short note for reminders. Shown only in reminder mode
+           (toggled by openReminderDialog). The text is saved with the
+           reminder and appears in the reminders list AND in the system
+           notification body so the user sees it at a glance. -->
+      <input type="text" id="reminder-note" placeholder="הערה (אופציונלי)" maxlength="80" style="display:none;flex:1;min-width:0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-family:inherit;color:var(--text);text-align:right"/>
       <button class="btn btn-save" style="padding:9px 18px;font-size:14px;font-weight:700;width:auto;flex-shrink:0" onclick="saveMeeting()">שמור פגישה</button>
     </div>
 
@@ -1891,6 +1896,9 @@ function openReminderDialog(){
     const saveBtn=sheet.querySelector('.btn-save');
     if(saveBtn) saveBtn.textContent='שמור תזכורת';
   }
+  // Show the optional note field — only relevant for reminders
+  const noteEl=document.getElementById('reminder-note');
+  if(noteEl){ noteEl.style.display=''; noteEl.value=''; }
   document.getElementById('meeting-name').textContent=lead.name+(lead.phone?` • ${lead.phone}`:'');
   // Default selection — today
   const now=new Date();
@@ -1925,6 +1933,9 @@ function openMeetingDialog(idx,name,phone){
     const saveBtn=sheet.querySelector('.btn-save');
     if(saveBtn) saveBtn.textContent='שמור פגישה';
   }
+  // Hide reminder-only note input
+  const noteEl=document.getElementById('reminder-note');
+  if(noteEl){ noteEl.style.display='none'; noteEl.value=''; }
   document.getElementById('meeting-name').textContent=name+(phone?` • ${phone}`:'');
   // Default selection — today + the next half-hour slot
   const now=new Date();
@@ -2566,9 +2577,20 @@ function checkLeadFromHash(){
   function attach(modalId){
     const modalEl=document.getElementById(modalId);
     if(!modalEl) return;
-    // The drag target is the inner sheet (so dragging the BG dim doesn't move it)
     const sheet=modalEl.querySelector('.modal-sheet, .log-fullscreen-sheet') || modalEl;
     let startY=0, startX=0, lastY=0, dragging=false, startTime=0, gestureCommitted=false;
+    let pendingFrame=null;
+
+    // Coalesce touchmove updates into one paint per frame so dragging is
+    // perfectly smooth on mobile (touchmove fires faster than 60Hz).
+    const applyTransform=(translateY)=>{
+      if(pendingFrame!==null) cancelAnimationFrame(pendingFrame);
+      pendingFrame=requestAnimationFrame(()=>{
+        pendingFrame=null;
+        sheet.style.transform=`translateY(${Math.max(0,translateY)}px)`;
+      });
+    };
+
     const onStart=e=>{
       if(modalEl.style.display==='none' && !modalEl.classList.contains('open')) return;
       startY=e.touches[0].clientY;
@@ -2577,51 +2599,65 @@ function checkLeadFromHash(){
       startTime=Date.now();
       dragging=true;
       gestureCommitted=false;
+      // Kill any in-flight animation/transition so our drag isn't fighting it.
+      // The slideUp keyframe animation that runs on .modal-sheet open can
+      // still be active when the user starts dragging immediately.
+      sheet.style.animation='none';
       sheet.style.transition='none';
     };
+
     const onMove=e=>{
       if(!dragging) return;
       lastY=e.touches[0].clientY;
       const dy=lastY-startY;
       const dx=Math.abs(e.touches[0].clientX-startX);
-      // Wait until movement clearly looks like a vertical drag before claiming
-      // it. This way a tap or horizontal scroll inside a textarea doesn't
-      // accidentally trigger close.
+      // Wait until the gesture clearly looks like a vertical drag before
+      // claiming it. Prevents taps & horizontal scrolls from triggering close.
       if(!gestureCommitted){
-        if(dy<8 && dx<8) return; // not enough movement yet
-        if(dx>Math.abs(dy)){ dragging=false; return; } // horizontal — not us
+        if(dy<8 && dx<8) return;
+        if(dx>Math.abs(dy)){ dragging=false; sheet.style.animation=''; return; }
         gestureCommitted=true;
-        // Commit: dismiss the keyboard so the user sees the sheet move under
-        // their finger. Without this, the first downward drag only closes the
-        // keyboard and the user has to drag a second time.
+        // Dismiss the keyboard if open so the sheet visually moves under
+        // the user's finger immediately.
         const focused=document.activeElement;
         if(focused && (focused.tagName==='TEXTAREA' || focused.tagName==='INPUT')){
           focused.blur();
         }
       }
-      const v=Math.max(0, dy);
-      sheet.style.transform=`translateY(${v}px)`;
+      applyTransform(dy);
     };
+
     const onEnd=()=>{
       if(!dragging) return;
       dragging=false;
+      if(pendingFrame!==null){ cancelAnimationFrame(pendingFrame); pendingFrame=null; }
+      // Restore animation property (cleared in onStart) so future opens animate
+      sheet.style.animation='';
       if(!gestureCommitted){ sheet.style.transform=''; return; }
       const dy=lastY-startY;
       const dt=Math.max(1, Date.now()-startTime);
       const velocity=dy/dt;
-      sheet.style.transition='transform 0.18s ease-out';
+      // Smooth transition for either close or snap-back
+      sheet.style.transition='transform 0.22s cubic-bezier(.32,.72,0,1)';
       if(dy>80 || velocity>0.5){
-        sheet.style.transform=`translateY(100%)`;
+        // Close: slide all the way down, then call closer + reset
+        sheet.style.transform='translateY(100%)';
         const closer=closerMap[modalId];
         setTimeout(()=>{
           sheet.style.transition='';
           sheet.style.transform='';
           if(closer) closer();
-        }, 180);
+        }, 220);
       } else {
-        sheet.style.transform='';
+        // Snap back smoothly to resting position
+        sheet.style.transform='translateY(0)';
+        setTimeout(()=>{
+          sheet.style.transition='';
+          sheet.style.transform='';
+        }, 230);
       }
     };
+
     sheet.addEventListener('touchstart', onStart, {passive:true});
     sheet.addEventListener('touchmove', onMove, {passive:true});
     sheet.addEventListener('touchend', onEnd, {passive:true});
