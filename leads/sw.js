@@ -1,6 +1,6 @@
 // Service worker for the LEADS app
 // IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v28';
+const CACHE_NAME = 'at-leads-v30';
 const ASSETS = [
   './',
   './index.html',
@@ -28,34 +28,39 @@ self.addEventListener('activate', (event) => {
 });
 
 // When the user taps a reminder notification we open (or focus) the app.
-// The app will see the leadIdx in the URL hash and auto-open the lead.
-// If the user tapped the "התקשר" action button, we instead open a tel: URL
-// directly so the dialer launches.
+// The "התקשר" action button has special handling: we open tel: first (the
+// dialer launches), and ALSO send a postMessage so when the user finishes
+// the call and returns to the app, the call-summary modal is already open.
+// The "פתח" action and a tap on the body just open / focus the app.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   const leadIdx = data.leadIdx;
   const phone = (data.phone || '').replace(/[^0-9+]/g, '');
-  // "Call" action: open dialer immediately. We still try to focus the app
-  // afterwards so the call-summary modal pops up for the user to write notes.
-  if (event.action === 'call') {
+
+  if (event.action === 'call' && phone) {
+    // 1) Tell the app to open the call-summary modal for this lead.
+    //    Done first so when the dialer is dismissed the app is already
+    //    primed with the right modal.
+    // 2) Open tel: — the OS hands off to the dialer.
     event.waitUntil((async () => {
-      // Open the dialer
-      try { await clients.openWindow('tel:' + phone); } catch (_) {}
-      // Then focus / open the app on the lead's card
       const wins = await clients.matchAll({type:'window', includeUncontrolled:true});
+      let app = null;
       for (const c of wins) {
-        if ('focus' in c) {
-          if (leadIdx) c.postMessage({kind:'open-lead', leadIdx});
-          return c.focus();
-        }
+        if ('focus' in c) { app = c; break; }
       }
-      const url = leadIdx ? `./#lead=${leadIdx}` : './';
-      return clients.openWindow(url);
+      if (app) {
+        try { app.postMessage({kind:'open-lead-and-call', leadIdx, phone}); } catch(_){}
+        try { await app.focus(); } catch(_){}
+      } else {
+        try { await clients.openWindow(`./#leadAndCall=${leadIdx}|${phone}`); } catch(_){}
+      }
+      // Open the dialer last so it's the foreground action
+      try { await clients.openWindow('tel:' + phone); } catch(_){}
     })());
     return;
   }
-  // Default tap (or "open" action): just focus / open the app
+  // Default click (or "open" action) → focus / open the app on this lead
   event.waitUntil(
     clients.matchAll({type:'window', includeUncontrolled:true}).then((wins) => {
       for (const client of wins) {
