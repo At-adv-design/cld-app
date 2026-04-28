@@ -1603,7 +1603,17 @@ function openModal(name){
   // history entry so back button closes (and saves draft) instead of leaving
   history.pushState({page:'modal'},'');
   stopMic();
-  setTimeout(()=>document.getElementById('note-input').focus(),300);
+  // Don't auto-focus the textarea — the keyboard popping up is annoying when
+  // the user just wants to tap one of the action buttons (continue/meeting/
+  // reminder/remove). Some browsers/Android WebView auto-focus the first
+  // input/textarea in a newly-shown container, so we explicitly blur whatever
+  // ended up focused on the next two paint frames.
+  const blurAny=()=>{
+    const a=document.activeElement;
+    if(a && (a.tagName==='TEXTAREA' || a.tagName==='INPUT')) a.blur();
+  };
+  requestAnimationFrame(()=>{ blurAny(); requestAnimationFrame(blurAny); });
+  setTimeout(blurAny, 60);
 }
 function closeModal(){
   // user clicked "סגור בלי לשמור" -> drop the draft
@@ -2176,6 +2186,10 @@ async function saveMeeting(){
     };
     if(_isReminderMode){
       showToast(`תזכורת נקבעה ${ddP}/${mmP}/${yyP} ${startTime}`,'ok');
+      // Capture the optional short note typed in the reminder-note field.
+      // It's shown in the reminders list and in the system notification body.
+      const noteEl=document.getElementById('reminder-note');
+      const reminderNote=(noteEl?noteEl.value:'').trim();
       // Store locally so we can fire a notification 5 minutes before the
       // reminder time, even if offline. The "when" timestamp is in millis.
       const whenDate=new Date(yyyy, mm-1, dd, h, m, 0);
@@ -2184,6 +2198,7 @@ async function saveMeeting(){
         name:lead.name||'',
         phone:lead.phone||'',
         when:whenDate.getTime(),
+        note:reminderNote,
         fired:false
       });
     } else {
@@ -2406,7 +2421,9 @@ function fireReminder(rec){
   // Show notification if permission granted
   if('Notification' in window && Notification.permission==='granted'){
     const title='תזכורת';
-    const body='להתקשר ל-'+rec.name;
+    // The body shows "להתקשר ל-<name>" plus the optional note (if any) on a
+    // second line. The note also appears in the reminders list card.
+    const body='להתקשר ל-'+rec.name+(rec.note?'\n'+rec.note:'');
     try{
       // Prefer Service Worker registration so notifications show even if
       // the page is in background. Two action buttons:
@@ -2439,8 +2456,6 @@ function checkReminders(){
   const list=loadReminders();
   const now=Date.now();
   const FIVE_MIN=5*60*1000;
-  const TWO_HOURS=2*60*60*1000;
-  let changed=false;
   list.forEach(r=>{
     if(r.fired) return;
     const diff=r.when-now;
@@ -2448,12 +2463,9 @@ function checkReminders(){
       fireReminder(r);
     }
   });
-  // Cleanup: remove reminders older than 2 hours past their time
-  const fresh=list.filter(r=>now-r.when < TWO_HOURS);
-  if(fresh.length!==list.length){
-    saveReminders(fresh);
-    refreshRemindersBadge();
-  }
+  // No auto-cleanup — reminders stay in the list until the user explicitly
+  // deletes them (via the trash icon in the reminders list). This way past
+  // reminders remain visible as a record.
 }
 
 // Start the periodic check on page load
@@ -2488,6 +2500,7 @@ function openRemindersList(){
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(r.name)}</div>
           <div style="font-size:12px;color:var(--muted);direction:ltr;text-align:right;margin-top:2px">${esc(r.phone||'')}</div>
+          ${r.note?`<div style="font-size:12px;color:var(--text);margin-top:3px;font-style:italic">${esc(r.note)}</div>`:''}
           <div style="font-size:12px;color:${isPast?'var(--red)':'var(--slate)'};font-weight:600;margin-top:3px">${dateStr} • ${timeStr}${r.fired?' • הוצגה':''}</div>
         </div>
         <button onclick="event.stopPropagation();deleteReminder(${r.leadIdx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex">
