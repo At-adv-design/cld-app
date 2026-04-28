@@ -57,7 +57,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
-.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;}
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;position:sticky;top:96px;z-index:99;}
 .tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
 .tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
 
@@ -301,7 +301,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </div>
       <div class="filter-row">
         <span class="filter-label">דוחות פתוחים:</span>
-        <div class="filter-chips" id="report-chips" style="display:flex;gap:4px;flex-wrap:wrap;">
+        <div class="filter-chips" id="report-chips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;flex:1;">
           <div class="chip active" onclick="setReportFilter('all',this)">הכל</div>
           <div class="chip red" onclick="setReportFilter(1,this)">1</div>
           <div class="chip red" onclick="setReportFilter(2,this)">2</div>
@@ -309,6 +309,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
           <div class="chip red" onclick="setReportFilter(4,this)">4</div>
           <div class="chip red" onclick="setReportFilter(5,this)">5</div>
           <div class="chip red" onclick="setReportFilter(6,this)">6</div>
+          <!-- Collection ("גבייה") section toggle. Pushed to the visual end
+               (right edge in RTL = margin-inline-start:auto). Uses the same
+               neutral white chip style as the other filter chips. -->
+          <div class="chip" id="collection-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">גבייה</div>
         </div>
       </div>
       <div class="filter-row">
@@ -468,6 +472,28 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     <div class="log-btn-row">
       <button class="log-btn-primary" onclick="saveDocsEdit()">שמור</button>
       <button class="log-btn-secondary" onclick="closeDocsEdit()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report-docs editor — same UI as docs-edit, writes to column BA -->
+<div id="report-docs-edit-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:315;flex-direction:column;">
+  <div style="padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;height:100%;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeReportDocsEdit()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">מסמכים נדרשים לדוחות</div>
+        <div class="log-sub" id="report-docs-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">העריכה תישמר ישירות לעמודה BA בגוגל-שיט</div>
+    <textarea id="report-docs-edit-textarea" placeholder="המסמכים שעל הלקוח להעביר לצורך הדוחות..." style="flex:1;min-height:0;width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.6"></textarea>
+    <div class="log-btn-row">
+      <button class="log-btn-primary" onclick="saveReportDocsEdit()">שמור</button>
+      <button class="log-btn-secondary" onclick="closeReportDocsEdit()">ביטול</button>
     </div>
   </div>
 </div>
@@ -632,6 +658,9 @@ const COL_CG='CG';     // write URL for status
 const COL_CH='CH';     // write URL for call-summary log
 const C_DOCS_LIST=28,C_DOCS_AE=30,C_DOCS_AG=32,C_DOCS_AH=33,C_DOCS_AI=34;
 const C_AL=37,C_AZ=51;
+// BA = list of documents the client must provide for filing reports.
+// Read+written exactly like docsList (column AC) — same UI block, same flow.
+const C_REPORT_DOCS=52;
 const C_BG=58,C_BH=59,C_BI=60;
 const C_CE=82;
 const C_CF=83;       // log column (CF) — main case log
@@ -650,6 +679,11 @@ let inTasksSection=sessionStorage.getItem('ins_inTasks')==='1';
 let taskRangeDays='all';
 let taskTab='do'; // 'do' | 'wait'
 let fReport='all',fDocs='all',fInj='all',fSrv='all';
+// Collection mode: when true, the main list shows ONLY clients with monthly
+// fees (S > 0), and shows them through the missed-payments lens. All other
+// filters are hidden during collection mode.
+let collectionMode=false;
+let fColl='all'; // 'all' | 1 | 2 | 3 | 4 — minimum number of missed payments
 let userName='',userEmail='';
 let currentLog=null;        // {rowNum, name, log, field, col, preserveLines}
 let logRecognition=null,logIsRecording=false,logFinalTranscript='';
@@ -1020,7 +1054,7 @@ async function loadData(){
     document.getElementById('cards-list').innerHTML='';
   }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:CH?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:GZ?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const rows=(data.values||[]).slice(2);
@@ -1102,11 +1136,35 @@ function parseClient(row,rowNum){
   // REMINDER
   const reminder=g(C_AZ)==='TRUE';
 
+  // ── COLLECTION ('גבייה') ────────────────────────────────────────────────
+  // S = monthly fee the client owes each month (column index 18)
+  // T = current month payment (empty = not yet paid this month) (index 19)
+  // FG..left = monthly archive of past payments. FG = column index 162.
+  // When admins close a month, the value in T is moved into a NEW column
+  // inserted to the LEFT of FG (e.g. FH gets created), so the leftmost
+  // archive column = most recent past month, FG = oldest stored.
+  // Missed-payments count = (T empty ? 1 : 0) + (count of empty cells from
+  // index 162 onward, until we run out of archive columns).
+  const monthlyAmount = (g(18)||'').replace(/[^0-9.]/g,'');
+  const monthlyNum = monthlyAmount ? parseFloat(monthlyAmount) : 0;
+  const currentPayment = g(19); // T
+  // Sum missed: this month + each archive column where the cell is blank
+  let missedPayments = currentPayment.trim() ? 0 : 1;
+  // Iterate archive columns starting at FG (162) until end of row
+  for(let c=162; c<row.length; c++){
+    if(!(row[c]||'').toString().trim()) missedPayments++;
+  }
+  // Only consider this client a "collection" client if monthly fee > 0
+  const inCollection = monthlyNum > 0;
+
   const isUrgent=overdueCount>0||docsHighUrgent||injUrgent||srvUrgent;
   const isWarning=!isUrgent&&(docsLowUrgent||srvWarning||docsReminder||reminder);
 
   return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
+    // List of documents the client needs to provide for the reports section.
+    // Same shape as docsList (free-form text the user edits).
+    reportDocsList:g(C_REPORT_DOCS),
     injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
     log:g(C_CF),
     callLog:g(C_CH),
@@ -1116,7 +1174,12 @@ function parseClient(row,rowNum){
     opsDaysRaw:g(C_Z),
     opsDeadlineRaw:g(C_AA),
     opsDeadline:parseDate(g(C_AA)),
-    opsStatus:(g(C_CG)||'').trim().toLowerCase()};
+    opsStatus:(g(C_CG)||'').trim().toLowerCase(),
+    // Collection
+    monthlyAmount:monthlyNum,
+    currentPayment,
+    missedPayments,
+    inCollection};
 }
 
 function parseDate(s){
@@ -1189,6 +1252,21 @@ function applyFilters(){
   }
   const q=document.getElementById('search').value.toLowerCase();
   const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  // In collection mode: skip all the regular filters, only check
+  // (a) inCollection (S > 0), (b) text search, (c) missed-payment count.
+  if(collectionMode){
+    const filtered=active.filter(c=>{
+      if(!c.inCollection) return false;
+      if(q){
+        const haystack=[c.name,c.caseNum].map(s=>(s||'').toLowerCase()).join('\n');
+        if(!haystack.includes(q)) return false;
+      }
+      if(fColl!=='all' && c.missedPayments < fColl) return false;
+      return true;
+    });
+    renderCards(filtered);
+    return;
+  }
   const filtered=active.filter(c=>{
     if(q){
       // Search across name, case number, log (CF), docs list, ops log (X), and call log (CH).
@@ -1211,6 +1289,44 @@ function applyFilters(){
     return true;
   });
   renderCards(filtered);
+}
+
+// Toggle the collection view. Hides every other filter row, hides the regular
+// reports row's number chips (keeps the section visible so the גבייה button
+// is reachable), shows the collection filter row, and triggers a re-render
+// using the collection lens.
+function toggleCollectionView(){
+  collectionMode=!collectionMode;
+  const otherRows=document.querySelectorAll('.filter-row');
+  otherRows.forEach(r=>{
+    if(r.id==='collection-filter-row'){
+      r.style.display=collectionMode?'flex':'none';
+    } else if(r.querySelector('#collection-chip')){
+      // Reports row that contains the gviya button — leave the row visible
+      // but hide the number chips when in collection mode.
+      r.querySelectorAll('.chip:not(.chip-collection)').forEach(c=>{
+        c.style.display=collectionMode?'none':'';
+      });
+    } else {
+      r.style.display=collectionMode?'none':'';
+    }
+  });
+  const collChip=document.getElementById('collection-chip');
+  if(collChip){
+    collChip.textContent=collectionMode?'✕ גבייה':'גבייה';
+    collChip.classList.toggle('active', collectionMode);
+  }
+  fColl='all';
+  document.querySelectorAll('#collection-filter-row .chip').forEach(c=>c.classList.remove('active'));
+  const fcAll=document.getElementById('fc-all'); if(fcAll) fcAll.classList.add('active');
+  applyFilters();
+}
+
+function setCollFilter(val,el){
+  fColl=val;
+  document.querySelectorAll('#collection-filter-row .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
 }
 
 function updateStats(active){
@@ -1270,6 +1386,29 @@ function renderCards(clients){
 
     let bodyHtml='';
     if(exp){
+      if(collectionMode){
+        // In collection mode, the card body shows ONE compact section: the
+        // monthly payment status + a small input to record a new payment.
+        // Saving the input writes to column T and re-renders so this client
+        // is removed from the "X missed payments" filter view.
+        const paid = (c.currentPayment||'').trim();
+        bodyHtml=`<div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="section-title" style="color:var(--slate)">גבייה — תשלום חודשי</div>
+            <div class="status-row"><span class="status-label">תשלום חודשי</span><span style="font-weight:700;color:var(--slate)">${c.monthlyAmount?'₪'+c.monthlyAmount:'—'}</span></div>
+            <div class="status-row"><span class="status-label">תשלומים שלא בוצעו</span><span class="status-badge ${c.missedPayments>0?'badge-red':'badge-green'}">${c.missedPayments}</span></div>
+            ${paid
+              ? `<div class="status-row"><span class="status-label">שולם החודש</span><span style="font-weight:700;color:var(--green)">₪${esc(paid)}</span></div>
+                 <button onclick="event.stopPropagation();clearPayment(${c.rowNum})" style="font-size:12px;background:transparent;border:1px dashed var(--border);color:var(--muted);cursor:pointer;padding:6px 10px;align-self:flex-start;font-family:inherit">בטל סימון תשלום</button>`
+              : `<div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);padding:8px 10px" onclick="event.stopPropagation()">
+                   <span style="font-size:12px;color:var(--muted);font-weight:600">סכום ששולם:</span>
+                   <input type="number" inputmode="numeric" id="pay-input-${c.rowNum}" placeholder="${c.monthlyAmount||''}" style="flex:1;padding:6px 8px;background:var(--white);border:1px solid var(--border);font-size:14px;font-weight:700;font-family:inherit;color:var(--text);text-align:center;direction:ltr"/>
+                   <button onclick="event.stopPropagation();savePayment(${c.rowNum})" style="background:var(--green);color:#fff;border:none;padding:7px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">✓ שולם</button>
+                 </div>`
+            }
+          </div>
+        </div>`;
+      } else {
       const docsDeadline=c.docsHighUrgent&&c.docsAGRaw?fmtDateFull(c.docsAGRaw):'';
       bodyHtml=`<div class="card-body">
         <div>
@@ -1278,6 +1417,16 @@ function renderCards(clients){
           ${c.reminder
             ? `<div class="reminder-row" style="margin-top:6px"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span><button onclick="event.stopPropagation();setReminder(${c.rowNum},'AZ',false)" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`
             : `<button onclick="event.stopPropagation();setReminder(${c.rowNum},'AZ',true)" title="הפעל תזכורת" style="margin-top:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);cursor:pointer;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:11px;font-weight:600">${ICON.bell}<span>הפעל תזכורת דוחות</span></button>`
+          }
+          <!-- Report-docs list (column BA): documents the client must provide for the reports.
+               Same UI as the existing docs-list under "השלמת מסמכים" — single read+edit box. -->
+          <div style="font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 4px">מסמכים נדרשים לדוחות</div>
+          ${c.reportDocsList
+            ? `<div style="position:relative" onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})">
+                 <div style="font-size:12px;color:var(--text);padding:8px 32px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.reportDocsList)}</div>
+                 <button style="position:absolute;left:6px;top:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px;display:inline-flex" title="ערוך רשימה">${ICON.pencil}</button>
+               </div>`
+            : `<button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים לדוחות</span></button>`
           }
         </div>
         <div style="display:flex;flex-direction:column;gap:5px">
@@ -1307,6 +1456,7 @@ function renderCards(clients){
           <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
         </div>
       </div>`;
+      }
     }
 
     const card=document.createElement('div');
@@ -2085,6 +2235,54 @@ async function clearReminder(rowNum,col){
 // Set a reminder checkbox to TRUE or FALSE on the sheet.
 // col: 'AZ' = report reminder; 'AI' = docs reminder.
 // value: true to enable the reminder, false to clear it.
+// Record a monthly payment to column T. The amount typed in the per-row
+// input is written verbatim. After the write succeeds, we update the local
+// copy and re-render so this client drops out of the "X missed" filter.
+async function savePayment(rowNum){
+  const inp=document.getElementById('pay-input-'+rowNum);
+  if(!inp) return;
+  const raw=(inp.value||'').toString().trim();
+  if(!raw){ showToast('הזן סכום','err'); return; }
+  // Sanity-check: keep only digits/dot
+  const cleaned=raw.replace(/[^0-9.]/g,'');
+  if(!cleaned){ showToast('סכום לא תקין','err'); return; }
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(c){
+    c.currentPayment=cleaned;
+    c.missedPayments=Math.max(0,c.missedPayments-1);
+  }
+  applyFilters();
+  showToast('שומר תשלום...');
+  // T = column 20 (1-based) = "T"
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/T${rowNum}?valueInputOption=USER_ENTERED`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[cleaned]]})};
+  try{
+    await apiFetch(url,opts);
+    showToast('תשלום נרשם','ok');
+  }catch(e){
+    enqueueWrite(url,opts,'תשלום');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
+  }
+}
+
+async function clearPayment(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(c){
+    c.currentPayment='';
+    c.missedPayments+=1;
+  }
+  applyFilters();
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/T${rowNum}?valueInputOption=USER_ENTERED`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
+  try{
+    await apiFetch(url,opts);
+    showToast('סימון תשלום בוטל','ok');
+  }catch(e){
+    enqueueWrite(url,opts,'ביטול תשלום');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
+  }
+}
+
 async function setReminder(rowNum,col,value){
   const c=allClients.find(x=>x.rowNum===rowNum);
   if(!c)return;
@@ -2341,6 +2539,42 @@ async function saveDocsEdit(){
     if(typeof applyFilters==='function') applyFilters(); else renderCards(active);
   }catch(e){
     enqueueWrite(url,opts,'מסמכים');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
+  }
+}
+
+// ── REPORT-DOCS EDITOR (column BA) — same UX as docs editor ───────────────
+let _reportDocsEditFor=null;
+function openReportDocsEdit(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c)return;
+  _reportDocsEditFor=c;
+  document.getElementById('report-docs-edit-name').textContent=
+    c.name+(c.caseNum?` • תיק ${c.caseNum}`:'');
+  document.getElementById('report-docs-edit-textarea').value=c.reportDocsList||'';
+  document.getElementById('report-docs-edit-modal').style.display='flex';
+  history.pushState({page:'report-docs-edit'},'');
+}
+function closeReportDocsEdit(){
+  document.getElementById('report-docs-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='report-docs-edit') popHistorySilently();
+  _reportDocsEditFor=null;
+}
+async function saveReportDocsEdit(){
+  if(!_reportDocsEditFor)return;
+  const c=_reportDocsEditFor;
+  const newVal=document.getElementById('report-docs-edit-textarea').value;
+  c.reportDocsList=newVal; // optimistic
+  closeReportDocsEdit();
+  showToast('שומר...');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BA${c.rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+  try{
+    await apiFetch(url,opts);
+    showToast('נשמר','ok');
+    if(typeof applyFilters==='function') applyFilters();
+  }catch(e){
+    enqueueWrite(url,opts,'מסמכים לדוחות');
     showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
 }
