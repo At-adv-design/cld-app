@@ -1899,9 +1899,11 @@ function renderTimeSlots(){
 function pickTime(h,m){
   _meetingPick.hour=h;
   _meetingPick.minute=m;
-  // Clear manual inputs so it's clear which one is active
-  document.getElementById('manual-hour').value='';
-  document.getElementById('manual-minute').value='';
+  // Pre-fill manual inputs with the selected slot, so the user can tweak just
+  // the minute (or hour) from there if they need a non-half-hour time.
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('manual-hour').value=pad(h);
+  document.getElementById('manual-minute').value=pad(m);
   renderTimeSlots();
   syncHiddenInputs();
 }
