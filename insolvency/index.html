@@ -55,8 +55,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .sticky-shell{position:sticky;top:0;z-index:100;background:var(--white);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 .sticky-shell.no-anim{transition:none;}
 
-/* HEADER */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
+/* HEADER — fixed so translateY can fully slide it off-screen */
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
+/* Spacer that takes the place of the header in the document flow so the
+   first elements after it don't jump under it. */
+.header-spacer{height:96px;}
 .hdr-right{display:flex;gap:8px;align-items:center;}
 .hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -336,6 +339,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     </div>
     <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
   </div>
+  <div class="header-spacer"></div>
 
   <div class="tabs">
     <div class="tab active" id="tab-main" onclick="switchTab('main')">תיקים פעילים</div>
