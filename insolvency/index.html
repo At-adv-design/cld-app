@@ -1196,10 +1196,11 @@ function parseClient(row,rowNum){
   // edit button — fall back to '' if the cell is empty.
   const docsAERaw=g(C_DOCS_AE);                  // docs start date
   const docsDaysRaw=g(31);                        // AF = days for docs completion
+  const injStartRaw=g(35);                        // AJ = injunction START date (separate from docs AG!)
   const injDaysRaw=g(36);                         // AK = days for injunction
   // Note: column letters used by the user:
   //   docs:    AE (start) + AF (days) → AG (last) is computed/displayed
-  //   inj:     AG (start) + AK (days) → AL (last)
+  //   inj:     AJ (start) + AK (days) → AL (last)
   //   service: BG (mailed)            → BG+45 (last)
   const alRaw=g(C_AL);                            // AL = inj end date raw
   const bgRaw=g(C_BG);                            // BG = service mailed date
@@ -1253,7 +1254,7 @@ function parseClient(row,rowNum){
   return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
     // Raw values used by the inline edit buttons in each section
-    docsAERaw, docsDaysRaw, injDaysRaw, alRaw, bgRaw, srvDeadline,
+    docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, srvDeadline,
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
@@ -1575,13 +1576,15 @@ function renderCards(clients){
             ${docsDeadline?`<div style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${docsDeadline}</div>`:''}
           </div>
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
-          <!-- Date + days editable controls. Tapping them opens a prompt() and
-               writes back to the corresponding spreadsheet column on save. -->
+          <!-- Date + days editable controls. We use data-* attributes so we
+               don't have to JSON.stringify the values (which can break onclick
+               attributes if the cell contains special characters). The buttons
+               are wired up via event delegation in handleSectionCtlClick. -->
           <div class="section-controls">
-            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AE','תאריך התחלה',${JSON.stringify(c.docsAERaw||'')})" class="ctl-btn" title="ערוך תאריך התחלה">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AE','תאריך התחלה',this.dataset.current)" data-current="${esc(c.docsAERaw||'')}" class="ctl-btn" title="ערוך תאריך התחלה">
               <span class="ctl-label">התחלה:</span><span class="ctl-val">${esc(fmtDateFull(c.docsAERaw)||'—')}</span>
             </button>
-            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AF','ימים להשלמת מסמכים',${JSON.stringify(c.docsDaysRaw||'')})" class="ctl-btn" title="ערוך מספר ימים">
+            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AF','ימים להשלמת מסמכים',this.dataset.current)" data-current="${esc(c.docsDaysRaw||'')}" class="ctl-btn" title="ערוך מספר ימים">
               <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.docsDaysRaw||'—')}</span>
             </button>
           </div>
@@ -1606,9 +1609,8 @@ function renderCards(clients){
             ${c.srvDeadline?`<div style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${c.srvDeadline}</div>`:''}
           </div>
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
-          <!-- Service mailed date (BG). Last date = BG + 45 days. -->
           <div class="section-controls">
-            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'BG','תאריך שליחה בדואר',${JSON.stringify(c.bgRaw||'')})" class="ctl-btn" title="ערוך תאריך שליחה">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'BG','תאריך שליחה בדואר',this.dataset.current)" data-current="${esc(c.bgRaw||'')}" class="ctl-btn" title="ערוך תאריך שליחה">
               <span class="ctl-label">נשלח:</span><span class="ctl-val">${esc(fmtDateFull(c.bgRaw)||'—')}</span>
             </button>
           </div>
@@ -1619,12 +1621,11 @@ function renderCards(clients){
             ${c.injEndDate?`<div style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${c.injEndDate}</div>`:''}
           </div>
           <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
-          <!-- Inj start date + days. AG = start, AK = days. -->
           <div class="section-controls">
-            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AG','תאריך תחילת עיכוב',${JSON.stringify(c.docsAGRaw||'')})" class="ctl-btn" title="ערוך תאריך תחילת עיכוב">
-              <span class="ctl-label">תחילה:</span><span class="ctl-val">${esc(fmtDateFull(c.docsAGRaw)||'—')}</span>
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AJ','תאריך תחילת עיכוב',this.dataset.current)" data-current="${esc(c.injStartRaw||'')}" class="ctl-btn" title="ערוך תאריך תחילת עיכוב">
+              <span class="ctl-label">תחילה:</span><span class="ctl-val">${esc(fmtDateFull(c.injStartRaw)||'—')}</span>
             </button>
-            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AK','ימים לעיכוב',${JSON.stringify(c.injDaysRaw||'')})" class="ctl-btn" title="ערוך מספר ימים">
+            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AK','ימים לעיכוב',this.dataset.current)" data-current="${esc(c.injDaysRaw||'')}" class="ctl-btn" title="ערוך מספר ימים">
               <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.injDaysRaw||'—')}</span>
             </button>
           </div>
@@ -1638,11 +1639,15 @@ function renderCards(clients){
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
           <div class="client-info">
-            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+            <div class="client-name">${esc(c.name)}</div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
           </div>
-          <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
-          <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
+          <!-- All 4 header icons share one row so they align perfectly -->
+          <div class="hdr-icons">
+            ${phoneBtn(c)}
+            <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
+            <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
+          </div>
         </div>
         ${bodyHtml}
       </div>`;
@@ -1682,10 +1687,11 @@ function renderWaiting(){
     content.innerHTML=`<div class="client-card" style="opacity:.75" data-row="${c.rowNum}">
       <div class="card-header" style="cursor:default">
         <div class="client-info">
-          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+          <div class="client-name">${esc(c.name)}</div>
           <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}</div>
           <div class="waiting-badge" style="display:inline-flex;align-items:center;gap:4px">${ICON.pause}<span>בהמתנה</span></div>
         </div>
+        ${phoneBtn(c)}
         <button class="restore-btn" onclick="restoreClient(${c.rowNum})">${ICON.back}</button>
       </div>
     </div>`;
@@ -1846,7 +1852,7 @@ function renderLogContent(log){
       <div class="entry-body">${linkifyPhones(esc(body.trim()))}</div>
       <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
         <button onclick="event.stopPropagation();openEditLogEntry(${i})" title="ערוך רשומה זו" style="width:32px;height:32px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
-        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:32px;height:32px;background:#fff5f5;border:1px solid #d97070;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#b01010;font-family:inherit;padding:0">${ICON.trash}</button>
+        <button onclick="event.stopPropagation();deleteLogEntry(${i})" title="מחק רשומה זו" style="width:32px;height:32px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.trash}</button>
       </div>
     </div>`;
   }).join('');
@@ -2338,21 +2344,20 @@ function renderTasks(){
     content.innerHTML=`<div class="client-card${cardCls}" data-row="${c.rowNum}" style="position:relative;cursor:pointer" onclick="openLogModal(${c.rowNum},'ops')">
       <div class="card-header" style="${lateBadge?'padding-bottom:34px;':''}">
         <div class="client-info">
-          <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+          <div class="client-name">${esc(c.name)}</div>
           <div class="client-meta" style="margin-top:3px">${metaLine}</div>
           ${waitMark}
           ${logPreview?`<div class="log-preview-text" style="margin-top:6px;font-size:12px;color:#444;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">${logPreview}</div>`:''}
-          <!-- Inline editors for ops start date (Y) and ops days (Z).
-               Tapping opens prompt() and writes back to the spreadsheet. -->
           <div class="section-controls" onclick="event.stopPropagation()" style="margin-top:8px">
-            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'Y','תאריך התחלת ביצוע',${JSON.stringify(c.opsStartRaw||'')})" class="ctl-btn" title="ערוך תאריך התחלה">
+            <button onclick="event.stopPropagation();editDateField(${c.rowNum},'Y','תאריך התחלת ביצוע',this.dataset.current)" data-current="${esc(c.opsStartRaw||'')}" class="ctl-btn" title="ערוך תאריך התחלה">
               <span class="ctl-label">התחלה:</span><span class="ctl-val">${esc(fmtDateFull(c.opsStartRaw)||'—')}</span>
             </button>
-            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'Z','ימים לביצוע',${JSON.stringify(c.opsDaysRaw||'')})" class="ctl-btn" title="ערוך מספר ימים">
+            <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'Z','ימים לביצוע',this.dataset.current)" data-current="${esc(c.opsDaysRaw||'')}" class="ctl-btn" title="ערוך מספר ימים">
               <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.opsDaysRaw||'—')}</span>
             </button>
           </div>
         </div>
+        ${phoneBtn(c)}
       </div>
       ${lateBadge}
     </div>`;
@@ -2543,6 +2548,34 @@ async function editDaysField(rowNum, colLetter, label, currentValue){
   catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
   setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
 }
+
+// Global click delegation for the new section-controls buttons. Using
+// data attributes + delegation avoids escaping issues with inline onclick
+// handlers when the cell value contains quotes or other special characters.
+document.addEventListener('click', (e)=>{
+  const dateBtn = e.target.closest('.js-edit-date');
+  if(dateBtn){
+    e.stopPropagation();
+    e.preventDefault();
+    const row=parseInt(dateBtn.dataset.row,10);
+    const col=dateBtn.dataset.col;
+    const label=dateBtn.dataset.label||'תאריך';
+    const current=dateBtn.dataset.current||'';
+    editDateField(row, col, label, current);
+    return;
+  }
+  const daysBtn = e.target.closest('.js-edit-days');
+  if(daysBtn){
+    e.stopPropagation();
+    e.preventDefault();
+    const row=parseInt(daysBtn.dataset.row,10);
+    const col=daysBtn.dataset.col;
+    const label=daysBtn.dataset.label||'ימים';
+    const current=daysBtn.dataset.current||'';
+    editDaysField(row, col, label, current);
+    return;
+  }
+}, true); // useCapture so we run before any card-level handlers
 
 async function deleteMonthlyAmount(rowNum){
   const c=allClients.find(x=>x.rowNum===rowNum);
@@ -2929,7 +2962,7 @@ function renderCallSummaryView(){
       <div class="entry-body">${linkifyPhones(esc(en.body.trim()))}</div>
       <div style="position:absolute;left:8px;top:8px;display:flex;gap:6px;z-index:2">
         <button onclick="event.stopPropagation();openEditCallSummary(${i})" title="ערוך סיכום זה" style="width:32px;height:32px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.pencil}</button>
-        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:32px;height:32px;background:#fff5f5;border:1px solid #d97070;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#b01010;font-family:inherit;padding:0">${ICON.trash}</button>
+        <button onclick="event.stopPropagation();deleteCallSummary(${i})" title="מחק סיכום זה" style="width:32px;height:32px;background:var(--white);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);font-family:inherit;padding:0">${ICON.trash}</button>
       </div>
     </div>`).join('');
 }
