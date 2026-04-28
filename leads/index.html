@@ -1232,10 +1232,11 @@ function renderLeadCard(l,kind){
   let actionBtn;
   if(kind==='removed'){
     actionBtn=`<button class="restore-btn" onclick="event.stopPropagation();restoreLead(${l.index})" title="שחזר">${ICON.restore}</button>`;
-  } else if(kind==='continue'){
-    actionBtn=`<button class="call-btn ${done?'done':''}" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${done?ICON.check:ICON.phone}</button>`;
   } else {
-    actionBtn=`<button class="call-btn ${done?'done':''}" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${done?ICON.check:ICON.phone}</button>`;
+    // Phone icon stays neutral always — the call indicator is the dot row
+    // above the lead's name (filled red dots = past calls). No green color
+    // swap, no check icon swap.
+    actionBtn=`<button class="call-btn" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${ICON.phone}</button>`;
   }
 
   let label='';
