@@ -64,6 +64,17 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .req-status.uploaded{color:var(--blue);background:var(--blue-bg);}
 .req-status.approved{color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);}
 .req-status.rejected{color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);}
+/* Rejection reason — shown below the rejected status pill so the
+   customer knows exactly why their previous upload was declined. */
+.rej-reason{
+  margin-top:6px;font-size:12px;color:var(--text);
+  background:var(--red-bg);border:1px solid var(--red-border);
+  padding:8px 10px;line-height:1.5;
+  white-space:pre-wrap;word-break:break-word;
+}
+.rej-reason-label{
+  display:inline-block;font-weight:700;color:var(--red);margin-inline-end:4px;
+}
 .req-files{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
 .req-file-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:4px 8px;align-self:flex-start;font-weight:600;}
 .req-file-pill svg{width:12px;height:12px;color:var(--slate);}
@@ -147,6 +158,21 @@ input[type="file"]{display:none;}
   </div>
 </div>
 
+<!-- File name confirmation modal — shown after the user chooses a file.
+     Pre-filled with the requirement description; user can edit. -->
+<div class="help-modal" id="name-modal">
+  <div class="help-sheet">
+    <div class="help-handle"></div>
+    <div class="help-title">שם הקובץ לפני שליחה</div>
+    <div style="font-size:11px;color:var(--muted);font-weight:600;line-height:1.5">דרישה: <span id="name-modal-text" style="color:var(--text);font-weight:700"></span></div>
+    <input type="text" id="name-modal-input" class="login-input" style="font-size:13px" placeholder="שם הקובץ"/>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="help-close" style="background:var(--white);color:var(--slate);border-color:var(--border);flex:1" onclick="cancelNameModal()">ביטול</button>
+      <button class="help-close" style="flex:1" onclick="confirmNameAndUpload()">שלח</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 <div id="spinner-overlay" class="spinner-overlay"><div class="spinner"></div></div>
 
@@ -158,7 +184,7 @@ input[type="file"]{display:none;}
    Until you do, the app runs in DEMO mode.
    ============================================================ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbw0YPqDNAVcHH0D-27CWH14fRwiBej1DP2JVLATf_ZS00i_bonGQpIANLHr5tp5YSdhGA/exec'
+  API_URL: '' // ← e.g. 'https://script.google.com/macros/s/AKfy.../exec'
 };
 
 const _SVG=(p,sz=16)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:${sz}px;height:${sz}px;display:block">${p}</svg>`;
@@ -349,6 +375,12 @@ function renderRequestItem(r){
     approved:'<span class="req-status approved">✓ אושר</span>',
     rejected:'<span class="req-status rejected">✗ נדחה — נא להעלות שוב</span>',
   }[r.status] || '';
+  // If rejected, show the rejection reason that the office wrote.
+  // The reason comes from the sheet (rejectionReason field set by the
+  // approve/reject flow in the insolvency app).
+  const rejReason = (r.status==='rejected' && (r.rejectionReason||'').trim())
+    ? `<div class="rej-reason"><span class="rej-reason-label">סיבת הדחייה:</span> ${esc(r.rejectionReason)}</div>`
+    : '';
   const hasHelp = !!(r.explanation||'').trim();
   const helpBtn = `<button class="req-btn ${hasHelp?'has-help':''}" onclick="openHelp('${r.id}')" title="${hasHelp?'יש הסבר':'אין הסבר'}">${ICON.question}</button>`;
 
@@ -359,6 +391,7 @@ function renderRequestItem(r){
         <div class="req-actions">${helpBtn}</div>
       </div>
       ${statusLbl}
+      ${rejReason}
       <div class="req-question">
         <textarea class="req-textarea" id="ans-${r.id}" placeholder="כתוב את התשובה כאן..." ${r.status==='approved'?'readonly':''}>${esc(r.answer||'')}</textarea>
         ${r.status!=='approved' ? `<button class="req-save-btn" onclick="saveAnswer('${r.id}')">שלח תשובה</button>` : ''}
@@ -366,8 +399,10 @@ function renderRequestItem(r){
     </div>`;
   }
   const filesList = (r.files||[]).map(f=>{
-    const link = f.url ? `<a href="${esc(f.url)}" target="_blank">${esc(f.name)}</a>` : esc(f.name);
-    return `<span class="req-file-pill">${ICON.paper}<span>${link}</span>${r.status!=='approved' ? `<span class="x" onclick="removeFile('${r.id}','${esc(f.id||f.name||'')}')">✕</span>` : ''}</span>`;
+    const link = f._uploading
+      ? `<span style="color:var(--blue);font-style:italic">${esc(f.name)}</span><span class="upl-spinner" style="margin-inline-start:6px;display:inline-block;width:10px;height:10px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite"></span>`
+      : (f.url ? `<a href="${esc(f.url)}" target="_blank">${esc(f.name)}</a>` : esc(f.name));
+    return `<span class="req-file-pill">${ICON.paper}<span>${link}</span>${(r.status!=='approved' && !f._uploading) ? `<span class="x" onclick="removeFile('${r.id}','${esc(f.id||f.name||'')}')">✕</span>` : ''}</span>`;
   }).join('');
   return `<div class="req-item">
     <div class="req-row-top">
@@ -379,6 +414,7 @@ function renderRequestItem(r){
       </div>
     </div>
     ${statusLbl}
+    ${rejReason}
     ${filesList ? `<div class="req-files">${filesList}</div>` : ''}
   </div>`;
 }
@@ -399,43 +435,155 @@ function fileToBase64(file){
   });
 }
 
+/* Compress an image file before upload. Reduces transfer time hugely
+   (a typical 3-5 MB phone photo shrinks to ~600 KB at visually-lossless
+   quality). PDFs and other non-images are returned unchanged. Files
+   already under 500 KB are also returned as-is — not worth compressing. */
+async function compressImageIfNeeded(file){
+  if(!file) return file;
+  const isImage = /^image\//i.test(file.type || '');
+  if(!isImage) return file;             // PDFs etc — pass through
+  if(file.size < 500*1024) return file; // already small enough
+
+  const MAX_DIM = 1920;     // longest side cap (1920px is plenty for documents)
+  const QUALITY = 0.82;     // JPEG quality (0.82 ≈ visually lossless for docs)
+
+  // Decode the image
+  const dataUrl = await new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=()=>rej(new Error('שגיאה בקריאת התמונה'));
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((res,rej)=>{
+    const i=new Image();
+    i.onload=()=>res(i);
+    i.onerror=()=>rej(new Error('שגיאה בטעינת התמונה'));
+    i.src=dataUrl;
+  });
+
+  // Compute target dimensions (preserve aspect ratio)
+  let {width, height} = img;
+  if(width > MAX_DIM || height > MAX_DIM){
+    if(width >= height){
+      height = Math.round(height * MAX_DIM / width);
+      width = MAX_DIM;
+    } else {
+      width = Math.round(width * MAX_DIM / height);
+      height = MAX_DIM;
+    }
+  }
+
+  // Render to canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Encode as JPEG (smaller than PNG for photos)
+  const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', QUALITY));
+  if(!blob) return file; // fallback if canvas-to-blob failed
+  // Wrap as a File so the rest of the code (filename, mimeType) works
+  const newName = (file.name || 'image').replace(/\.[^.]+$/,'') + '.jpg';
+  return new File([blob], newName, {type: 'image/jpeg'});
+}
+
+/* When a file is chosen (camera or upload), show the user a quick
+   confirmation modal with a pre-filled name (the requirement's text).
+   They can edit the name if needed, then tap "שלח" to actually upload. */
+let _pendingUpload = null; // {file, req}
+
 async function handleFileChosen(e){
   const f=e.target.files && e.target.files[0];
   e.target.value='';
   if(!f || !_activeReqId) return;
   const r=requests.find(x=>x.id===_activeReqId);
   if(!r) return;
+  // Open the name-confirmation modal pre-filled with the req description.
+  // Strip dangerous chars and trim — the user can edit.
+  const cleanText = (r.text||'').replace(/[\/\\:*?"<>|]/g,' ').replace(/\s+/g,' ').trim();
+  _pendingUpload = {file:f, req:r};
+  const m = document.getElementById('name-modal');
+  document.getElementById('name-modal-text').textContent = r.text || '';
+  document.getElementById('name-modal-input').value = cleanText || f.name;
+  m.classList.add('open');
+  setTimeout(()=>document.getElementById('name-modal-input').focus(), 80);
+}
+
+function cancelNameModal(){
+  document.getElementById('name-modal').classList.remove('open');
+  _pendingUpload = null;
+}
+
+async function confirmNameAndUpload(){
+  if(!_pendingUpload) return;
+  const {file, req} = _pendingUpload;
+  let chosenName = document.getElementById('name-modal-input').value.trim();
+  if(!chosenName){ showToast('יש להזין שם לקובץ','err'); return; }
+  // Preserve the original extension if the user removed it
+  const orig = file.name || '';
+  const dot = orig.lastIndexOf('.');
+  const origExt = dot >= 0 ? orig.slice(dot) : '';
+  if(origExt && !chosenName.toLowerCase().endsWith(origExt.toLowerCase())){
+    chosenName += origExt;
+  }
+  document.getElementById('name-modal').classList.remove('open');
+  _pendingUpload = null;
+
   if(!CONFIG.API_URL){
-    if(!r.files) r.files=[];
-    r.files.push({name:f.name});
-    r.status='uploaded';
+    if(!req.files) req.files=[];
+    req.files.push({name:chosenName});
+    req.status='uploaded';
     renderAll();
-    showToast('הועלה: '+f.name,'ok');
+    showToast('הועלה: '+chosenName,'ok');
     return;
   }
-  showSpinner(true);
-  try{
-    const dataBase64 = await fileToBase64(f);
-    const payload = {
-      token: currentUser.token,
-      category: r.category,
-      reqId: r.id,
-      reportNum: r.report || null,
-      filename: f.name,
-      mimeType: f.type || 'application/octet-stream',
-      dataBase64,
-    };
-    const data = await apiCall('uploadFile', payload);
-    if(!r.files) r.files=[];
-    r.files.push({id:data.fileId, name:data.fileName, url:data.fileUrl});
-    if(r.status==='pending' || r.status==='rejected') r.status='uploaded';
-    renderAll();
-    showToast('הועלה: '+f.name,'ok');
-  }catch(err){
-    showToast(err.message||'שגיאה בהעלאה','err');
-  }finally{
-    showSpinner(false);
-  }
+
+  // Add a temporary "uploading" placeholder that the customer sees
+  // immediately. Dismisses the modal and frees them to keep working
+  // while the upload proceeds in the background.
+  if(!req.files) req.files=[];
+  const tempId = 'tmp-' + Date.now() + '-' + Math.floor(Math.random()*1000);
+  req.files.push({id: tempId, name: chosenName, _uploading: true});
+  if(req.status==='pending' || req.status==='rejected') req.status='uploaded';
+  renderAll();
+  showToast('מעלה ברקע — אפשר להמשיך','ok');
+
+  // Run the actual upload async, without blocking the UI.
+  (async ()=>{
+    try{
+      // Compress images so the round-trip is much faster. Documents
+      // (PDFs, etc.) pass through unchanged.
+      const fileToSend = await compressImageIfNeeded(file);
+      const dataBase64 = await fileToBase64(fileToSend);
+      const payload = {
+        token: currentUser.token,
+        category: req.category,
+        reqId: req.id,
+        reportNum: req.report || null,
+        filename: chosenName,
+        mimeType: fileToSend.type || 'application/octet-stream',
+        dataBase64,
+      };
+      const data = await apiCall('uploadFile', payload);
+      // Replace the placeholder with the real file entry
+      const slot = req.files.find(f => f.id === tempId);
+      if(slot){
+        slot.id = data.fileId;
+        slot.name = data.fileName;
+        slot.url = data.fileUrl;
+        delete slot._uploading;
+      }
+      renderAll();
+      showToast('הועלה: '+chosenName,'ok');
+    }catch(err){
+      // Remove the placeholder and show an error
+      req.files = (req.files||[]).filter(f => f.id !== tempId);
+      if(!req.files.length && req.status==='uploaded') req.status='pending';
+      renderAll();
+      showToast(err.message||'שגיאה בהעלאה','err');
+    }
+  })();
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
