@@ -552,6 +552,44 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
      Lets the lawyer edit the customer's login credentials and the
      lists of requirements (report documents / supplemental documents).
      ============================================================ -->
+<!-- ============================================================
+     IN-APP DRIVE BROWSER — fullscreen file/folder viewer.
+     Used by the "Customer area → תיקיית הלקוח" button. Walks the
+     "חדלפ" folder hierarchy down to the selected client, shows
+     subfolders and files as a list, opens previews on tap.
+     ============================================================ -->
+<div id="drive-browser-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:330;flex-direction:column;">
+  <div class="log-sheet" style="padding:0;gap:0">
+    <!-- Header bar with back, breadcrumb, refresh -->
+    <div style="display:flex;align-items:center;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button onclick="closeDriveBrowser()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>חזרה</span></span></button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700">תיקיית הלקוח</div>
+        <div id="drive-breadcrumb" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;direction:rtl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+      <button onclick="refreshDriveBrowser()" title="רענן" style="background:var(--bg);border:1px solid var(--border);width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;color:var(--slate)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+    </div>
+    <!-- Path navigator (clickable folder chain) -->
+    <div id="drive-path" style="padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0;direction:rtl"></div>
+    <!-- Body: file/folder list -->
+    <div id="drive-list" style="flex:1;overflow-y:auto;padding:8px 14px 16px"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     IN-APP FILE PREVIEW — image / PDF viewer
+     ============================================================ -->
+<div id="drive-preview-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:340;flex-direction:column;">
+  <div style="padding:14px;display:flex;align-items:center;gap:10px;color:#fff;flex-shrink:0">
+    <button onclick="closeDrivePreview()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit"><span>‹ חזרה</span></button>
+    <div id="drive-preview-name" style="flex:1;min-width:0;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <a id="drive-preview-open-external" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;font-size:13px;text-decoration:none;font-family:inherit">פתח ב-Drive</a>
+  </div>
+  <div id="drive-preview-body" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:auto"></div>
+</div>
+
 <div id="customer-area-modal">
   <div class="log-sheet">
     <!-- Header -->
@@ -937,7 +975,7 @@ function initAutoHideHeader(){
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
-const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive';
 const REDIRECT=location.origin+location.pathname;
 const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
 
@@ -2493,12 +2531,12 @@ function renderCustomerArea(){
   if(!_custState) return;
   const body=document.getElementById('customer-area-body');
   body.innerHTML = `
-    <!-- Customer Drive folder. Big tappable card that opens the
-         existing DocsFeature modal pointed at this client's row.
-         The DocsFeature backend handles the actual Drive lookup. -->
+    <!-- Customer Drive folder. Tap opens an in-app browser that shows
+         the folder hierarchy under "חדלפ" → [client] → ... and lets
+         the user view/open files without leaving the app. -->
     <div class="cust-section">
       <div class="cust-section-title">תיקיית מסמכים — Google Drive</div>
-      <button class="cust-folder-btn" onclick="openDocsModal(${_custState.rowNum})">
+      <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
         <span class="cust-folder-icon">${(window.DocsFeature&&window.DocsFeature.icon)||''}</span>
         <span class="cust-folder-text">
           <span class="cust-folder-title">פתח תיקיית הלקוח</span>
@@ -2647,6 +2685,230 @@ async function saveCustomerCreds(){
 /* Active-flag (column CT) — TRUE/FALSE. When FALSE, the customer-facing
    app must refuse the login. Updates the local client object so the
    change is reflected without needing a full refresh. */
+/* ============================================================
+   IN-APP DRIVE BROWSER
+   The "תיקיית מסמכים — Google Drive" button in the customer-area
+   modal opens this fullscreen browser. We walk down from the root
+   "חדלפ" folder (id below) into the client's subfolder structure.
+   If a folder is missing along the way (e.g. the client doesn't
+   have a folder yet), we create it on demand.
+   ============================================================ */
+const DRIVE_ROOT_ID = '1RitBIq8HXTVymhalA34HS4BRyfOzT6lq'; // חדלפ
+const DRIVE_FILE_FOLDER = 'application/vnd.google-apps.folder';
+let _driveStack=[]; // breadcrumb stack: [{id, name}, ...]
+let _driveCurrentClient=null; // {rowNum, name}
+
+/* Low-level: fetch with the user's OAuth token, parse JSON,
+   surface API errors. Mirrors apiFetch() but for Drive endpoints. */
+async function driveFetch(path, opts={}){
+  const url='https://www.googleapis.com/drive/v3' + path;
+  const headers=Object.assign({}, opts.headers||{}, {
+    'Authorization':'Bearer ' + accessToken,
+    'Accept':'application/json',
+  });
+  if(opts.body && !headers['Content-Type']) headers['Content-Type']='application/json';
+  const res=await fetch(url, Object.assign({}, opts, {headers}));
+  let data=null;
+  try{ data=await res.json(); }catch(_){}
+  if(!res.ok){
+    const msg=(data&&data.error&&data.error.message)||('HTTP '+res.status);
+    const err=new Error(msg);
+    if(isAuthError(err)){ handleAuthError(); }
+    throw err;
+  }
+  return data;
+}
+
+/* Find a child folder by name inside `parentId`. Returns its file
+   object if found, otherwise null. We escape single quotes in the
+   name as required by the Drive query syntax. */
+async function driveFindFolder(parentId, name){
+  const safeName=(name||'').replace(/'/g, "\\'");
+  const q=`'${parentId}' in parents and name='${safeName}' and mimeType='${DRIVE_FILE_FOLDER}' and trashed=false`;
+  const params=new URLSearchParams({q, fields:'files(id,name)', pageSize:'1', spaces:'drive'});
+  const data=await driveFetch('/files?'+params.toString());
+  return (data.files && data.files[0]) || null;
+}
+
+/* Create a folder named `name` under `parentId`. Returns the new
+   file object. */
+async function driveCreateFolder(parentId, name){
+  const data=await driveFetch('/files?fields=id,name', {
+    method:'POST',
+    body:JSON.stringify({
+      name, mimeType:DRIVE_FILE_FOLDER, parents:[parentId]
+    })
+  });
+  return data;
+}
+
+/* Find or create — convenience wrapper. */
+async function driveEnsureFolder(parentId, name){
+  let f=await driveFindFolder(parentId, name);
+  if(f) return f;
+  return await driveCreateFolder(parentId, name);
+}
+
+/* List everything inside a folder. Returns array of {id, name,
+   mimeType, modifiedTime, size, webViewLink, thumbnailLink}. */
+async function driveListChildren(parentId){
+  const q=`'${parentId}' in parents and trashed=false`;
+  const params=new URLSearchParams({
+    q, pageSize:'200', orderBy:'folder,name',
+    fields:'files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,thumbnailLink)'
+  });
+  const data=await driveFetch('/files?'+params.toString());
+  return data.files || [];
+}
+
+/* Entry point — called from the customer-area "פתח תיקיית הלקוח"
+   button. Walks חדלפ → [client], creates the client folder if it
+   doesn't exist, then opens the browser at that level. */
+async function openCustomerDriveFolder(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c){ showToast('לא נמצא לקוח','err'); return; }
+  if(!accessToken){ showToast('אין חיבור לחשבון Google','err'); return; }
+  _driveCurrentClient={rowNum, name:c.name||'(ללא שם)'};
+  showLoadingOverlay(true);
+  try{
+    // Ensure the client's top-level folder exists under "חדלפ"
+    const clientFolder=await driveEnsureFolder(DRIVE_ROOT_ID, c.name||'(ללא שם)');
+    _driveStack=[{id:DRIVE_ROOT_ID, name:'חדלפ'}, {id:clientFolder.id, name:clientFolder.name}];
+    document.getElementById('drive-browser-modal').style.display='flex';
+    history.pushState({page:'drive-browser'},'');
+    await renderDriveCurrent();
+  }catch(e){
+    showToast(e.message||'שגיאה','err');
+  }finally{
+    showLoadingOverlay(false);
+  }
+}
+
+function closeDriveBrowser(){
+  document.getElementById('drive-browser-modal').style.display='none';
+  if(history.state&&history.state.page==='drive-browser') popHistorySilently();
+  _driveStack=[]; _driveCurrentClient=null;
+}
+
+/* Navigation: click a folder → push onto stack → re-render */
+async function driveNavigateInto(folder){
+  _driveStack.push({id:folder.id, name:folder.name});
+  await renderDriveCurrent();
+}
+
+/* Click a breadcrumb / "back" → pop to that depth */
+async function driveNavigateTo(depth){
+  if(depth<1) depth=1;
+  _driveStack=_driveStack.slice(0, depth);
+  await renderDriveCurrent();
+}
+
+async function refreshDriveBrowser(){ await renderDriveCurrent(); }
+
+/* Render the current folder. Shows breadcrumb at top, then a list
+   of subfolders followed by files. Folders are tappable (drill in);
+   files open the in-app preview. */
+async function renderDriveCurrent(){
+  if(!_driveStack.length) return;
+  const here=_driveStack[_driveStack.length-1];
+  // Update header breadcrumb (text-only, plain)
+  const crumb=_driveStack.map(s=>s.name).join(' › ');
+  const cb=document.getElementById('drive-breadcrumb');
+  if(cb) cb.textContent = (_driveCurrentClient?_driveCurrentClient.name+' — ':'') + crumb;
+  // Update clickable path bar
+  const pb=document.getElementById('drive-path');
+  if(pb){
+    pb.innerHTML = _driveStack.map((s,i)=>{
+      const last = i===_driveStack.length-1;
+      return `<span onclick="driveNavigateTo(${i+1})" style="cursor:${last?'default':'pointer'};color:${last?'var(--text)':'var(--slate)'};font-weight:${last?'700':'600'}">${esc(s.name)}</span>${last?'':' <span style="color:var(--border)">›</span>'}`;
+    }).join('');
+  }
+  // Show loading state
+  const list=document.getElementById('drive-list');
+  list.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">טוען...</div>';
+  try{
+    const items=await driveListChildren(here.id);
+    if(!items.length){
+      list.innerHTML='<div style="padding:40px 16px;text-align:center;color:var(--muted)"><div style="font-size:13px;font-weight:700;margin-bottom:4px">תיקייה ריקה</div><div style="font-size:11px">אין מסמכים או תיקיות בתיקייה זו</div></div>';
+      return;
+    }
+    list.innerHTML=items.map(f=>renderDriveItem(f)).join('');
+  }catch(e){
+    list.innerHTML=`<div style="padding:30px;color:var(--red);font-size:13px;text-align:center">שגיאה בטעינה: ${esc(e.message||'')}</div>`;
+  }
+}
+
+function renderDriveItem(f){
+  const isFolder = f.mimeType===DRIVE_FILE_FOLDER;
+  const ICON_FILE  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+  const ICON_FOLDER= `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+  const icon = isFolder ? ICON_FOLDER : ICON_FILE;
+  const meta = isFolder ? 'תיקייה' : (f.mimeType||'').split('.').pop().toUpperCase();
+  const handler = isFolder
+    ? `driveNavigateInto(${JSON.stringify({id:f.id,name:f.name}).replace(/"/g,'&quot;')})`
+    : `openDrivePreview(${JSON.stringify({id:f.id,name:f.name,mimeType:f.mimeType,webViewLink:f.webViewLink||''}).replace(/"/g,'&quot;')})`;
+  return `<div onclick="${handler}" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--white);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--white)'">
+    <span style="width:38px;height:38px;background:var(--bg);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--slate);flex-shrink:0">${icon}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px">${esc(meta)}</div>
+    </div>
+    ${isFolder?'<span style="font-size:18px;color:var(--muted);font-weight:300">‹</span>':''}
+  </div>`;
+}
+
+/* Open a single file in the preview overlay. Images and PDFs render
+   inline; everything else just shows a link to open in Drive. */
+function openDrivePreview(file){
+  const m=document.getElementById('drive-preview-modal');
+  document.getElementById('drive-preview-name').textContent=file.name||'';
+  const ext=document.getElementById('drive-preview-open-external');
+  ext.href=file.webViewLink || ('https://drive.google.com/file/d/'+file.id+'/view');
+  const body=document.getElementById('drive-preview-body');
+  body.innerHTML='<div style="color:#fff">טוען...</div>';
+  m.style.display='flex';
+  history.pushState({page:'drive-preview'},'');
+  // Image: download as blob and render. PDF: same. Other: link only.
+  const isImg = (file.mimeType||'').startsWith('image/');
+  const isPdf = (file.mimeType||'')==='application/pdf';
+  if(isImg || isPdf){
+    fetch('https://www.googleapis.com/drive/v3/files/'+file.id+'?alt=media',{
+      headers:{'Authorization':'Bearer '+accessToken}
+    }).then(r=>{
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.blob();
+    }).then(blob=>{
+      const url=URL.createObjectURL(blob);
+      if(isImg){
+        body.innerHTML=`<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain"/>`;
+      } else {
+        body.innerHTML=`<iframe src="${url}" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
+      }
+    }).catch(e=>{
+      body.innerHTML=`<div style="color:#fff;padding:20px;text-align:center"><div style="margin-bottom:10px">לא ניתן להציג בתוך האפליקציה</div><a href="${ext.href}" target="_blank" style="color:#fff;text-decoration:underline">פתח ב-Drive</a></div>`;
+    });
+  } else {
+    body.innerHTML=`<div style="color:#fff;padding:20px;text-align:center"><div style="margin-bottom:10px">סוג קובץ זה אינו ניתן להצגה בתוך האפליקציה</div><a href="${ext.href}" target="_blank" style="color:#fff;text-decoration:underline">פתח ב-Drive</a></div>`;
+  }
+}
+function closeDrivePreview(){
+  document.getElementById('drive-preview-modal').style.display='none';
+  if(history.state&&history.state.page==='drive-preview') popHistorySilently();
+}
+
+function showLoadingOverlay(show){
+  let el=document.getElementById('global-loading');
+  if(!el){
+    el=document.createElement('div');
+    el.id='global-loading';
+    el.style.cssText='position:fixed;inset:0;background:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;z-index:500';
+    el.innerHTML='<div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .6s linear infinite"></div>';
+    document.body.appendChild(el);
+  }
+  el.style.display = show?'flex':'none';
+}
+
+
 async function toggleCustomerActive(checked){
   if(!_custState) return;
   _custState.active=!!checked;
@@ -4076,6 +4338,8 @@ window.addEventListener('popstate',()=>{
     'call-edit-modal':()=>{ if(typeof closeEditCallSummary==='function') closeEditCallSummary(); },
     'log-entry-edit-modal':()=>{ document.getElementById('log-entry-edit-modal').style.display='none'; },
     'bd-edit-modal':()=>{ if(typeof closeBdEdit==='function') closeBdEdit(); },
+    'drive-browser-modal':()=>{ if(typeof closeDriveBrowser==='function') closeDriveBrowser(); },
+    'drive-preview-modal':()=>{ if(typeof closeDrivePreview==='function') closeDrivePreview(); },
     'customer-area-modal':()=>{ if(typeof closeCustomerArea==='function') closeCustomerArea(); },
     'req-explain-modal':()=>{ if(typeof closeReqExplain==='function') closeReqExplain(); },
     // Date picker — drag down to close = cancel (no save)
