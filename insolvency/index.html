@@ -98,22 +98,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
 .search-box input::placeholder{color:var(--muted);}
 .filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-/* When a filter row has an active (non-"all") value, pin it to the header
-   so it stays visible even after the rest of the shell slides away.
-   We use position:fixed so it's truly anchored to the top of the viewport
-   regardless of what its parent (.filters-wrap) is doing. JS positions
-   them in a stack starting from top:0. */
-.filter-row.filter-active{
-  position:fixed;
-  left:0;
-  right:0;
-  z-index:97;
-  background:var(--white);
-  border-bottom:1px solid var(--border);
-  padding:8px 14px;
-  box-shadow:0 2px 4px rgba(0,0,0,0.04);
-  /* top is set by JS (stackActiveFilterRows) */
-}
+/* When a filter row is "active" (has a non-"all" value), JS moves it
+   into #active-filters-bar at the top of the viewport. Inside that bar
+   it gets a bit more padding so it looks like a header strip. */
+#active-filters-bar .filter-row{padding:8px 14px;border-bottom:1px solid var(--border);background:var(--white);}
+#active-filters-bar .filter-row:last-child{border-bottom:none;}
 .filter-label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
 .chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .12s;white-space:nowrap;}
 .chip.active{background:var(--slate);color:#fff;border-color:var(--slate);}
@@ -325,6 +314,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 <!-- APP -->
 <div id="app" style="display:none">
+  <!-- Container for filter rows that the user activated. Lives outside the
+       sticky shell so it's not affected by the shell's translate animation.
+       JS moves rows into/out of here as the user toggles filters. -->
+  <div id="active-filters-bar" style="position:fixed;top:0;left:0;right:0;z-index:97;display:none;flex-direction:column;background:var(--white);border-bottom:1px solid var(--border);box-shadow:0 2px 4px rgba(0,0,0,0.04);"></div>
   <div class="header">
     <div class="hdr-right">
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
@@ -1587,19 +1580,38 @@ function setCollFilter(val,el){
   applyFilters();
 }
 
-/* Position any .filter-row.filter-active elements as a vertical stack
-   pinned to the very top of the viewport, so when the user scrolls and
-   the header slides away, the chosen filters stay visible. Each row's
-   `top` is set inline to the cumulative height of preceding rows. */
+/* Move filter rows that have a non-"all" value into #active-filters-bar
+   (a fixed strip at the top of the viewport, outside the sticky shell so
+   it isn't affected by the auto-hide animation). Rows that no longer
+   have an active value go back to their original spot inside .filters-wrap.
+   We remember each row's "home" position the first time we move it. */
 function stackActiveFilterRows(){
-  const rows=document.querySelectorAll('.filter-row.filter-active');
-  let offset=0;
-  rows.forEach(r=>{
-    r.style.top=offset+'px';
-    // After this paint, measure the row's height so the next one stacks
-    // correctly underneath it. We use offsetHeight which forces a layout.
-    offset += r.offsetHeight || 36;
+  const bar=document.getElementById('active-filters-bar');
+  if(!bar) return;
+  // 1. First, return any row that LOST its filter-active class back home.
+  Array.from(bar.children).forEach(r=>{
+    if(!r.classList.contains('filter-active') && r._homeParent){
+      // Place back at original sibling position (or at the end if the
+      // sibling is gone).
+      if(r._homeNextSibling && r._homeNextSibling.parentElement===r._homeParent){
+        r._homeParent.insertBefore(r, r._homeNextSibling);
+      } else {
+        r._homeParent.appendChild(r);
+      }
+    }
   });
+  // 2. Then, pick up any row in the document that IS active but isn't
+  //    in the bar yet, and move it into the bar.
+  document.querySelectorAll('.filter-row.filter-active').forEach(r=>{
+    if(r.parentElement!==bar){
+      // Remember where it came from so we can put it back later
+      r._homeParent = r.parentElement;
+      r._homeNextSibling = r.nextSibling;
+      bar.appendChild(r);
+    }
+  });
+  // 3. Show the bar only if it has rows.
+  bar.style.display = bar.children.length ? 'flex' : 'none';
 }
 
 function updateStats(active){
