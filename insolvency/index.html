@@ -78,6 +78,21 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
    Two compact buttons that open a prompt() to update the corresponding
    spreadsheet cell. Tight layout: 2 small chips side-by-side. */
 .section-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+/* === Customer-area modal sections === */
+.cust-section{background:var(--white);border:1px solid var(--border);padding:14px;}
+.cust-section-title{font-size:13px;font-weight:700;color:var(--slate);margin-bottom:10px;text-transform:none;}
+.cust-creds{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.cust-input{background:var(--bg);border:1px solid var(--border);padding:10px 12px;font-size:13px;font-family:inherit;color:var(--text);direction:rtl;width:100%;}
+.cust-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.cust-save-btn{margin-top:8px;background:var(--slate);color:#fff;border:1px solid var(--slate);padding:8px 16px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;}
+/* Each requirement is one row: text input + ? + trash */
+.req-row{display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--border);padding:6px 8px;margin-bottom:6px;}
+.req-row input{flex:1;min-width:0;background:transparent;border:none;font-size:13px;font-family:inherit;color:var(--text);direction:rtl;padding:6px 4px;}
+.req-row input:focus{outline:none;}
+.req-icon-btn{background:var(--white);border:1px solid var(--border);width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);cursor:pointer;font-family:inherit;flex-shrink:0;padding:0;}
+.req-icon-btn.has-explanation{background:var(--blue-bg);color:var(--blue);border-color:var(--blue);}
+.req-add-btn{background:var(--bg);border:1px dashed var(--border);color:var(--muted);padding:8px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;justify-content:center;width:100%;}
+.req-add-btn:hover{color:var(--slate);border-color:var(--slate);}
 /* Date-picker grid buttons. Compact (24x32) so a full month fits without
    scrolling on a phone. Selected day = filled slate, today = bordered. */
 .dp-day{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
@@ -232,14 +247,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
 
 /* LOG MODAL — viewer + edit (fullscreen) and add (bottom sheet) */
-#log-modal,#log-edit-modal,#bd-edit-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
-#log-modal.open,#log-edit-modal.open,#bd-edit-modal.open{display:flex;flex-direction:column;}
+#log-modal,#log-edit-modal,#bd-edit-modal,#customer-area-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
+#log-modal.open,#log-edit-modal.open,#bd-edit-modal.open,#customer-area-modal.open{display:flex;flex-direction:column;}
 #log-edit-modal{z-index:310;}
 #bd-edit-modal{z-index:312;}
+#customer-area-modal{z-index:308;}
 #log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);}
 #log-add-modal.open{display:flex;}
 /* Fullscreen sheet for the viewer + editor */
-#log-modal .log-sheet,#log-edit-modal .log-sheet,#bd-edit-modal .log-sheet{
+#log-modal .log-sheet,#log-edit-modal .log-sheet,#bd-edit-modal .log-sheet,#customer-area-modal .log-sheet{
   background:var(--white);
   border:none;
   padding:14px 16px 20px;
@@ -509,6 +525,46 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 </div>
 
+<!-- ============================================================
+     CUSTOMER AREA MODAL — fullscreen
+     Lets the lawyer edit the customer's login credentials and the
+     lists of requirements (report documents / supplemental documents).
+     ============================================================ -->
+<div id="customer-area-modal">
+  <div class="log-sheet">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px;flex-shrink:0">
+      <button onclick="closeCustomerArea()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>חזרה</span></span></button>
+      <div style="flex:1;min-width:0">
+        <div class="log-title" style="font-size:15px">אגף לקוח</div>
+        <div class="log-sub" id="customer-area-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <!-- Scrollable body -->
+    <div id="customer-area-body" style="flex:1;overflow-y:auto;padding:0 2px;display:flex;flex-direction:column;gap:14px"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     REQUIREMENT EXPLANATION MODAL — half-height sheet
+     Used when the lawyer taps the "?" icon next to a requirement
+     to add or edit the explanation that the customer will see.
+     ============================================================ -->
+<div id="req-explain-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:380;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div class="modal-sheet" style="background:var(--white);width:100%;max-width:480px;padding:14px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+    <div class="mhandle" style="width:36px;height:3px;background:var(--border);margin:0 auto 4px"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700">תיאור הדרישה</div>
+        <div id="req-explain-text" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px"></div>
+      </div>
+      <button onclick="closeReqExplain()" style="background:var(--bg);border:1px solid var(--border);padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer">ביטול</button>
+      <button onclick="saveReqExplain()" style="background:var(--slate);color:#fff;border:1px solid var(--slate);padding:6px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">אישור</button>
+    </div>
+    <textarea id="req-explain-textarea" style="flex:1;min-height:160px;padding:10px;background:var(--bg);border:1px solid var(--border);font-size:13px;font-family:inherit;color:var(--text);direction:rtl;resize:none;" placeholder="כתוב כאן הסבר שהלקוח יראה כשילחץ על סימן השאלה ליד הדרישה..."></textarea>
+  </div>
+</div>
+
 <!-- LOG ADD MODAL -->
 <div id="log-add-modal">
   <div class="log-sheet">
@@ -775,6 +831,10 @@ const ICON={
   x:        _SVG('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',12),
   clipboard:_SVG('<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/>',16),
   noteAdd:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',18),
+  // Person icon — used for the "customer area" button in each card header
+  customer: _SVG('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',18),
+  // Question-mark icon — used inline next to each requirement item
+  question: _SVG('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',16),
   whatsapp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>'
 };
 
@@ -876,6 +936,16 @@ const C_AL=37,C_AZ=51;
 // Read+written exactly like docsList (column AC) — same UI block, same flow.
 const C_REPORT_DOCS=52;
 const C_BG=58,C_BH=59,C_BI=60;
+// Customer-area columns. Filled in by the lawyer in the "customer area"
+// modal; read by the customer-facing app to know what's required.
+//   CR = customer login username (typically national ID)
+//   CS = customer login password (typically last 6 digits of bank account)
+//   CT = TRUE/FALSE — whether the customer's login is enabled
+//   CU = JSON list of "next-report documents" requirements
+//   CV = JSON list of "supplemental documents" requirements
+//   CW = JSON list of "info questions" — text answers, not files
+// Each requirement entry: {id, text, explanation, status, files[]}
+const C_CR=95, C_CS=96, C_CT=97, C_CU=98, C_CV=99, C_CW=100;
 const C_CE=82;
 const C_CF=83;       // log column (CF) — main case log
 const COL_CF='CF';   // for write URL
@@ -1369,6 +1439,24 @@ function parseClient(row,rowNum){
   // BD (index 55) — free-text tag for the service section. We take the
   // FIRST LINE only (split on \n) and clip later in the template to fit.
   const bdRaw=(g(55)||'').split(/\r?\n/)[0].trim();
+  // Customer-area data (CR/CS/CT/CU/CV/CW)
+  const customerUsername=(g(C_CR)||'').toString().trim();
+  const customerPassword=(g(C_CS)||'').toString().trim();
+  // CT — boolean flag (TRUE/FALSE) — controls whether the customer's
+  // login is enabled. When FALSE the customer can't sign in.
+  const customerActive = (g(C_CT)||'').toString().toUpperCase().trim()==='TRUE';
+  // CU/CV/CW hold JSON arrays of requirement objects. Parse defensively —
+  // the cell may have been edited by hand. Empty → empty list.
+  function parseReqList(raw){
+    if(!raw) return [];
+    try{
+      const parsed=JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){ return []; }
+  }
+  const reportDocs = parseReqList(g(C_CU));   // documents for next report
+  const supplDocs  = parseReqList(g(C_CV));   // supplemental documents
+  const infoQs     = parseReqList(g(C_CW));   // info questions
   const agDate=parseDate(docsAGRaw),aeDate=parseDate(g(C_DOCS_AE));
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
@@ -1423,6 +1511,7 @@ function parseClient(row,rowNum){
     docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
     // Raw values used by the inline edit buttons in each section
     docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, bdRaw, srvDeadline,
+    customerUsername, customerPassword, customerActive, reportDocs, supplDocs, infoQs,
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
@@ -1881,6 +1970,11 @@ function renderCards(clients){
           </div>
           <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
           <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
+          <!-- Customer area: opens a fullscreen modal with the customer's
+               username/password + the requirement lists for documents and
+               reports. Filled in by the lawyer; visible to the customer
+               in their own app. -->
+          <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}</button>
         </div>
         ${bodyHtml}
       </div>`;
@@ -2317,6 +2411,240 @@ async function saveBdEdit(){
     enqueueWrite(url,opts,'אישורי מסירה');
     showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
   }
+}
+
+/* =============================================================
+   CUSTOMER AREA — fullscreen modal where the lawyer sets up
+   what the customer needs to upload, and the credentials they'll
+   use to log in to the customer-facing app.
+   =============================================================
+   Local state: _custState holds the row being edited and the two
+   requirement lists (reportDocs, supplDocs). The lists are arrays
+   of objects: {id, text, explanation, status, files[]}.
+   - "id" is a stable random string so we can re-render without
+     losing focus on inputs.
+   - "status" = 'pending' | 'uploaded' | 'approved' | 'rejected'
+   - "files" = list of objects {url, name, ts} populated by the
+     customer app (read-only here).
+   ============================================================= */
+let _custState=null;
+let _reqExplainState=null; // {listKey, reqId} for the explanation editor
+
+function _genReqId(){
+  return 'r'+Math.random().toString(36).slice(2,9);
+}
+
+function openCustomerArea(rowNum){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c) return;
+  // Clone the lists so edits stay local until the user saves
+  _custState={
+    rowNum,
+    name:c.name||'',
+    username: c.customerUsername||'',
+    password: c.customerPassword||'',
+    active:   c.customerActive===true,
+    reportDocs: JSON.parse(JSON.stringify(c.reportDocs||[])),
+    supplDocs:  JSON.parse(JSON.stringify(c.supplDocs ||[])),
+    infoQs:     JSON.parse(JSON.stringify(c.infoQs    ||[])),
+  };
+  document.getElementById('customer-area-name').textContent=c.name||'';
+  renderCustomerArea();
+  document.getElementById('customer-area-modal').classList.add('open');
+  history.pushState({page:'customer-area'},'');
+}
+
+function closeCustomerArea(){
+  document.getElementById('customer-area-modal').classList.remove('open');
+  if(history.state&&history.state.page==='customer-area') popHistorySilently();
+}
+
+function renderCustomerArea(){
+  if(!_custState) return;
+  const body=document.getElementById('customer-area-body');
+  body.innerHTML = `
+    <!-- Credentials section -->
+    <div class="cust-section">
+      <div class="cust-section-title">שם משתמש וסיסמה ללקוח</div>
+      <div class="cust-creds">
+        <input type="text" class="cust-input" id="cust-username" placeholder="שם משתמש (ת.ז)" value="${esc(_custState.username||'')}" inputmode="numeric"/>
+        <input type="text" class="cust-input" id="cust-password" placeholder="סיסמה" value="${esc(_custState.password||'')}"/>
+      </div>
+      <!-- Active flag — when off, the customer can't log in. -->
+      <label class="cust-active-toggle" style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--slate);user-select:none">
+        <input type="checkbox" id="cust-active" ${_custState.active?'checked':''} onchange="toggleCustomerActive(this.checked)" style="width:18px;height:18px;accent-color:var(--slate);cursor:pointer"/>
+        <span>אפשר ללקוח להיכנס לאפליקציה</span>
+      </label>
+      <button class="cust-save-btn" onclick="saveCustomerCreds()" style="margin-top:10px">שמור פרטי כניסה</button>
+    </div>
+
+    <!-- Report docs section -->
+    <div class="cust-section">
+      <div class="cust-section-title">מסמכים לדוחות</div>
+      ${_renderReqList('reportDocs')}
+      <button class="req-add-btn" onclick="addReqRow('reportDocs')" style="margin-top:6px">+ הוסף שדה</button>
+    </div>
+
+    <!-- Supplemental docs section -->
+    <div class="cust-section">
+      <div class="cust-section-title">השלמת מסמכים</div>
+      ${_renderReqList('supplDocs')}
+      <button class="req-add-btn" onclick="addReqRow('supplDocs')" style="margin-top:6px">+ הוסף שדה</button>
+    </div>
+
+    <!-- Info questions section -->
+    <div class="cust-section">
+      <div class="cust-section-title">השלמת פרטים (שאלות ללקוח)</div>
+      ${_renderReqList('infoQs')}
+      <button class="req-add-btn" onclick="addReqRow('infoQs')" style="margin-top:6px">+ הוסף שאלה</button>
+    </div>
+  `;
+}
+
+function _renderReqList(key){
+  const list=_custState[key]||[];
+  if(!list.length){
+    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוספו דרישות. לחץ על "+ הוסף שדה" כדי להתחיל.</div>';
+  }
+  return list.map(r=>{
+    const has=Boolean((r.explanation||'').trim());
+    return `<div class="req-row" data-id="${r.id}">
+      <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}" oninput="updateReqText('${key}','${r.id}',this.value)"/>
+      <button class="req-icon-btn ${has?'has-explanation':''}" onclick="openReqExplain('${key}','${r.id}')" title="${has?'יש הסבר ללקוח':'הוסף הסבר'}">${ICON.question}</button>
+      <button class="req-icon-btn" onclick="removeReqRow('${key}','${r.id}')" title="מחק שדה">${ICON.trash}</button>
+    </div>`;
+  }).join('');
+}
+
+function updateReqText(listKey, id, val){
+  const r=_custState[listKey].find(x=>x.id===id);
+  if(r){
+    r.text=val;
+    saveCustomerReqs(listKey, true);
+  }
+}
+
+function addReqRow(listKey){
+  if(!_custState) return;
+  _custState[listKey].push({
+    id:_genReqId(), text:'', explanation:'', status:'pending', files:[]
+  });
+  renderCustomerArea();
+  // Focus the new input
+  setTimeout(()=>{
+    const rows=document.querySelectorAll('.req-row');
+    const last=rows[rows.length-1];
+    if(last){ const inp=last.querySelector('input'); if(inp) inp.focus(); }
+  }, 50);
+  saveCustomerReqs(listKey);
+}
+
+function removeReqRow(listKey, id){
+  if(!confirm('למחוק שדה?')) return;
+  _custState[listKey] = _custState[listKey].filter(r=>r.id!==id);
+  renderCustomerArea();
+  saveCustomerReqs(listKey);
+}
+
+/* Save the requirements list of a given category back to the sheet
+   (CT for reportDocs, CU for supplDocs). Debounced to avoid hammering
+   the API on every keystroke. */
+const _custSaveTimers={};
+function saveCustomerReqs(listKey, debounce=false){
+  if(!_custState) return;
+  const col = listKey==='reportDocs' ? 'CU' :
+              listKey==='supplDocs'  ? 'CV' :
+              listKey==='infoQs'     ? 'CW' : null;
+  if(!col) return;
+  const list=_custState[listKey]||[];
+  const json=JSON.stringify(list);
+  if(_custSaveTimers[listKey]) clearTimeout(_custSaveTimers[listKey]);
+  const doSave = async ()=>{
+    _custSaveTimers[listKey]=null;
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${_custState.rowNum}?valueInputOption=RAW`;
+    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[json]]})};
+    try{
+      await apiFetch(url,opts);
+      // Update local cache so other parts of the app see the change
+      const c=allClients.find(x=>x.rowNum===_custState.rowNum);
+      if(c){ c[listKey]=list; }
+    }catch(e){
+      enqueueWrite(url,opts,'דרישות לקוח');
+    }
+  };
+  if(debounce){ _custSaveTimers[listKey]=setTimeout(doSave, 700); }
+  else { doSave(); }
+}
+
+async function saveCustomerCreds(){
+  if(!_custState) return;
+  const u=document.getElementById('cust-username').value.trim();
+  const p=document.getElementById('cust-password').value.trim();
+  _custState.username=u; _custState.password=p;
+  showToast('שומר...');
+  try{
+    // Two parallel writes — username to CR, password to CS
+    const urlU=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CR${_custState.rowNum}?valueInputOption=RAW`;
+    const urlP=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CS${_custState.rowNum}?valueInputOption=RAW`;
+    await Promise.all([
+      apiFetch(urlU,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[u]]})}),
+      apiFetch(urlP,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[p]]})}),
+    ]);
+    // Update local cache
+    const c=allClients.find(x=>x.rowNum===_custState.rowNum);
+    if(c){ c.customerUsername=u; c.customerPassword=p; }
+    showToast('פרטי כניסה נשמרו','ok');
+  }catch(e){
+    showToast(e.message||'שגיאה בשמירה','err');
+  }
+}
+
+/* Active-flag (column CT) — TRUE/FALSE. When FALSE, the customer-facing
+   app must refuse the login. Updates the local client object so the
+   change is reflected without needing a full refresh. */
+async function toggleCustomerActive(checked){
+  if(!_custState) return;
+  _custState.active=!!checked;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CT${_custState.rowNum}?valueInputOption=USER_ENTERED`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[checked?'TRUE':'FALSE']]})};
+  try{
+    await apiFetch(url,opts);
+    const c=allClients.find(x=>x.rowNum===_custState.rowNum);
+    if(c) c.customerActive=!!checked;
+    showToast(checked?'חיבור הופעל':'חיבור הושבת','ok');
+  }catch(e){
+    enqueueWrite(url,opts,'אישור חיבור לקוח');
+    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
+  }
+}
+
+/* === Explanation editor (the half-sheet that opens on "?") === */
+function openReqExplain(listKey, reqId){
+  const r=_custState[listKey].find(x=>x.id===reqId);
+  if(!r) return;
+  _reqExplainState={listKey, reqId};
+  document.getElementById('req-explain-text').textContent=r.text||'(ללא תיאור)';
+  document.getElementById('req-explain-textarea').value=r.explanation||'';
+  document.getElementById('req-explain-modal').style.display='flex';
+  history.pushState({page:'req-explain'},'');
+  setTimeout(()=>document.getElementById('req-explain-textarea').focus(), 80);
+}
+function closeReqExplain(){
+  document.getElementById('req-explain-modal').style.display='none';
+  if(history.state&&history.state.page==='req-explain') popHistorySilently();
+  _reqExplainState=null;
+}
+function saveReqExplain(){
+  if(!_reqExplainState) return;
+  const {listKey, reqId} = _reqExplainState;
+  const val=document.getElementById('req-explain-textarea').value;
+  const r=_custState[listKey].find(x=>x.id===reqId);
+  if(r){
+    r.explanation = val;
+    saveCustomerReqs(listKey);
+    renderCustomerArea();
+  }
+  closeReqExplain();
 }
 
 /* ── ADD new entry ────────────────────────────────────────────────────────── */
@@ -3557,6 +3885,8 @@ window.addEventListener('popstate',()=>{
   const editOpen=document.getElementById('log-edit-modal').classList.contains('open');
   const viewOpen=document.getElementById('log-modal').classList.contains('open');
   const bdEditOpen=document.getElementById('bd-edit-modal') && document.getElementById('bd-edit-modal').classList.contains('open');
+  const custAreaOpen=document.getElementById('customer-area-modal') && document.getElementById('customer-area-modal').classList.contains('open');
+  const reqExplainOpen=document.getElementById('req-explain-modal') && document.getElementById('req-explain-modal').style.display==='flex';
   const opsEditOpen=document.getElementById('ops-edit-modal').style.display==='flex';
   const callSumOpen=document.getElementById('call-summary-modal').style.display==='flex';
   const callAddOpen=document.getElementById('call-add-modal').style.display==='flex';
@@ -3569,6 +3899,17 @@ window.addEventListener('popstate',()=>{
   _backPressCount=0;
   // ── EDIT MODES — back press SAVES + closes (instead of discarding) ─────
   // Inner-most call modals first (on top of the viewer)
+  if(reqExplainOpen){
+    // Half-sheet explanation editor — save on back-press, like other editors
+    if(typeof saveReqExplain==='function'){ saveReqExplain(); }
+    else { closeReqExplain(); }
+    return;
+  }
+  if(custAreaOpen){
+    // Customer-area modal saves continuously, so back-press just closes
+    closeCustomerArea();
+    return;
+  }
   if(bdEditOpen){
     if(typeof saveBdEdit==='function'){ saveBdEdit(); }
     else { document.getElementById('bd-edit-modal').classList.remove('open'); }
@@ -3690,6 +4031,8 @@ window.addEventListener('popstate',()=>{
     'call-edit-modal':()=>{ if(typeof closeEditCallSummary==='function') closeEditCallSummary(); },
     'log-entry-edit-modal':()=>{ document.getElementById('log-entry-edit-modal').style.display='none'; },
     'bd-edit-modal':()=>{ if(typeof closeBdEdit==='function') closeBdEdit(); },
+    'customer-area-modal':()=>{ if(typeof closeCustomerArea==='function') closeCustomerArea(); },
+    'req-explain-modal':()=>{ if(typeof closeReqExplain==='function') closeReqExplain(); },
     // Date picker — drag down to close = cancel (no save)
     'date-picker-modal':()=>{ if(typeof closeDatePicker==='function') closeDatePicker(); }
   };
