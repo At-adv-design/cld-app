@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<meta name="theme-color" content="#3a3a48"/>
+<title>תיק שלי — אבי טל ושות׳</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="../icon.png"/>
+<link rel="apple-touch-icon" href="../icon.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+/* =============================================================
+   COLOR TOKENS — IDENTICAL to insolvency/leads.
+   ============================================================= */
+:root,:root[data-theme="parchment"]{
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#FDECEC;--red-border:#f5c0c0;
+  --green:#1A7A45;--green-bg:#E8F5EE;--green-border:#bfe0cd;
+  --orange:#C75B12;--orange-bg:#FCF0E5;--orange-border:#f4cda1;
+  --blue:#1A5F9E;--blue-bg:#E5F0FB;
+  --bg:#FAF9F5;--white:#FFFFFF;--border:#D9D6CA;--muted:#6B6A65;--text:#1F1E1B;
+}
+:root[data-theme="dark"]{
+  --slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;--red-bg:#3A2222;--red-border:#5C2D2D;
+  --green:#5BB37D;--green-bg:#1F2E27;--green-border:#2F4A3B;
+  --orange:#D88248;--orange-bg:#3B2D1F;--orange-border:#5C4528;
+  --blue:#5A9FE0;--blue-bg:#1F2C3B;
+  --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
+}
+
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* =============================================================
+   HEADER — identical to insolvency/leads.
+   ============================================================= */
+.header{
+  background:var(--white);height:96px;padding:0 16px 0 40px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  border-bottom:1px solid var(--border);
+}
+.header-spacer{height:96px;}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:0;width:26px;height:26px;font-size:11px;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.hdr-btn svg{width:14px;height:14px;}
+.hdr-count{
+  font-size:10px;color:var(--text);font-weight:600;background:var(--bg);
+  border:1px solid var(--border);padding:0 9px;height:26px;
+  display:inline-flex;align-items:center;flex-shrink:0;
+}
+.header img{height:80px;object-fit:contain;}
+
+/* =============================================================
+   LOGIN SCREEN
+   ============================================================= */
+.login-screen{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:30px 20px;
+  background:var(--bg);
+}
+.login-card{
+  background:var(--white);border:1px solid var(--border);
+  padding:30px 24px;max-width:380px;width:100%;
+  display:flex;flex-direction:column;gap:14px;
+}
+.login-card .logo{
+  height:80px;object-fit:contain;align-self:center;margin-bottom:6px;
+}
+.login-card h1{
+  font-size:18px;font-weight:700;text-align:center;color:var(--text);
+}
+.login-card p{
+  font-size:13px;color:var(--muted);text-align:center;font-weight:500;line-height:1.5;
+}
+.login-input{
+  background:var(--bg);border:1px solid var(--border);
+  padding:12px 14px;font-size:14px;font-family:inherit;
+  color:var(--text);direction:rtl;
+}
+.login-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.login-btn{
+  background:var(--slate);color:#fff;border:1px solid var(--slate);
+  padding:13px 0;font-size:14px;font-weight:700;font-family:inherit;
+  cursor:pointer;
+}
+.login-btn:active{transform:scale(.98);}
+.login-error{
+  font-size:12px;color:var(--red);text-align:center;font-weight:600;
+  background:var(--red-bg);border:1px solid var(--red-border);
+  padding:8px;display:none;
+}
+.login-error.show{display:block;}
+.login-demo-hint{
+  font-size:11px;color:var(--muted);text-align:center;font-weight:500;
+  background:var(--orange-bg);border:1px solid var(--orange-border);
+  padding:8px;line-height:1.5;
+}
+
+/* =============================================================
+   MAIN APP CONTENT
+   ============================================================= */
+.main{padding:16px;max-width:600px;margin:0 auto;}
+
+.welcome-card{
+  background:var(--white);border:1px solid var(--border);
+  padding:18px 16px;margin-bottom:14px;
+}
+.welcome-card h2{
+  font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;
+}
+.welcome-card p{
+  font-size:12px;color:var(--muted);font-weight:500;line-height:1.5;
+}
+.welcome-card .case-num{
+  font-size:11px;color:var(--slate);font-weight:600;margin-top:8px;
+  display:inline-block;padding:3px 8px;background:var(--bg);
+  border:1px solid var(--border);
+}
+
+/* CATEGORY TABS */
+.cat-tabs{
+  display:flex;gap:0;background:var(--white);
+  border:1px solid var(--border);margin-bottom:14px;
+}
+.cat-tab{
+  flex:1;padding:12px 6px;text-align:center;font-size:11px;font-weight:600;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;background:transparent;border-right:1px solid var(--border);
+  border-top:none;border-left:none;font-family:inherit;
+}
+.cat-tab:last-child{border-right:none;}
+.cat-tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:700;}
+.cat-tab .badge{
+  display:inline-block;background:var(--red);color:#fff;
+  font-size:9px;font-weight:700;padding:1px 5px;margin-inline-start:4px;
+  min-width:14px;
+}
+.cat-tab .badge.zero{background:var(--green);}
+
+/* =============================================================
+   REPORTS GRID — choose which report to upload for
+   ============================================================= */
+.reports-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;
+}
+.report-btn{
+  background:var(--white);border:1px solid var(--border);
+  padding:18px 10px;cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--text);transition:all .12s;
+}
+.report-btn:active{transform:scale(.96);background:var(--bg);}
+.report-btn .num{font-size:22px;font-weight:700;color:var(--slate);}
+.report-btn .lbl{font-size:11px;font-weight:600;color:var(--muted);}
+.report-btn.active{background:var(--slate);color:#fff;border-color:var(--slate);}
+.report-btn.active .num{color:#fff;}
+.report-btn.active .lbl{color:#fff;}
+
+.report-back-btn{
+  background:transparent;border:none;color:var(--slate);
+  padding:0 0 12px;font-size:12px;font-weight:600;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;gap:4px;
+}
+
+/* =============================================================
+   REQUEST ITEMS (each row = one document/question)
+   ============================================================= */
+.req-item{
+  background:var(--white);border:1px solid var(--border);
+  padding:14px;margin-bottom:8px;
+}
+.req-row-top{
+  display:flex;align-items:flex-start;gap:10px;
+}
+.req-text{
+  flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text);
+  line-height:1.45;padding-top:6px;
+}
+.req-actions{
+  display:flex;gap:6px;flex-shrink:0;
+}
+.req-btn{
+  background:var(--white);border:1px solid var(--border);
+  width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--slate);font-family:inherit;padding:0;
+  transition:all .12s;
+}
+.req-btn:active{transform:scale(.92);background:var(--bg);}
+.req-btn svg{width:18px;height:18px;}
+.req-btn.has-help{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
+.req-btn.uploaded{background:var(--green);color:#fff;border-color:var(--green);}
+
+.req-status{
+  font-size:11px;font-weight:700;padding:3px 8px;
+  margin-top:8px;display:inline-block;
+}
+.req-status.pending{color:var(--orange);background:var(--orange-bg);border:1px solid var(--orange-border);}
+.req-status.uploaded{color:var(--blue);background:var(--blue-bg);}
+.req-status.approved{color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);}
+.req-status.rejected{color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);}
+
+.req-files{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+.req-file-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;color:var(--muted);background:var(--bg);
+  border:1px solid var(--border);padding:4px 8px;
+  align-self:flex-start;font-weight:600;
+}
+.req-file-pill svg{width:12px;height:12px;color:var(--slate);}
+.req-file-pill .x{margin-inline-start:6px;cursor:pointer;color:var(--red);font-weight:700;}
+
+.req-question{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+.req-textarea{
+  width:100%;min-height:60px;padding:8px 10px;background:var(--bg);
+  border:1px solid var(--border);font-size:13px;color:var(--text);
+  font-family:inherit;direction:rtl;resize:vertical;
+}
+.req-textarea:focus{outline:none;border-color:var(--slate);background:var(--white);}
+.req-save-btn{
+  align-self:flex-start;background:var(--slate);color:#fff;
+  border:1px solid var(--slate);padding:6px 14px;
+  font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;
+}
+
+input[type="file"]{display:none;}
+
+/* =============================================================
+   EMPTY STATE
+   ============================================================= */
+.empty{
+  text-align:center;padding:40px 16px;color:var(--muted);
+  background:var(--white);border:1px solid var(--border);
+}
+.empty svg{width:48px;height:48px;color:var(--border);margin:0 auto 12px;display:block;}
+.empty-title{font-size:14px;font-weight:700;margin-bottom:4px;color:var(--text);}
+.empty-text{font-size:12px;color:var(--muted);}
+
+/* =============================================================
+   HELP MODAL — half-height sheet
+   ============================================================= */
+.help-modal{
+  position:fixed;inset:0;background:rgba(26,26,40,0.5);
+  z-index:380;display:none;align-items:flex-end;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.help-modal.open{display:flex;}
+.help-sheet{
+  background:var(--white);width:100%;max-width:480px;
+  padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));
+  max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+}
+.help-handle{width:36px;height:3px;background:var(--border);margin:0 auto 4px;}
+.help-title{font-size:14px;font-weight:700;color:var(--text);}
+.help-text{
+  font-size:13px;color:var(--text);line-height:1.6;
+  background:var(--bg);border:1px solid var(--border);padding:14px;
+  white-space:pre-wrap;word-break:break-word;
+}
+.help-empty{font-size:13px;color:var(--muted);text-align:center;padding:20px 0;font-style:italic;}
+.help-close{
+  background:var(--slate);color:#fff;border:1px solid var(--slate);
+  padding:9px 14px;font-size:13px;font-weight:700;font-family:inherit;
+  cursor:pointer;align-self:flex-end;
+}
+
+/* =============================================================
+   TOAST
+   ============================================================= */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--slate);color:#fff;padding:10px 18px;
+  font-size:13px;font-weight:600;z-index:200;opacity:0;
+  transition:opacity .2s;pointer-events:none;
+  white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;
+}
+.toast.show{opacity:1;}
+.toast.ok{background:var(--green);}
+.toast.err{background:var(--red);}
+
+/* =============================================================
+   SECTION HEADER
+   ============================================================= */
+.section-header{
+  font-size:12px;font-weight:700;color:var(--muted);
+  margin:14px 4px 8px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <img src="../logo.png" alt="אבי טל ושות׳" class="logo" onerror="this.style.display='none'"/>
+    <h1>תיק שלי</h1>
+    <p>הזן את שם המשתמש והסיסמה שקיבלת מהמשרד.</p>
+    <input type="text" id="login-username" class="login-input" placeholder="שם משתמש (תעודת זהות)" inputmode="numeric" maxlength="9" autocomplete="username"/>
+    <input type="password" id="login-password" class="login-input" placeholder="סיסמה (6 ספרות)" inputmode="numeric" maxlength="6" autocomplete="current-password"/>
+    <button class="login-btn" onclick="tryLogin()">כניסה</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-demo-hint">
+      <strong>מצב הדגמה</strong><br/>
+      ת.ז: 9 ספרות כלשהן · סיסמה: 6 ספרות כלשהן
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP — shown after successful login
+     ============================================================ -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="hdr-right">
+      <button class="hdr-btn" onclick="logout()" title="יציאה">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+      <div class="hdr-count" id="user-name-display">לקוח</div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" onerror="this.style.display='none'"/>
+  </div>
+  <div class="header-spacer"></div>
+
+  <div class="main">
+    <div class="welcome-card">
+      <h2 id="welcome-name">שלום</h2>
+      <p>כאן תוכל להעלות מסמכים שביקשנו ולהשיב על שאלות מהמשרד. כל המסמכים שתעלה יישלחו אלינו לאישור.</p>
+      <div class="case-num" id="case-display" style="display:none"></div>
+    </div>
+
+    <div class="cat-tabs">
+      <button class="cat-tab active" id="cat-reports" onclick="switchCat('reports')">
+        מסמכי דוחות<span class="badge zero" id="cnt-reports">0</span>
+      </button>
+      <button class="cat-tab" id="cat-docs" onclick="switchCat('docs')">
+        השלמת מסמכים<span class="badge zero" id="cnt-docs">0</span>
+      </button>
+      <button class="cat-tab" id="cat-info" onclick="switchCat('info')">
+        השלמת פרטים<span class="badge zero" id="cnt-info">0</span>
+      </button>
+    </div>
+
+    <div id="content-area"></div>
+  </div>
+
+  <input type="file" id="file-input" accept="image/*,application/pdf"/>
+  <input type="file" id="camera-input" accept="image/*" capture="environment"/>
+</div>
+
+<!-- HELP MODAL -->
+<div class="help-modal" id="help-modal">
+  <div class="help-sheet">
+    <div class="help-handle"></div>
+    <div class="help-title" id="help-title">הסבר</div>
+    <div id="help-body"></div>
+    <button class="help-close" onclick="closeHelp()">סגור</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+'use strict';
+
+/* =============================================================
+   ICONS — same SVG style as insolvency/leads
+   ============================================================= */
+const _SVG=(p,sz=16)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:${sz}px;height:${sz}px;display:block">${p}</svg>`;
+const ICON={
+  camera: _SVG('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',18),
+  upload: _SVG('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',18),
+  question:_SVG('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',18),
+  paper:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',12),
+  check:  _SVG('<polyline points="20 6 9 17 4 12"/>',18),
+  empty:  _SVG('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',48),
+};
+
+/* =============================================================
+   STATE
+   ============================================================= */
+let currentUser=null;
+let requests=[];           // all requests (across all categories/reports)
+let currentCategory='reports';
+let currentReportNum=null; // when looking at report N's docs
+let _activeReqId=null;     // which request is the file picker for
+
+const LS_USER='at_customer_user_v1';
+const LS_REQS='at_customer_reqs_v1';
+
+/* =============================================================
+   DEMO DATA — would come from the spreadsheet in production
+   ============================================================= */
+function buildDemoRequests(){
+  const reportTemplate = [
+    'תלושי שכר 2 חודשים אחרונים (גם בן/בת זוג)',
+    'אישור הכנסה מביטוח לאומי / קצבאות',
+    'אישור הכנסה מפנסיה',
+    'חשבון מים',
+    'חשבון חשמל',
+    'חשבון ארנונה',
+    'חשבון טלפון',
+    'חשבון אינטרנט',
+    'חשבון גז',
+    'דפי חשבון בנק - 2 חודשים מלאים',
+    'דפי כרטיסי אשראי - 2 חודשים מלאים',
+    'קבלות מזון / סופרמרקט',
+    'קבלות דלק / נסיעות',
+    'חוזה שכירות (אם שוכר)',
+    'תשלומי מזונות (אם רלוונטי)',
+    'הוצאות רפואיות / מרשמים',
+    'הוצאות ילדים (חינוך, חוגים)',
+    'תשלומי ביטוחים',
+    'תשלומי הלוואות / פיגורים',
+  ];
+  const list=[];
+  // Reports 1..6, each with the standard template
+  for(let r=1;r<=6;r++){
+    reportTemplate.forEach((text, idx)=>{
+      list.push({
+        id:`rep${r}-${idx+1}`,
+        category:'reports',
+        report:r,
+        kind:'doc',
+        text,
+        explanation: idx===0 ? 'גם של בן/בת הזוג אם רלוונטי, חודשיים מלאים אחרונים.' :
+                     idx===9 ? 'מבנק הפועלים, לאומי, או כל בנק אחר. חודשיים אחרונים בלבד.' : '',
+        status:'pending',
+        files:[]
+      });
+    });
+  }
+  // Supplemental docs
+  list.push(
+    {id:'d1', category:'docs', kind:'doc', text:'צילום תעודת זהות + ספח', explanation:'צילום ברור של שני הצדדים', status:'pending', files:[]},
+    {id:'d2', category:'docs', kind:'doc', text:'אישור על מצב חשבון מבנק', explanation:'', status:'pending', files:[]},
+  );
+  // Info questions
+  list.push(
+    {id:'i1', category:'info', kind:'question', text:'האם יש לך חשבונות בנק נוספים מעבר לחשבון העיקרי?', explanation:'אם כן — פרט שם בנק ומספר חשבון', status:'pending', answer:''},
+    {id:'i2', category:'info', kind:'question', text:'מה המצב המשפחתי הנוכחי?', explanation:'רווק/נשוי/גרוש/אלמן + מספר ילדים אם יש', status:'pending', answer:''},
+  );
+  return list;
+}
+
+/* =============================================================
+   LOGIN
+   ============================================================= */
+function tryLogin(){
+  const u=document.getElementById('login-username').value.trim();
+  const p=document.getElementById('login-password').value.trim();
+  const err=document.getElementById('login-error');
+  err.classList.remove('show');
+  if(!u || !p){
+    err.textContent='הזן שם משתמש וסיסמה';
+    err.classList.add('show'); return;
+  }
+  if(!/^\d{9}$/.test(u)){
+    err.textContent='מספר זהות חייב להכיל 9 ספרות';
+    err.classList.add('show'); return;
+  }
+  if(!/^\d{6}$/.test(p)){
+    err.textContent='סיסמה חייבת להכיל 6 ספרות';
+    err.classList.add('show'); return;
+  }
+  // DEMO: accept any valid format
+  currentUser={
+    id:u,
+    name:'לקוח לדוגמה',
+    caseNum:'תיק '+u.slice(-4),
+  };
+  localStorage.setItem(LS_USER, JSON.stringify(currentUser));
+  showApp();
+}
+
+function logout(){
+  if(!confirm('להתנתק מהאפליקציה?')) return;
+  localStorage.removeItem(LS_USER);
+  localStorage.removeItem(LS_REQS);
+  currentUser=null; requests=[];
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('logi
