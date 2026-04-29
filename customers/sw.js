@@ -1,5 +1,5 @@
 // Service worker for the CUSTOMER app
-const CACHE_NAME = 'at-customer-v1';
+const CACHE_NAME = 'at-customer-v2';
 const ASSETS = [
   './',
   './index.html',
