@@ -796,7 +796,11 @@ function initAutoHideHeader(){
     const dy=y-lastY;
     // Always show when near the top
     if(y<60){
-      if(hidden){ document.documentElement.style.setProperty('--shell-offset','0px'); hidden=false; }
+      if(hidden){
+        document.documentElement.style.setProperty('--shell-offset','0px');
+        hidden=false;
+        if(typeof updateActiveFiltersBarVisibility==='function') updateActiveFiltersBarVisibility();
+      }
       lastY=y; return;
     }
     if(dy>TRIGGER_DOWN && !hidden){
@@ -813,10 +817,12 @@ function initAutoHideHeader(){
       document.documentElement.style.setProperty('--shell-offset', `-${total}px`);
       hidden=true;
       lastY=y;
+      if(typeof updateActiveFiltersBarVisibility==='function') updateActiveFiltersBarVisibility();
     } else if(dy<-TRIGGER_UP && hidden){
       document.documentElement.style.setProperty('--shell-offset','0px');
       hidden=false;
       lastY=y;
+      if(typeof updateActiveFiltersBarVisibility==='function') updateActiveFiltersBarVisibility();
     } else if(Math.abs(dy)<2){
       lastY=y;
     }
@@ -1580,38 +1586,43 @@ function setCollFilter(val,el){
   applyFilters();
 }
 
-/* Move filter rows that have a non-"all" value into #active-filters-bar
-   (a fixed strip at the top of the viewport, outside the sticky shell so
-   it isn't affected by the auto-hide animation). Rows that no longer
-   have an active value go back to their original spot inside .filters-wrap.
-   We remember each row's "home" position the first time we move it. */
+/* Build a clone of every active filter row into #active-filters-bar.
+   The originals stay exactly where they are — never moved — so the
+   visual layout of the filters block is preserved 100%. The cloned
+   bar is shown/hidden by the auto-hide-header logic based on whether
+   the main header is currently slid out of view.
+
+   Clones are inert visually (same look as originals) but their click
+   handlers are wired to call the same setters so chips work from the
+   pinned bar too. */
 function stackActiveFilterRows(){
   const bar=document.getElementById('active-filters-bar');
   if(!bar) return;
-  // 1. First, return any row that LOST its filter-active class back home.
-  Array.from(bar.children).forEach(r=>{
-    if(!r.classList.contains('filter-active') && r._homeParent){
-      // Place back at original sibling position (or at the end if the
-      // sibling is gone).
-      if(r._homeNextSibling && r._homeNextSibling.parentElement===r._homeParent){
-        r._homeParent.insertBefore(r, r._homeNextSibling);
-      } else {
-        r._homeParent.appendChild(r);
-      }
-    }
+  // Clear existing clones
+  bar.innerHTML='';
+  // Find every active row and clone it
+  document.querySelectorAll('.filter-row.filter-active').forEach(row=>{
+    const clone=row.cloneNode(true);
+    // Strip ids from the clone so they don't collide with the originals
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+    bar.appendChild(clone);
   });
-  // 2. Then, pick up any row in the document that IS active but isn't
-  //    in the bar yet, and move it into the bar.
-  document.querySelectorAll('.filter-row.filter-active').forEach(r=>{
-    if(r.parentElement!==bar){
-      // Remember where it came from so we can put it back later
-      r._homeParent = r.parentElement;
-      r._homeNextSibling = r.nextSibling;
-      bar.appendChild(r);
-    }
-  });
-  // 3. Show the bar only if it has rows.
-  bar.style.display = bar.children.length ? 'flex' : 'none';
+  // Decide visibility — the bar shows only when the auto-hide header is
+  // hidden AND we have at least one cloned row. Otherwise stays hidden.
+  updateActiveFiltersBarVisibility();
+}
+
+/* Show the cloned active-filters bar only when:
+   (a) it has rows, AND
+   (b) the main header has scrolled out of view (shell-offset != 0).
+   Called from stackActiveFilterRows AND from the scroll handler. */
+function updateActiveFiltersBarVisibility(){
+  const bar=document.getElementById('active-filters-bar');
+  if(!bar) return;
+  const offset=getComputedStyle(document.documentElement).getPropertyValue('--shell-offset').trim();
+  const hidden = offset && offset!=='0px' && offset!=='0';
+  bar.style.display = (bar.children.length && hidden) ? 'flex' : 'none';
 }
 
 function updateStats(active){
