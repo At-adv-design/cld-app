@@ -81,6 +81,26 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* === Customer-area modal sections === */
 .cust-section{background:var(--white);border:1px solid var(--border);padding:14px;}
 .cust-section-title{font-size:13px;font-weight:700;color:var(--slate);margin-bottom:10px;text-transform:none;}
+/* Big tappable button that opens the customer's Drive folder. Same look
+   as the cards (white bg, subtle border) so it sits naturally next to
+   the other sections. */
+.cust-folder-btn{
+  width:100%;display:flex;align-items:center;gap:12px;
+  background:var(--bg);border:1px solid var(--border);
+  padding:14px;cursor:pointer;font-family:inherit;text-align:right;
+  color:var(--text);transition:all .12s;
+}
+.cust-folder-btn:active{transform:scale(.98);background:var(--white);}
+.cust-folder-icon{
+  width:42px;height:42px;background:var(--white);border:1px solid var(--border);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--slate);flex-shrink:0;
+}
+.cust-folder-icon svg{width:22px;height:22px;}
+.cust-folder-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.cust-folder-title{font-size:14px;font-weight:700;color:var(--text);}
+.cust-folder-sub{font-size:11px;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cust-folder-chev{font-size:20px;color:var(--muted);font-weight:300;flex-shrink:0;}
 .cust-creds{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .cust-input{background:var(--bg);border:1px solid var(--border);padding:10px 12px;font-size:13px;font-family:inherit;color:var(--text);direction:rtl;width:100%;}
 .cust-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
@@ -143,14 +163,16 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .client-card.urgent{border-right:2px solid var(--red);}
 .client-card.warning{border-right:2px solid var(--orange);}
 
-.card-header{padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;width:100%;}
+.card-header{padding:13px 14px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;width:100%;}
 .card-header > .client-info{flex:1 1 auto;min-width:0;}
-.card-header > .log-btn{flex-shrink:0;margin-inline-start:auto;}
+/* Side icons stacked at the top-left corner of each card (case log,
+   customer area). They sit aligned to the top so the row doesn't grow. */
+.client-side-icons{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;}
 .client-name{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
-.client-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-/* Container for the row of action icons in each card header (phone, call
-   log, WhatsApp, case log). Forces them all to the same vertical baseline. */
-.hdr-icons{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.client-name-row{display:flex;align-items:center;gap:6px;}
+/* Action icons row, sits under the name. Three icons in a clean line:
+   phone, whatsapp, call-summary. All same height, neatly aligned. */
+.client-actions-row{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
 /* ── Unified action buttons (used next to client name and inside cards) ──
    Single rule for: phone-btn, call-log-btn, restore-btn, log-btn, note-btn.
    All buttons are 40×40, sharp corners, with 18×18 icons. */
@@ -833,6 +855,8 @@ const ICON={
   noteAdd:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',18),
   // Person icon — used for the "customer area" button in each card header
   customer: _SVG('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',18),
+  /* Folder icon — opens the customer's uploaded-docs folder in Drive */
+  folder:   _SVG('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',18),
   // Question-mark icon — used inline next to each requirement item
   question: _SVG('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',16),
   whatsapp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>'
@@ -1965,16 +1989,22 @@ function renderCards(clients){
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
           <div class="client-info">
-            <div class="client-name-row">${phoneBtn(c)}<div class="client-name">${esc(c.name)}</div></div>
+            <!-- Name on its own line at the top -->
+            <div class="client-name-row"><div class="client-name">${esc(c.name)}</div></div>
             <div class="client-meta">${c.caseNum?'תיק: '+esc(c.caseNum):''}${c.overdueCount>0?' • '+c.overdueCount+' דוחות פתוחים':''}</div>
+            <!-- Three primary action icons under the name: phone, whatsapp, call summary -->
+            <div class="client-actions-row">
+              ${phoneBtn(c)}
+              <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
+            </div>
           </div>
-          <button class="wa-btn" onclick="event.stopPropagation();openWhatsapp('${ej(c.phone||'')}')" title="WhatsApp">${ICON.whatsapp}</button>
-          <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
-          <!-- Customer area: opens a fullscreen modal with the customer's
-               username/password + the requirement lists for documents and
-               reports. Filled in by the lawyer; visible to the customer
-               in their own app. -->
-          <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}</button>
+          <!-- Side icons on the top-left of the card: case log + customer area.
+               Note: the customer's Drive folder is accessible from inside the
+               customer area modal, not as a separate top-level icon. -->
+          <div class="client-side-icons">
+            <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
+            <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}</button>
+          </div>
         </div>
         ${bodyHtml}
       </div>`;
@@ -2463,6 +2493,21 @@ function renderCustomerArea(){
   if(!_custState) return;
   const body=document.getElementById('customer-area-body');
   body.innerHTML = `
+    <!-- Customer Drive folder. Big tappable card that opens the
+         existing DocsFeature modal pointed at this client's row.
+         The DocsFeature backend handles the actual Drive lookup. -->
+    <div class="cust-section">
+      <div class="cust-section-title">תיקיית מסמכים — Google Drive</div>
+      <button class="cust-folder-btn" onclick="openDocsModal(${_custState.rowNum})">
+        <span class="cust-folder-icon">${(window.DocsFeature&&window.DocsFeature.icon)||''}</span>
+        <span class="cust-folder-text">
+          <span class="cust-folder-title">פתח תיקיית הלקוח</span>
+          <span class="cust-folder-sub">צפייה במסמכים של ${esc(_custState.name||'')}</span>
+        </span>
+        <span class="cust-folder-chev">‹</span>
+      </button>
+    </div>
+
     <!-- Credentials section -->
     <div class="cust-section">
       <div class="cust-section-title">שם משתמש וסיסמה ללקוח</div>
