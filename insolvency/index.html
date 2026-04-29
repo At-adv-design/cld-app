@@ -84,6 +84,55 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* Big tappable button that opens the customer's Drive folder. Same look
    as the cards (white bg, subtle border) so it sits naturally next to
    the other sections. */
+/* Pending-approval section in the customer-area modal. */
+.cust-section.pending-section{
+  border-color:var(--orange-border);
+  background:var(--orange-bg);
+}
+.pending-dot{
+  width:8px;height:8px;background:var(--red);border-radius:50%;
+  display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite;
+}
+@keyframes pendingPulse{
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:0.4;transform:scale(0.8);}
+}
+.pending-list{display:flex;flex-direction:column;gap:8px;}
+.pending-item{
+  background:var(--white);border:1px solid var(--border);
+  padding:12px;display:flex;flex-direction:column;gap:6px;
+}
+.pending-item-cat{
+  font-size:10px;font-weight:700;color:var(--slate);
+  background:var(--bg);border:1px solid var(--border);
+  padding:2px 7px;align-self:flex-start;
+}
+.pending-item-text{
+  font-size:13px;font-weight:600;color:var(--text);line-height:1.4;
+}
+.pending-answer{
+  font-size:12px;color:var(--text);background:var(--bg);
+  border:1px solid var(--border);padding:8px 10px;
+  white-space:pre-wrap;word-break:break-word;line-height:1.5;
+}
+.pending-files{display:flex;flex-direction:column;gap:4px;align-items:flex-start;}
+.pending-file-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--bg);border:1px solid var(--border);
+  padding:5px 10px;font-size:11px;font-weight:600;color:var(--text);
+  cursor:pointer;font-family:inherit;
+}
+.pending-file-pill:hover{background:var(--white);}
+.pending-file-pill svg{width:12px;height:12px;color:var(--slate);}
+.pending-actions{display:flex;gap:6px;margin-top:4px;}
+.pending-btn{
+  flex:1;padding:8px 14px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;border:1px solid;
+}
+.pending-btn.approve{background:var(--green);color:#fff;border-color:var(--green);}
+.pending-btn.reject{background:var(--white);color:var(--red);border-color:var(--red);}
+.pending-btn:active{transform:scale(.96);}
+
 .cust-folder-btn{
   width:100%;display:flex;align-items:center;gap:12px;
   background:var(--bg);border:1px solid var(--border);
@@ -267,6 +316,17 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .log-btn:active{transform:scale(.92);background:var(--bg);}
 .log-btn.has-log{border-color:var(--slate);background:#fafafd;}
 .log-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--slate);border:2px solid #fff;}
+/* Red counter badge over the customer-area button when items are waiting
+   for our approval. Sized like the log-dot but with a number. */
+.cust-badge{
+  position:absolute;top:-5px;right:-5px;
+  min-width:16px;height:16px;padding:0 4px;
+  background:var(--red);color:#fff;
+  font-size:9px;font-weight:700;line-height:16px;text-align:center;
+  border:2px solid var(--white);border-radius:8px;
+  pointer-events:none;
+}
+.customer-area-btn{position:relative;}
 
 /* LOG MODAL — viewer + edit (fullscreen) and add (bottom sheet) */
 #log-modal,#log-edit-modal,#bd-edit-modal,#customer-area-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:300;}
@@ -361,6 +421,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     <div class="hdr-right">
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
+      <!-- Global "pending approvals" badge. Clicking it scrolls to the
+           first client card that has pending uploads. Hidden when zero. -->
+      <button id="pending-approvals-badge" onclick="jumpToFirstPending()" title="מסמכים ממתינים לאישור" style="display:none;align-items:center;gap:4px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:inherit">
+        <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite"></span>
+        <span id="pending-approvals-count">0</span>
+      </button>
       <span class="hdr-count" id="total-count">טוען...</span>
       <button class="hdr-btn" onclick="loadData()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
@@ -1217,6 +1283,17 @@ setInterval(()=>{
 // Try flushing queue every 30s
 setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
 
+// Auto-refresh client data every 2 minutes so pending approvals
+// from the customer app appear automatically without manual refresh.
+setInterval(()=>{
+  if(!navigator.onLine || !accessToken) return;
+  // Don't refresh while the user is editing — would lose context.
+  // Skip when any modal is open.
+  const modalOpen = document.querySelector('#log-modal.open, #log-edit-modal.open, #bd-edit-modal.open, #customer-area-modal.open, #drive-browser-modal[style*="flex"]');
+  if(modalOpen) return;
+  if(typeof loadData === 'function') loadData();
+}, 2*60*1000);
+
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function doLogin(){
@@ -1430,6 +1507,7 @@ async function loadData(){
     document.getElementById('total-count').textContent=active.length;
     updateWaitingTab();
     updateStats(active);
+    updatePendingApprovalsBadge();
     document.getElementById('loading').style.display='none';
     // Only re-render the section the user is currently looking at
     if(inTasksSection){
@@ -1574,6 +1652,12 @@ function parseClient(row,rowNum){
     // Raw values used by the inline edit buttons in each section
     docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, bdRaw, srvDeadline,
     customerUsername, customerPassword, customerActive, reportDocs, supplDocs, infoQs,
+    // How many items are waiting for our approval (status === 'uploaded')
+    customerPendingCount: (
+      reportDocs.filter(r=>r.status==='uploaded').length +
+      supplDocs.filter(r=>r.status==='uploaded').length +
+      infoQs.filter(r=>r.status==='uploaded').length
+    ),
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
@@ -1671,6 +1755,41 @@ function setF(type,val){
   stackActiveFilterRows();
   applyFilters();
 }
+/* Update the global pending-approvals badge in the header. Counts up
+   the customerPendingCount across all loaded clients. Hidden when zero. */
+function updatePendingApprovalsBadge(){
+  const total = (allClients||[]).reduce((sum,c)=>sum + (c.customerPendingCount||0), 0);
+  const badge = document.getElementById('pending-approvals-badge');
+  const countEl = document.getElementById('pending-approvals-count');
+  if(!badge || !countEl) return;
+  if(total > 0){
+    countEl.textContent = total;
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+/* Click handler for the badge — scrolls to the first card that has
+   pending approvals. */
+function jumpToFirstPending(){
+  const c = (allClients||[]).find(x => (x.customerPendingCount||0) > 0);
+  if(!c){ showToast('אין כרגע מסמכים שממתינים','ok'); return; }
+  // If filters are hiding the card, just open the customer-area modal directly.
+  const card = document.querySelector(`.client-card[data-row="${c.rowNum}"]`);
+  if(card){
+    card.scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(()=>{
+      // Briefly highlight the card
+      card.style.transition='box-shadow .3s';
+      card.style.boxShadow='0 0 0 3px var(--red)';
+      setTimeout(()=>{ card.style.boxShadow=''; }, 1500);
+    }, 400);
+  } else {
+    openCustomerArea(c.rowNum);
+  }
+}
+
 function applyFilters(){
   // If the user is currently in the secret operations section, don't touch the
   // main list at all — just refresh the tasks view.
@@ -2041,7 +2160,11 @@ function renderCards(clients){
                customer area modal, not as a separate top-level icon. -->
           <div class="client-side-icons">
             <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
-            <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}</button>
+            <!-- Customer-area button. Shows a red badge when there are
+                 uploaded items in any of the 3 lists (CU/CV/CW) that are
+                 waiting for approval. _customerPendingCount is computed
+                 in parseClient(). -->
+            <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}${c.customerPendingCount?`<span class="cust-badge">${c.customerPendingCount}</span>`:''}</button>
           </div>
         </div>
         ${bodyHtml}
@@ -2530,10 +2653,36 @@ function closeCustomerArea(){
 function renderCustomerArea(){
   if(!_custState) return;
   const body=document.getElementById('customer-area-body');
+  // Build the list of pending-approval items across all 3 lists.
+  // An item is "pending approval" when status === 'uploaded' (the
+  // customer has done their part; we need to approve or reject).
+  const pending = [];
+  ['reportDocs','supplDocs','infoQs'].forEach(listKey=>{
+    const list = _custState[listKey] || [];
+    list.forEach(req=>{
+      if(req.status === 'uploaded'){
+        pending.push({
+          listKey, req,
+          category: listKey==='reportDocs'?'מסמכי דוחות':listKey==='supplDocs'?'השלמת מסמכים':'השלמת פרטים',
+        });
+      }
+    });
+  });
   body.innerHTML = `
-    <!-- Customer Drive folder. Tap opens an in-app browser that shows
-         the folder hierarchy under "חדלפ" → [client] → ... and lets
-         the user view/open files without leaving the app. -->
+    ${pending.length ? `
+    <!-- Pending approval section — only when something needs review. -->
+    <div class="cust-section pending-section">
+      <div class="cust-section-title" style="display:flex;align-items:center;gap:6px">
+        <span class="pending-dot"></span>
+        <span>ממתינים לאישור (${pending.length})</span>
+      </div>
+      <div class="pending-list">
+        ${pending.map(p=>renderPendingItem(p)).join('')}
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- Customer Drive folder. -->
     <div class="cust-section">
       <div class="cust-section-title">תיקיית מסמכים — Google Drive</div>
       <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
@@ -2553,7 +2702,6 @@ function renderCustomerArea(){
         <input type="text" class="cust-input" id="cust-username" placeholder="שם משתמש (ת.ז)" value="${esc(_custState.username||'')}" inputmode="numeric"/>
         <input type="text" class="cust-input" id="cust-password" placeholder="סיסמה" value="${esc(_custState.password||'')}"/>
       </div>
-      <!-- Active flag — when off, the customer can't log in. -->
       <label class="cust-active-toggle" style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--slate);user-select:none">
         <input type="checkbox" id="cust-active" ${_custState.active?'checked':''} onchange="toggleCustomerActive(this.checked)" style="width:18px;height:18px;accent-color:var(--slate);cursor:pointer"/>
         <span>אפשר ללקוח להיכנס לאפליקציה</span>
@@ -2582,6 +2730,123 @@ function renderCustomerArea(){
       <button class="req-add-btn" onclick="addReqRow('infoQs')" style="margin-top:6px">+ הוסף שאלה</button>
     </div>
   `;
+}
+
+/* Render a single "pending approval" row in the section above. */
+function renderPendingItem(p){
+  const r = p.req;
+  const isQuestion = (p.listKey === 'infoQs');
+  const filePills = (r.files || []).map(f=>{
+    const safeId = esc(f.id||'');
+    const safeName = esc(f.name||'');
+    const safeUrl = esc(f.url||'');
+    return `<button class="pending-file-pill" onclick="previewPendingFile('${safeId}','${safeName}','${safeUrl}')">${ICON.paper}<span>${safeName}</span></button>`;
+  }).join('');
+  return `<div class="pending-item">
+    <div class="pending-item-cat">${esc(p.category)}</div>
+    <div class="pending-item-text">${esc(r.text||'')}</div>
+    ${isQuestion ? `<div class="pending-answer">${esc(r.answer||'(ריק)')}</div>` : (filePills ? `<div class="pending-files">${filePills}</div>` : '')}
+    <div class="pending-actions">
+      <button class="pending-btn approve" onclick="approvePending('${p.listKey}','${esc(r.id)}')">✓ אישור</button>
+      <button class="pending-btn reject" onclick="rejectPending('${p.listKey}','${esc(r.id)}')">✗ דחייה</button>
+    </div>
+  </div>`;
+}
+
+/* Approve one pending item. Updates its status to "approved", appends
+   a log entry, and writes back to the JSON cell. */
+async function approvePending(listKey, reqId){
+  if(!_custState) return;
+  const list = _custState[listKey] || [];
+  const req = list.find(r=>r.id===reqId);
+  if(!req) return;
+  req.status = 'approved';
+  req.approvedAt = Date.now();
+  await _persistReqList(listKey);
+  // Append log entry
+  await _appendCustomerLog(`אושר: ${req.text}`);
+  showToast('אושר','ok');
+  renderCustomerArea();
+}
+
+/* Reject — opens a small inline modal to capture the reason (min 5 chars).
+   Then updates status to "rejected" and writes back. */
+function rejectPending(listKey, reqId){
+  const reason = prompt('סיבת הדחייה (חובה — לפחות 5 תווים):');
+  if(reason === null) return; // cancelled
+  if(!reason || reason.trim().length < 5){
+    showToast('יש להזין סיבה (לפחות 5 תווים)','err');
+    return;
+  }
+  _doRejectPending(listKey, reqId, reason.trim());
+}
+async function _doRejectPending(listKey, reqId, reason){
+  if(!_custState) return;
+  const list = _custState[listKey] || [];
+  const req = list.find(r=>r.id===reqId);
+  if(!req) return;
+  req.status = 'rejected';
+  req.rejectionReason = reason;
+  req.rejectedAt = Date.now();
+  await _persistReqList(listKey);
+  await _appendCustomerLog(`נדחה: ${req.text} — סיבה: ${reason}`);
+  showToast('נדחה','ok');
+  renderCustomerArea();
+}
+
+/* Persist a single req-list (CU/CV/CW) back to its sheet cell. */
+async function _persistReqList(listKey){
+  if(!_custState) return;
+  const col = listKey==='reportDocs' ? 'CU' :
+              listKey==='supplDocs'  ? 'CV' :
+              listKey==='infoQs'     ? 'CW' : null;
+  if(!col) return;
+  const list = _custState[listKey] || [];
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${_custState.rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(list)]]})};
+  try{ await apiFetch(url,opts); }
+  catch(e){ enqueueWrite(url,opts,'אישור/דחייה'); }
+  // Also update local cache
+  const c = allClients.find(x=>x.rowNum===_custState.rowNum);
+  if(c){
+    if(listKey==='reportDocs') c.reportDocs = list;
+    else if(listKey==='supplDocs') c.supplDocs = list;
+    else if(listKey==='infoQs') c.infoQs = list;
+  }
+}
+
+/* Append a line to the case log (column CF). Used by approve/reject. */
+async function _appendCustomerLog(text){
+  if(!_custState) return;
+  const c = allClients.find(x=>x.rowNum===_custState.rowNum);
+  if(!c) return;
+  // Format: [DD/MM HH:mm] text
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2,'0');
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mn = String(now.getMinutes()).padStart(2,'0');
+  const stamp = `[${dd}/${mm} ${hh}:${mn}]`;
+  const prev = c.log || '';
+  const newLog = (prev ? prev + '\n' : '') + `${stamp} ${text}`;
+  c.log = newLog;
+  try{ await writeLogToSheet(_custState.rowNum, newLog, COL_CF); }
+  catch(e){ /* writeLogToSheet handles enqueue itself */ }
+}
+
+/* Open a preview of a pending file in the in-app preview overlay
+   (reuses the Drive browser's preview modal). */
+function previewPendingFile(fileId, fileName, fileUrl){
+  if(!fileId){
+    if(fileUrl) window.open(fileUrl, '_blank');
+    return;
+  }
+  // Reuse the existing openDrivePreview function from the Drive browser
+  if(typeof openDrivePreview === 'function'){
+    openDrivePreview({id: fileId, name: fileName, mimeType: '', webViewLink: fileUrl});
+  } else if(fileUrl){
+    window.open(fileUrl, '_blank');
+  }
 }
 
 function _renderReqList(key){
