@@ -23,7 +23,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .header img{height:80px;object-fit:contain;}
 .login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;background:var(--bg);}
 .login-card{background:var(--white);border:1px solid var(--border);padding:30px 24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;}
-.login-card .logo{height:80px;object-fit:contain;align-self:center;margin-bottom:6px;}
+.login-card .logo{height:80px;object-fit:contain;align-self:center;margin-bottom:6px;background:transparent;border:none;border-radius:0;box-shadow:none;}
 .login-card h1{font-size:18px;font-weight:700;text-align:center;color:var(--text);}
 .login-card p{font-size:13px;color:var(--muted);text-align:center;font-weight:500;line-height:1.5;}
 .login-input{background:var(--bg);border:1px solid var(--border);padding:12px 14px;font-size:14px;font-family:inherit;color:var(--text);direction:rtl;}
@@ -37,17 +37,52 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .welcome-card{background:var(--white);border:1px solid var(--border);padding:18px 16px;margin-bottom:14px;}
 .welcome-card h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;}
 .welcome-card p{font-size:12px;color:var(--muted);font-weight:500;line-height:1.5;}
+/* Accordion sections — replaces the old tabs. */
+.acc-section{background:var(--white);border:1px solid var(--border);margin-bottom:8px;}
+.acc-header{
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:14px 16px;background:transparent;border:none;cursor:pointer;
+  font-family:inherit;color:var(--text);
+  border-bottom:1px solid transparent;transition:border-color .15s;
+}
+.acc-section.open .acc-header{border-bottom-color:var(--border);}
+.acc-chev{font-size:12px;color:var(--muted);width:14px;text-align:center;}
+.acc-title{flex:1;font-size:14px;font-weight:700;text-align:right;}
+.acc-badge{
+  display:inline-block;background:var(--red);color:#fff;
+  font-size:10px;font-weight:700;padding:2px 7px;min-width:22px;text-align:center;
+}
+.acc-badge.zero{background:var(--green);}
+.acc-body{padding:14px 14px 16px;}
+
+/* Report grid — three states: available, locked (date hasn't arrived),
+   done (already submitted). Disabled buttons are visibly faded. */
 .cat-tabs{display:flex;gap:0;background:var(--white);border:1px solid var(--border);margin-bottom:14px;}
 .cat-tab{flex:1;padding:12px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:transparent;border-right:1px solid var(--border);border-top:none;border-left:none;font-family:inherit;}
 .cat-tab:last-child{border-right:none;}
 .cat-tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:700;}
 .cat-tab .badge{display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;margin-inline-start:4px;min-width:14px;}
 .cat-tab .badge.zero{background:var(--green);}
-.reports-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
-.report-btn{background:var(--white);border:1px solid var(--border);padding:18px 10px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text);transition:all .12s;}
-.report-btn:active{transform:scale(.96);background:var(--bg);}
+.reports-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:0;}
+.report-btn{background:var(--white);border:1px solid var(--border);padding:14px 8px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text);transition:all .12s;}
+.report-btn:not(:disabled):active{transform:scale(.96);background:var(--bg);}
 .report-btn .num{font-size:22px;font-weight:700;color:var(--slate);}
 .report-btn .lbl{font-size:11px;font-weight:600;color:var(--muted);}
+.report-btn .date{font-size:10px;color:var(--text);font-weight:700;}
+.report-btn .sub{font-size:10px;}
+/* Locked: date hasn't arrived yet — visibly grey, not clickable */
+.report-btn.locked{
+  opacity:.45;cursor:not-allowed;background:var(--bg);
+}
+.report-btn.locked .num{color:var(--muted);}
+/* Done: report already submitted — faded grey with a checkmark */
+.report-btn.done{
+  opacity:.5;cursor:not-allowed;background:var(--bg);
+  color:var(--muted);
+}
+.report-btn.done .num{color:var(--muted);}
+.report-btn.done .date{color:var(--muted);font-weight:600;}
+.report-btn.done .sub{color:var(--green);font-weight:700;}
 .report-back-btn{background:transparent;border:none;color:var(--slate);padding:0 0 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;}
 .req-item{background:var(--white);border:1px solid var(--border);padding:14px;margin-bottom:8px;}
 .req-row-top{display:flex;align-items:flex-start;gap:10px;}
@@ -201,6 +236,11 @@ let currentUser=null;
 let requests=[];
 let currentCategory='reports';
 let currentReportNum=null;
+// Track which accordion sections are open. All start closed so the
+// customer sees just three big tappable headers and isn't overwhelmed.
+const _sectionOpen = {reports:false, docs:false, info:false};
+// Per-report due dates and statuses, fetched together with requirements.
+let _reportInfo = []; // [{num, dateMs, dateText, status}, ...]
 let _activeReqId=null;
 const LS_USER='at_customer_session_v2';
 
@@ -286,6 +326,7 @@ async function loadRequestsFromServer(){
       requests.push(Object.assign({}, r, {category:'info', kind:'question'}));
     });
     if(data.name) currentUser.name = data.name;
+    _reportInfo = data.reportInfo || [];
     document.getElementById('welcome-name').textContent='שלום, '+(currentUser.name||'');
     document.getElementById('user-name-display').textContent=currentUser.name||'';
     renderAll();
@@ -308,62 +349,142 @@ function buildDemoRequests(){
   return list;
 }
 
-function switchCat(cat){
-  currentCategory=cat;
-  currentReportNum=null;
-  ['reports','docs','info'].forEach(c=>{
-    document.getElementById('cat-'+c).classList.toggle('active', c===cat);
-  });
+/* Toggle an accordion section open/closed. Closing a section also
+   closes any drilled-in report view. */
+function toggleSection(cat){
+  _sectionOpen[cat] = !_sectionOpen[cat];
+  if(!_sectionOpen[cat] && cat==='reports') currentReportNum = null;
   renderAll();
 }
 
 function renderAll(){
-  ['reports','docs','info'].forEach(cat=>{
-    const pending=requests.filter(r=>r.category===cat && (r.status==='pending'||r.status==='rejected')).length;
-    const el=document.getElementById('cnt-'+cat);
-    el.textContent=pending;
-    el.classList.toggle('zero', pending===0);
-  });
-  const area=document.getElementById('content-area');
-  if(currentCategory==='reports' && !currentReportNum){ area.innerHTML=renderReportsGrid(); return; }
-  if(currentCategory==='reports' && currentReportNum){ area.innerHTML=renderReportItems(); return; }
-  area.innerHTML=renderFlatList(currentCategory);
+  const root=document.getElementById('accordion');
+  if(!root) return;
+  root.innerHTML = renderAccordion();
+}
+
+/* Build the 3-section accordion. Each section is a header (always
+   visible) + a body (visible only when open). Pending counts are
+   shown on each header so the customer knows where to look. */
+function renderAccordion(){
+  const sections = [
+    {key:'reports', title:'מסמכי דוחות'},
+    {key:'docs',    title:'השלמת מסמכים'},
+    {key:'info',    title:'השלמת פרטים'},
+  ];
+  return sections.map(s=>{
+    const items = requests.filter(r=>r.category===s.key);
+    const pending = items.filter(r=>r.status==='pending'||r.status==='rejected').length;
+    const open = !!_sectionOpen[s.key];
+    const badge = pending > 0
+      ? `<span class="acc-badge">${pending}</span>`
+      : (items.length ? `<span class="acc-badge zero">✓</span>` : '');
+    let body = '';
+    if(open){
+      if(s.key==='reports'){
+        body = currentReportNum ? renderReportItems() : renderReportsGrid();
+      } else {
+        body = renderFlatList(s.key);
+      }
+    }
+    return `<div class="acc-section ${open?'open':''}">
+      <button class="acc-header" onclick="toggleSection('${s.key}')">
+        <span class="acc-chev">${open?'▾':'▸'}</span>
+        <span class="acc-title">${s.title}</span>
+        ${badge}
+      </button>
+      ${open ? `<div class="acc-body">${body}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* Status helpers — does this report have a due date that's already arrived?
+   Has it already been marked "בוצע" (done)? */
+function _reportInfoFor(n){
+  return (_reportInfo || []).find(x => x && x.num === n) || {num:n, dateMs:null, dateText:'', status:''};
+}
+function _reportIsDone(info){
+  // The lawyer marks "בוצע" when a report has been submitted. We treat
+  // anything non-empty as "done" to be safe (matches the insolvency app).
+  return !!(info && (info.status||'').trim());
+}
+function _reportIsAvailable(info){
+  if(!info) return false;
+  if(_reportIsDone(info)) return false;
+  // No date set → not yet relevant; lock it.
+  if(!info.dateMs) return false;
+  return Date.now() >= info.dateMs;
+}
+
+/* Format a date as "חודש שנה" (e.g. "מאי 2026") for the report cards. */
+const _HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function _formatReportDate(info){
+  if(!info || !info.dateMs) return info && info.dateText ? info.dateText : '—';
+  const d = new Date(info.dateMs);
+  return _HEB_MONTHS[d.getMonth()] + ' ' + d.getFullYear();
 }
 
 function renderReportsGrid(){
-  const reports=[1,2,3,4,5,6].map(n=>{
-    const items=requests.filter(r=>r.category==='reports' && r.report===n);
-    const pending=items.filter(r=>r.status==='pending'||r.status==='rejected').length;
-    return `<button class="report-btn" onclick="openReport(${n})">
-      <span class="num">${n}</span><span class="lbl">דוח ${n}</span>
-      <span class="lbl" style="font-size:10px">${pending}/${items.length} פתוחים</span>
+  const cells = [1,2,3,4,5,6].map(n=>{
+    const info = _reportInfoFor(n);
+    const items = requests.filter(r=>r.category==='reports' && r.report===n);
+    const pending = items.filter(r=>r.status==='pending'||r.status==='rejected').length;
+    const done = _reportIsDone(info);
+    const available = _reportIsAvailable(info);
+    const dateLbl = _formatReportDate(info);
+    let cls = 'report-btn';
+    if(done) cls += ' done';
+    else if(!available) cls += ' locked';
+    const click = (done || !available) ? '' : `onclick="openReport(${n})"`;
+    const subLine = done
+      ? '✓ הוגש'
+      : (!available
+          ? 'טרם הגיע המועד'
+          : (items.length ? `${pending}/${items.length} פתוחים` : 'אין מסמכים'));
+    return `<button class="${cls}" ${click} ${(done||!available)?'disabled':''}>
+      <span class="num">${n}</span>
+      <span class="lbl">דוח ${n}</span>
+      <span class="lbl date">${dateLbl}</span>
+      <span class="lbl sub">${subLine}</span>
     </button>`;
   }).join('');
-  return `<div class="section-header">בחר דוח להעלאת מסמכים</div><div class="reports-grid">${reports}</div>`;
+  return `<div class="section-header" style="margin-top:0">בחר דוח להעלאת מסמכים</div>
+    <div class="reports-grid">${cells}</div>`;
 }
-function openReport(n){ currentReportNum=n; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); }
+
+function openReport(n){
+  const info = _reportInfoFor(n);
+  if(_reportIsDone(info) || !_reportIsAvailable(info)) return; // safety
+  currentReportNum=n; renderAll();
+  // Scroll the accordion section into view nicely
+  setTimeout(()=>{
+    const el=document.querySelector('.acc-section.open');
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 50);
+}
 function closeReport(){ currentReportNum=null; renderAll(); }
 
 function renderReportItems(){
-  const items=requests.filter(r=>r.category==='reports' && r.report===currentReportNum);
+  const info = _reportInfoFor(currentReportNum);
+  const items = requests.filter(r=>r.category==='reports' && r.report===currentReportNum);
+  const dateLbl = _formatReportDate(info);
   if(!items.length){
-    return `<button class="report-back-btn" onclick="closeReport()">‹ חזרה</button>
+    return `<button class="report-back-btn" onclick="closeReport()">‹ חזרה לרשימת הדוחות</button>
       <div class="empty">${ICON.empty}<div class="empty-title">אין מסמכים נדרשים לדוח ${currentReportNum}</div></div>`;
   }
   return `<button class="report-back-btn" onclick="closeReport()">‹ חזרה לרשימת הדוחות</button>
-    <div class="section-header">מסמכים לדוח ${currentReportNum}</div>
+    <div class="section-header" style="margin-top:0">מסמכים לדוח ${currentReportNum} · ${dateLbl}</div>
     ${items.map(renderRequestItem).join('')}`;
 }
 
 function renderFlatList(cat){
-  const items=requests.filter(r=>r.category===cat);
+  const items = requests.filter(r=>r.category===cat);
   if(!items.length){
     return `<div class="empty">${ICON.empty}<div class="empty-title">אין פריטים בקטגוריה זו</div><div class="empty-text">הכל מעודכן 👌</div></div>`;
   }
-  const order={pending:0,rejected:1,uploaded:2,approved:3};
+  const order = {pending:0, rejected:1, uploaded:2, approved:3};
   items.sort((a,b)=>(order[a.status]||9)-(order[b.status]||9));
-  const titles={docs:'מסמכים שביקשנו',info:'שאלות שביקשנו תשובה'};
-  return `<div class="section-header">${titles[cat]||''}</div>${items.map(renderRequestItem).join('')}`;
+  return items.map(renderRequestItem).join('');
 }
 
 function esc(s){return (s||'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
