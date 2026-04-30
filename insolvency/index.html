@@ -2321,34 +2321,54 @@ function updateWaitingTab(){
 /* ── Collapsible card sections ────────────────────────────────────
    Each section in the expanded card body (reports / docs / service /
    injunction) can be individually collapsed via its chevron. The
-   collapsed state is persisted globally in localStorage so the user's
-   preference applies to every card and across reloads. */
-const LS_CARD_SECTIONS = 'at_card_sections_collapsed_v1';
+   collapsed state is per-card (rowNum) so every client card remembers
+   its own expand/collapse choices independently, and the choices
+   persist across reloads. */
+const LS_CARD_SECTIONS = 'at_card_sections_collapsed_v2';
 function _loadCollapsedSections(){
   try{
     const raw = localStorage.getItem(LS_CARD_SECTIONS);
     if(raw) return JSON.parse(raw);
   }catch(_){}
-  // First time — default to all collapsed (each section opens individually).
-  return {reports:true, docs:true, service:true, injunction:true};
+  return {};
 }
 function _saveCollapsedSections(state){
   try{ localStorage.setItem(LS_CARD_SECTIONS, JSON.stringify(state)); }catch(_){}
 }
 let _collapsedSections = _loadCollapsedSections();
 
+// Default for any card that's never been touched: all 4 sections collapsed
+const _defaultCollapsed = {reports:true, docs:true, service:true, injunction:true};
+
+function _getCardCollapsedState(rowNum){
+  if(!_collapsedSections[rowNum]){
+    _collapsedSections[rowNum] = Object.assign({}, _defaultCollapsed);
+  }
+  return _collapsedSections[rowNum];
+}
+
 function toggleCardSection(rowNum, sectionKey){
-  _collapsedSections[sectionKey] = !_collapsedSections[sectionKey];
+  const state = _getCardCollapsedState(rowNum);
+  state[sectionKey] = !state[sectionKey];
   _saveCollapsedSections(_collapsedSections);
-  // Apply to ALL cards on screen — same key = same behavior everywhere.
-  applyCollapsedSections();
+  // Apply only to this specific card — find its sections and toggle.
+  const card = document.querySelector(`.client-card[data-row="${rowNum}"]`);
+  if(!card) return;
+  const sec = card.querySelector(`.card-section[data-section="${sectionKey}"]`);
+  if(sec) sec.classList.toggle('collapsed', !!state[sectionKey]);
 }
 
 function applyCollapsedSections(){
+  // Walk every visible card-section and apply its OWN card's saved state.
   document.querySelectorAll('.card-section').forEach(el => {
     const key = el.getAttribute('data-section');
     if(!key) return;
-    el.classList.toggle('collapsed', !!_collapsedSections[key]);
+    const card = el.closest('.client-card');
+    if(!card) return;
+    const rowNum = parseInt(card.getAttribute('data-row') || '0', 10);
+    if(!rowNum) return;
+    const state = _getCardCollapsedState(rowNum);
+    el.classList.toggle('collapsed', !!state[key]);
   });
 }
 
