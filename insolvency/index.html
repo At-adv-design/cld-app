@@ -88,8 +88,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   /* Make sure children don't intercept the click — the head itself
      handles toggling via onclick. */
   -webkit-tap-highlight-color:rgba(58,58,72,.12);
+  user-select:none;
+  -webkit-user-select:none;
+  position:relative;
+  z-index:2;
 }
-.cust-section-head > *{pointer-events:none;}
+.cust-section-head *{pointer-events:none !important;}
 .cust-section-head:active{background:var(--bg);}
 .cust-section-head-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
 .cust-section-title-text{font-size:13px;font-weight:700;color:var(--slate);}
@@ -3117,6 +3121,37 @@ function toggleCustSection(key){
   if(card) card.classList.toggle('open', !!_custState.openSections[key]);
   else renderCustomerArea();
 }
+// Defensive fallback: if an onclick="toggleCustSection(...)" inline
+// handler ever gets stripped (e.g. by a sanitizer or a CSP rule), we
+// also catch clicks on the section head via event delegation.
+function _custSectionFromEvent(e){
+  const head = e.target && e.target.closest && e.target.closest('.cust-section-head');
+  if(!head) return null;
+  const card = head.closest('.cust-section[data-cust-key]');
+  if(!card) return null;
+  return card.getAttribute('data-cust-key') || null;
+}
+// We use a small "recently handled" cache so the same gesture doesn't
+// fire toggle twice (touchend on iOS can sometimes synthesize an extra
+// click event).
+let _custLastToggle = 0;
+function _doSectionToggle(key){
+  const now = Date.now();
+  if(now - _custLastToggle < 350) return;  // dedupe rapid double events
+  _custLastToggle = now;
+  toggleCustSection(key);
+}
+document.addEventListener('click', function(e){
+  const key = _custSectionFromEvent(e);
+  if(key) _doSectionToggle(key);
+});
+// iOS Safari sometimes doesn't fire click on non-button elements.
+// touchend is the reliable fallback; the dedupe above prevents a
+// double toggle when click does fire.
+document.addEventListener('touchend', function(e){
+  const key = _custSectionFromEvent(e);
+  if(key) _doSectionToggle(key);
+}, {passive:true});
 
 /* ── Customer-API integration ─────────────────────────────────
    For approve/reject we need Apps Script: it physically moves
@@ -3290,10 +3325,13 @@ function renderCustomerArea(){
   const pendingTotal = (_custState.pending||[]).length +
                        (_custState.infoQs||[]).filter(q=>q.status==='uploaded').length;
 
-  // Helper to build a collapsible section with chevron
+  // Helper to build a collapsible section with chevron.
+  // We don't put the onclick inline anymore — there's a delegated
+  // click handler in toggleCustSection's section that catches every
+  // click on .cust-section-head, which is more robust on mobile.
   const sect = (key, title, badge, contentHtml) => `
     <div class="cust-section ${isOpen(key)?'open':''}" data-cust-key="${key}">
-      <div class="cust-section-head" onclick="toggleCustSection('${key}')">
+      <div class="cust-section-head" data-cust-key="${key}">
         <div class="cust-section-head-left">
           <span class="cust-section-title-text">${title}</span>
           ${badge?`<span class="cust-section-badge">${badge}</span>`:''}
