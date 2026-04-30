@@ -56,8 +56,8 @@ input,textarea,button{font-family:inherit;}
 }
 .login-box{
   width:100%;max-width:380px;
-  background:var(--white);
-  border:1px solid var(--border);
+  background:transparent;
+  border:none;
   padding:28px 24px;
   display:flex;flex-direction:column;gap:14px;
 }
@@ -66,6 +66,7 @@ input,textarea,button{font-family:inherit;}
   height:auto;align-self:center;
   margin-bottom:6px;object-fit:contain;
   display:block;
+  mix-blend-mode:multiply;
 }
 .login-title{font-size:18px;font-weight:700;text-align:center;color:var(--text);}
 .login-sub{font-size:13px;color:var(--muted);text-align:center;margin-top:-6px;margin-bottom:6px;}
@@ -257,6 +258,24 @@ input,textarea,button{font-family:inherit;}
 .file-pill .rm:active{color:var(--red);}
 .file-pill.approved{background:var(--green-bg);border-color:#C9DFD0;}
 
+/* Approved file — name on its own line, URL clickable on the next line */
+.approved-row{
+  padding:7px 9px;
+  background:var(--green-bg);border:1px solid #C9DFD0;
+  display:flex;flex-direction:column;gap:3px;
+}
+.ar-name{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:var(--text);
+}
+.ar-name svg.ar-ico{width:14px;height:14px;color:var(--green);flex-shrink:0;}
+.ar-name span{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ar-url{
+  font-size:10px;color:var(--blue);text-decoration:underline;
+  word-break:break-all;line-height:1.3;
+}
+
 .upload-btn{
   margin-top:10px;width:100%;
   padding:10px 12px;
@@ -289,6 +308,54 @@ input,textarea,button{font-family:inherit;}
 }
 .answer-row button:active{transform:scale(.97);}
 .answer-row button:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── Q&A cards (CW info questions) ──────────────────────────
+   Each question is collapsible with a chevron. Closed = just
+   the question + a tiny status dot. Open = textarea + save. */
+.qa-card{
+  background:var(--white);
+  border:1px solid var(--border);
+  margin-bottom:8px;
+}
+.qa-card.has-answer{background:var(--green-bg);border-color:#C9DFD0;}
+.qa-head{
+  display:flex;align-items:center;gap:8px;
+  padding:11px 12px;cursor:pointer;
+}
+.qa-head:active{background:rgba(0,0,0,.03);}
+.qa-q{
+  flex:1;min-width:0;
+  font-size:13px;font-weight:600;color:var(--text);
+  line-height:1.4;word-break:break-word;
+}
+.qa-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.qa-dot{
+  width:8px;height:8px;border-radius:50%;display:inline-block;
+}
+.qa-dot.answered{background:var(--green);}
+.qa-dot.empty{background:var(--border-strong);}
+.qa-chev{width:16px;height:16px;color:var(--muted);transition:transform .15s ease;}
+.qa-card.open .qa-chev{transform:rotate(180deg);}
+.qa-body{
+  display:none;border-top:1px solid var(--border);
+  padding:11px 12px;background:var(--white);
+  flex-direction:column;gap:8px;
+}
+.qa-card.open .qa-body{display:flex;}
+.qa-body textarea{
+  width:100%;min-height:80px;padding:9px 10px;
+  background:var(--bg);border:1px solid var(--border);border-radius:0;
+  font-size:13px;color:var(--text);resize:vertical;outline:none;
+  font-family:inherit;
+}
+.qa-body textarea:focus{border-color:var(--slate);}
+.qa-actions{display:flex;justify-content:flex-end;}
+.qa-actions button{
+  padding:8px 16px;background:var(--slate);color:#fff;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.qa-actions button:active{transform:scale(.97);}
+.qa-actions button:disabled{opacity:.5;cursor:not-allowed;}
 
 .empty{padding:18px 12px;text-align:center;color:var(--muted);font-size:12px;}
 
@@ -799,43 +866,64 @@ function renderDocs(){
 }
 
 /* INFO (CW) */
+/* INFO (CW) — Q&A pairs.
+   Each question is rendered as a collapsible card. The chevron toggles
+   open/closed; opening reveals the answer textarea + a save button.
+   Both customer and lawyer can update answers anytime — no
+   approve/reject status here. */
 function renderInfo(){
   const list=$('info-list');
   const cards=(dataInfo||[]).map(q=>{
-    const status=q.status||'';
-    const cls=status==='approved'?'approved':status==='rejected'?'rejected':status==='uploaded'?'pending':'';
-    const answer=q.answer||'';
-    const isApproved=status==='approved';
+    const id = q.id || '';
+    const text = q.question || q.text || '';   // tolerate both fields
+    const answer = q.answer || '';
+    const isOpen = !!_infoOpen[id];
+    const hasAnswer = !!answer.trim();
     return `
-      <div class="req-card ${cls}">
-        <div class="req-text">${esc(q.text||'')}</div>
-        ${status?`<span class="req-status-pill ${status}">${
-          status==='approved'?'אושר':status==='rejected'?'נדחה':'נשלח — ממתין לאישור'
-        }</span>`:''}
-        ${status==='rejected'&&q.rejectionReason?`
-          <div class="reject-reason"><strong>סיבת הדחייה:</strong> ${esc(q.rejectionReason)}</div>`:''}
-        ${isApproved?`
-          <div class="answer-saved">${esc(answer)}</div>
-        `:`
-          <div class="answer-area">
-            <textarea data-info-textarea="${escAttr(q.id)}" placeholder="הקלד את התשובה כאן…">${esc(answer)}</textarea>
-            <div class="answer-row">
-              <button onclick="submitAnswer('${escAttr(q.id)}')">${answer?'עדכון תשובה':'שליחה'}</button>
-            </div>
+      <div class="qa-card ${isOpen?'open':''} ${hasAnswer?'has-answer':''}">
+        <div class="qa-head" onclick="toggleInfo('${escAttr(id)}')">
+          <div class="qa-q">${esc(text)}</div>
+          <div class="qa-meta">
+            ${hasAnswer?'<span class="qa-dot answered" title="ענית"></span>':'<span class="qa-dot empty" title="טרם ענית"></span>'}
+            <svg class="qa-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
-        `}
+        </div>
+        <div class="qa-body">
+          <textarea data-info-textarea="${escAttr(id)}" placeholder="כתוב כאן את התשובה…">${esc(answer)}</textarea>
+          <div class="qa-actions">
+            <button onclick="submitAnswer('${escAttr(id)}')">${hasAnswer?'עדכן תשובה':'שלח תשובה'}</button>
+          </div>
+        </div>
       </div>`;
   }).join('');
   list.innerHTML=cards||'<div class="empty">אין שאלות לענות עליהן</div>';
 
   const total=(dataInfo||[]).length;
-  const answered=(dataInfo||[]).filter(q=>q.status==='approved'||q.status==='uploaded').length;
+  const answered=(dataInfo||[]).filter(q=>(q.answer||'').trim()).length;
   $('info-meta').textContent=total?`${answered} מתוך ${total} ענו`:'אין נתונים';
 
-  const pendingCount=(dataInfo||[]).filter(q=>q.status==='uploaded').length;
+  const unanswered = total - answered;
   const pEl=$('info-pending');
-  if(pendingCount){ pEl.textContent=pendingCount+' ממתינים'; pEl.style.display='inline-block'; }
+  if(unanswered){ pEl.textContent='נותרו '+unanswered; pEl.style.display='inline-block'; }
   else pEl.style.display='none';
+}
+/* Per-question open state. Persist across re-renders, not across reloads. */
+const _infoOpen = {};
+function toggleInfo(id){
+  _infoOpen[id] = !_infoOpen[id];
+  // Toggle just this card without a full re-render so the textarea
+  // doesn't lose any in-progress text.
+  const cards = document.querySelectorAll('.qa-card');
+  cards.forEach(c => {
+    const ta = c.querySelector('textarea[data-info-textarea]');
+    if(ta && ta.getAttribute('data-info-textarea') === id){
+      c.classList.toggle('open', !!_infoOpen[id]);
+      if(_infoOpen[id]){
+        // Auto-focus when opening (without scroll-jump)
+        try{ ta.focus({preventScroll:true}); }catch(_){ ta.focus(); }
+      }
+    }
+  });
 }
 
 /* ─── REQ CARD ─── */
@@ -888,10 +976,13 @@ function buildReqCard(opts){
 }
 function buildFilePillApproved(a){
   return `
-    <a class="file-pill approved" href="${esc(a.url)}" target="_blank" rel="noopener">
-      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span class="nm">${esc(a.name)}</span>
-    </a>`;
+    <div class="approved-row">
+      <div class="ar-name">
+        <svg class="ar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>${esc(a.name||'')}</span>
+      </div>
+      ${a.url?`<a class="ar-url" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a>`:''}
+    </div>`;
 }
 function buildFilePillPending(p){
   return `
@@ -1079,6 +1170,31 @@ document.addEventListener('keydown', e=>{
 });
 
 init();
+
+/* Keyboard-aware focus: scroll the focused input/textarea into view so
+   it isn't hidden by the on-screen keyboard. */
+(function attachKeyboardScroll(){
+  let scrollTimer = null;
+  function handleFocus(e){
+    const t = e.target;
+    if(!t) return;
+    const tag = t.tagName;
+    if(tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    if(tag === 'INPUT'){
+      const type = (t.type||'').toLowerCase();
+      if(type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit') return;
+    }
+    if(scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(()=>{
+      try{
+        t.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'});
+      }catch(_){
+        try{ t.scrollIntoView(false); }catch(__){}
+      }
+    }, 280);
+  }
+  document.addEventListener('focusin', handleFocus, true);
+})();
 </script>
 </body>
 </html>
