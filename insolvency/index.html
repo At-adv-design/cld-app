@@ -260,6 +260,20 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
 /* CARD BODY */
 .card-body{border-top:1px solid var(--border);padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+/* Collapsible section inside a card. The header is always visible;
+   the body collapses to nothing when the section is .collapsed. */
+.card-section{display:flex;flex-direction:column;gap:5px;}
+.card-section-head{
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:4px 0;user-select:none;
+}
+.card-section-chev{
+  font-size:10px;color:var(--muted);
+  transition:transform .15s;display:inline-block;width:12px;
+}
+.card-section.collapsed .card-section-chev{transform:rotate(-90deg);}
+.card-section.collapsed .card-section-body{display:none;}
+.card-section-body{display:flex;flex-direction:column;gap:5px;}
 .section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
 
 /* REPORTS */
@@ -1812,6 +1826,7 @@ function applyFilters(){
       return true;
     });
     renderCards(filtered);
+    if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
     return;
   }
   const filtered=active.filter(c=>{
@@ -1836,6 +1851,7 @@ function applyFilters(){
     return true;
   });
   renderCards(filtered);
+  if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
 }
 
 // Toggle the collection view. Hides every other filter row, hides the regular
@@ -2051,37 +2067,33 @@ function renderCards(clients){
       } else {
       const docsDeadline=c.docsHighUrgent&&c.docsAGRaw?fmtDateFull(c.docsAGRaw):'';
       bodyHtml=`<div class="card-body">
-        <div>
-          <div class="section-title" style="color:var(--red)">דוחות — ${c.overdueCount} לא הוגשו</div>
+        <div class="card-section" data-section="reports">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'reports')">
+            <span class="card-section-chev">▼</span>
+            <span class="section-title" style="color:var(--red);margin:0">דוחות — ${c.overdueCount} לא הוגשו</span>
+          </div>
+          <div class="card-section-body">
           <div style="height:30px;overflow:hidden"><div class="reports-grid">${reportCells}</div></div>
           ${c.reminder
             ? `<div class="reminder-row" style="margin-top:6px"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת דוחות — ב-10 וב-20 לחודש</span><button onclick="event.stopPropagation();setReminder(${c.rowNum},'AZ',false)" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`
             : `<button onclick="event.stopPropagation();setReminder(${c.rowNum},'AZ',true)" title="הפעל תזכורת" style="margin-top:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);cursor:pointer;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:11px;font-weight:600">${ICON.bell}<span>הפעל תזכורת דוחות</span></button>`
           }
-          <!-- Report-docs list (column BA): documents the client must provide for the reports.
-               Same UI as the existing docs-list under "השלמת מסמכים" — single read+edit box. -->
+          <!-- Report-docs list — synced with the customer-area data (CU). -->
           <div style="font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 4px">מסמכים לדוחות</div>
-          ${c.reportDocsList
-            ? `<div style="position:relative">
-                 <div onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 70px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.reportDocsList)}</div>
-                 <div style="position:absolute;left:6px;top:6px;display:flex;gap:4px">
-                   <button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="ערוך רשימה">${ICON.pencil}</button>
-                   <button onclick="event.stopPropagation();deleteReportDocs(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
-                 </div>
-               </div>`
-            : `<button onclick="event.stopPropagation();openReportDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים לדוחות</span></button>`
+          ${(c.reportDocs && c.reportDocs.length)
+            ? `<div onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${c.reportDocs.map(r=>'• '+esc(r.text||'')).join('<br>')}</div>`
+            : `<button onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים לדוחות</span></button>`
           }
-        </div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-            <div class="section-title" style="color:var(--slate);margin-bottom:0">השלמת מסמכים</div>
-            ${docsDeadline?`<div style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${docsDeadline}</div>`:''}
           </div>
+        </div>
+        <div class="card-section" data-section="docs">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'docs')">
+            <span class="card-section-chev">▼</span>
+            <span class="section-title" style="color:var(--slate);margin:0">השלמת מסמכים</span>
+            ${docsDeadline?`<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap;margin-inline-start:auto">תאריך אחרון: ${docsDeadline}</span>`:''}
+          </div>
+          <div class="card-section-body" style="display:flex;flex-direction:column;gap:5px">
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
-          <!-- Date + days editable controls. We use data-* attributes so we
-               don't have to JSON.stringify the values (which can break onclick
-               attributes if the cell contains special characters). The buttons
-               are wired up via event delegation in handleSectionCtlClick. -->
           <div class="section-controls">
             <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AE','תאריך התחלה',this.dataset.current)" data-current="${esc(c.docsAERaw||'')}" class="ctl-btn" title="ערוך תאריך התחלה">
               <span class="ctl-label">התחלה:</span><span class="ctl-val">${esc(fmtDateFull(c.docsAERaw)||'—')}</span>
@@ -2104,29 +2116,33 @@ function renderCards(clients){
             ? `<div class="reminder-row"><span style="display:inline-flex;color:#9a6800">${ICON.bell}</span><span class="reminder-text">תזכורת — ב-5, 15 ו-25 לחודש</span><button onclick="event.stopPropagation();setReminder(${c.rowNum},'AI',false)" title="הסר תזכורת" style="background:transparent;border:none;color:#9a6800;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit">${ICON.x}</button></div>`
             : `<button onclick="event.stopPropagation();setReminder(${c.rowNum},'AI',true)" title="הפעל תזכורת" style="background:transparent;border:1px dashed var(--border);color:var(--muted);cursor:pointer;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:11px;font-weight:600;align-self:flex-start">${ICON.bell}<span>הפעל תזכורת מסמכים</span></button>`
           }
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-            <!-- Title + BD column free-text tag, all on one line. The tag
-                 is clickable — opens a fullscreen editor for column BD. -->
+        <div class="card-section" data-section="service">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'service')">
+            <span class="card-section-chev">▼</span>
             <div style="display:flex;align-items:baseline;gap:6px;flex:1;min-width:0">
-              <span class="section-title" style="color:var(--slate);margin-bottom:0;flex-shrink:0">אישורי מסירה:</span>
+              <span class="section-title" style="color:var(--slate);margin:0;flex-shrink:0">אישורי מסירה:</span>
               <span onclick="event.stopPropagation();openBdEdit(${c.rowNum})" style="font-size:11px;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;cursor:pointer;padding:2px 6px;border:1px dashed transparent;border-radius:3px;transition:all .12s" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg)'" onmouseout="this.style.borderColor='transparent';this.style.background='transparent'" title="${esc(c.bdRaw||'הוסף תיעוד')}">${esc(c.bdRaw||'הוסף תיעוד...')}</span>
             </div>
-            ${c.srvDeadline?`<div style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;flex-shrink:0">תאריך אחרון: ${c.srvDeadline}</div>`:''}
+            ${c.srvDeadline?`<span style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;flex-shrink:0">תאריך אחרון: ${c.srvDeadline}</span>`:''}
           </div>
+          <div class="card-section-body" style="display:flex;flex-direction:column;gap:5px">
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
           <div class="section-controls">
             <button onclick="event.stopPropagation();editDateField(${c.rowNum},'BG','תאריך שליחה בדואר',this.dataset.current)" data-current="${esc(c.bgRaw||'')}" class="ctl-btn" title="ערוך תאריך שליחה">
               <span class="ctl-label">נשלח:</span><span class="ctl-val">${esc(fmtDateFull(c.bgRaw)||'—')}</span>
             </button>
           </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-            <div class="section-title" style="color:var(--slate);margin-bottom:0">עיכוב הליכים</div>
-            ${c.injEndDate?`<div style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap">תאריך אחרון: ${c.injEndDate}</div>`:''}
           </div>
+        </div>
+        <div class="card-section" data-section="injunction">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'injunction')">
+            <span class="card-section-chev">▼</span>
+            <span class="section-title" style="color:var(--slate);margin:0">עיכוב הליכים</span>
+            ${c.injEndDate?`<span style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;margin-inline-start:auto">תאריך אחרון: ${c.injEndDate}</span>`:''}
+          </div>
+          <div class="card-section-body" style="display:flex;flex-direction:column;gap:5px">
           <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
           <div class="section-controls">
             <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AJ','תאריך תחילת עיכוב',this.dataset.current)" data-current="${esc(c.injStartRaw||'')}" class="ctl-btn" title="ערוך תאריך תחילת עיכוב">
@@ -2135,6 +2151,7 @@ function renderCards(clients){
             <button onclick="event.stopPropagation();editDaysField(${c.rowNum},'AK','ימים לעיכוב',this.dataset.current)" data-current="${esc(c.injDaysRaw||'')}" class="ctl-btn" title="ערוך מספר ימים">
               <span class="ctl-label">ימים:</span><span class="ctl-val">${esc(c.injDaysRaw||'—')}</span>
             </button>
+          </div>
           </div>
         </div>
       </div>`;
@@ -2290,6 +2307,40 @@ function restoreClient(rowNum){
 function updateWaitingTab(){
   const n=waitingSet.size;
   document.getElementById('tab-waiting-text').textContent='ממתינים'+(n>0?' ('+n+')':'');
+}
+
+/* ── Collapsible card sections ────────────────────────────────────
+   Each section in the expanded card body (reports / docs / service /
+   injunction) can be individually collapsed via its chevron. The
+   collapsed state is persisted globally in localStorage so the user's
+   preference applies to every card and across reloads. */
+const LS_CARD_SECTIONS = 'at_card_sections_collapsed_v1';
+function _loadCollapsedSections(){
+  try{
+    const raw = localStorage.getItem(LS_CARD_SECTIONS);
+    if(raw) return JSON.parse(raw);
+  }catch(_){}
+  // First time — default to all collapsed (each section opens individually).
+  return {reports:true, docs:true, service:true, injunction:true};
+}
+function _saveCollapsedSections(state){
+  try{ localStorage.setItem(LS_CARD_SECTIONS, JSON.stringify(state)); }catch(_){}
+}
+let _collapsedSections = _loadCollapsedSections();
+
+function toggleCardSection(rowNum, sectionKey){
+  _collapsedSections[sectionKey] = !_collapsedSections[sectionKey];
+  _saveCollapsedSections(_collapsedSections);
+  // Apply to ALL cards on screen — same key = same behavior everywhere.
+  applyCollapsedSections();
+}
+
+function applyCollapsedSections(){
+  document.querySelectorAll('.card-section').forEach(el => {
+    const key = el.getAttribute('data-section');
+    if(!key) return;
+    el.classList.toggle('collapsed', !!_collapsedSections[key]);
+  });
 }
 
 function toggleExpand(rowNum){
@@ -2846,6 +2897,157 @@ function previewPendingFile(fileId, fileName, fileUrl){
     openDrivePreview({id: fileId, name: fileName, mimeType: '', webViewLink: fileUrl});
   } else if(fileUrl){
     window.open(fileUrl, '_blank');
+  }
+}
+
+/* ── In-card requirement list helpers ──────────────────────────────
+   Lets the user edit the same CU/CV req lists directly from the client
+   card body, without having to open the customer-area modal. The card
+   sections render a list of pill-style rows with ❓ (explanation) and
+   🗑️ (delete) buttons next to each item. Persistence goes to the same
+   columns the modal uses, so both views are always in sync.
+*/
+function renderCardReqList(rowNum, listKey){
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(!c) return '';
+  const list = (listKey==='reportDocs') ? (c.reportDocs||[])
+             : (listKey==='supplDocs')  ? (c.supplDocs||[])
+             : [];
+  // Each row: editable text input + ❓ + 🗑️
+  const rows = list.map(r => {
+    const has = !!(r.explanation||'').trim();
+    return `<div class="card-req-row" data-id="${r.id}">
+      <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
+        onclick="event.stopPropagation()"
+        oninput="event.stopPropagation();updateCardReqText(${rowNum},'${listKey}','${r.id}',this.value)"/>
+      <button onclick="event.stopPropagation();openCardReqExplain(${rowNum},'${listKey}','${r.id}')"
+        class="card-req-btn ${has?'has-help':''}" title="${has?'יש הסבר':'הוסף הסבר'}">${ICON.question}</button>
+      <button onclick="event.stopPropagation();removeCardReqRow(${rowNum},'${listKey}','${r.id}')"
+        class="card-req-btn" title="מחק">${ICON.trash}</button>
+    </div>`;
+  }).join('');
+  const addBtn = `<button onclick="event.stopPropagation();addCardReqRow(${rowNum},'${listKey}')"
+    class="card-req-add-btn">${ICON.plus}<span>הוסף שדה</span></button>`;
+  return `<div class="card-req-list">${rows}${addBtn}</div>`;
+}
+
+function _cardListRef(c, listKey){
+  if(listKey==='reportDocs') return (c.reportDocs ||= []);
+  if(listKey==='supplDocs')  return (c.supplDocs  ||= []);
+  return null;
+}
+
+function _cardListCol(listKey){
+  return listKey==='reportDocs' ? 'CU' :
+         listKey==='supplDocs'  ? 'CV' : null;
+}
+
+const _cardReqSaveTimers = {};
+function saveCardReqList(rowNum, listKey, debounce){
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(!c) return;
+  const list = _cardListRef(c, listKey);
+  const col = _cardListCol(listKey);
+  if(!col) return;
+  const fire = ()=>{
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=RAW`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({values:[[JSON.stringify(list)]]})};
+    apiFetch(url, opts).catch(e => enqueueWrite(url, opts, 'דרישות לקוח'));
+  };
+  const key = `${rowNum}:${listKey}`;
+  clearTimeout(_cardReqSaveTimers[key]);
+  if(debounce){
+    _cardReqSaveTimers[key] = setTimeout(fire, 600);
+  } else {
+    fire();
+  }
+}
+
+function updateCardReqText(rowNum, listKey, id, val){
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(!c) return;
+  const list = _cardListRef(c, listKey);
+  const r = list.find(x => x.id === id);
+  if(!r) return;
+  r.text = val;
+  saveCardReqList(rowNum, listKey, true);
+  // Don't re-render — the input keeps focus this way. Pending count
+  // doesn't change just from a text edit, so it's safe to skip.
+}
+
+function addCardReqRow(rowNum, listKey){
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(!c) return;
+  const list = _cardListRef(c, listKey);
+  list.push({
+    id: _genReqId(),
+    text: '', explanation: '',
+    status: 'pending', files: []
+  });
+  saveCardReqList(rowNum, listKey, false);
+  // Re-render only this card's body
+  rerenderCard(rowNum);
+  // Focus the newly-added input
+  setTimeout(()=>{
+    const card = document.querySelector(`.client-card[data-row="${rowNum}"]`);
+    if(!card) return;
+    const inputs = card.querySelectorAll('.card-req-row input');
+    const last = inputs[inputs.length-1];
+    if(last) last.focus();
+  }, 50);
+}
+
+function removeCardReqRow(rowNum, listKey, id){
+  if(!confirm('למחוק שדה?')) return;
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(!c) return;
+  const list = _cardListRef(c, listKey);
+  const idx = list.findIndex(x => x.id === id);
+  if(idx < 0) return;
+  list.splice(idx, 1);
+  saveCardReqList(rowNum, listKey, false);
+  rerenderCard(rowNum);
+}
+
+/* Open the explanation editor (half-sheet modal) for a card req row.
+   Reuses the existing openReqExplain modal infrastructure but from the
+   card context instead of the modal context. */
+function openCardReqExplain(rowNum, listKey, id){
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(!c) return;
+  const list = _cardListRef(c, listKey);
+  const r = list.find(x => x.id === id);
+  if(!r) return;
+  // Set up state for the explain modal — same modal the customer-area uses.
+  _custReqExplainState = {
+    rowNum, listKey, reqId: id,
+    fromCard: true,        // ← so the save handler knows to persist via card path
+    text: r.text || '',
+    explanation: r.explanation || '',
+  };
+  document.getElementById('req-explain-title').textContent = 'הסבר ללקוח: ' + (r.text || '(ללא תיאור)');
+  document.getElementById('req-explain-textarea').value = r.explanation || '';
+  document.getElementById('req-explain-modal').classList.add('open');
+  history.pushState({page:'req-explain'},'');
+  setTimeout(()=>document.getElementById('req-explain-textarea').focus(), 80);
+}
+
+/* Re-render the body of one specific card. We don't want to re-render
+   the whole list (loses scroll position, focus, etc.). Find the card
+   in the DOM and replace its body with a freshly-rendered one. */
+function rerenderCard(rowNum){
+  const card = document.querySelector(`.client-card[data-row="${rowNum}"]`);
+  if(!card) return;
+  // Re-rendering one card cleanly is hard because the body is built
+  // inline. Easiest safe approach: re-run renderCards on the active
+  // tab if we can find a way; otherwise just refresh from sheet.
+  // For now we trigger a soft reload of the visible list.
+  if(typeof renderCards === 'function'){
+    const visible = (typeof activeTab !== 'undefined' && activeTab === 'waiting')
+      ? allClients.filter(c => waitingSet.has(c.rowNum))
+      : allClients.filter(c => !waitingSet.has(c.rowNum));
+    renderCards(visible);
   }
 }
 
