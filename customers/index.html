@@ -223,34 +223,51 @@ input,textarea,button{font-family:inherit;}
   background:var(--red);padding:2px 7px;
 }
 
-/* ── Deck (carousel) styling for the customer's reports list ──
-   Visual model: the active report sits on top, full width. The
-   previous report peeks out from below it (a stacked-deck look).
-   Older reports are progressively offset and faded so the user
-   can scroll/tap to access them, but they don't dominate the
-   screen. Future reports are not rendered at all. */
-.deck-card{position:relative;}
-.deck-active{
-  z-index:5;
-  border-color:var(--slate);
-  box-shadow:0 4px 12px rgba(58,58,72,.08);
+/* ── Reports groups: past / current / future ──
+   Past + future are collapsible; tapping the header expands the group.
+   The current report sits between them, always visible. */
+.reports-group{
+  background:var(--white);border:1px solid var(--border);
 }
-.deck-spine{
-  margin-top:-4px;
+.reports-group-head{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:rgba(58,58,72,.12);
+}
+.reports-group-head *{pointer-events:none;}
+.reports-group-head:active{background:var(--bg);}
+.reports-group-title{
+  flex:1;font-size:13px;font-weight:700;color:var(--slate);
+}
+.reports-group-count{
+  font-size:11px;font-weight:600;color:var(--muted);
+  background:var(--bg);padding:2px 8px;
+}
+.reports-group-chev{
+  width:16px;height:16px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.reports-group.open .reports-group-chev{transform:rotate(180deg);}
+.reports-group-body{
+  display:none;padding:10px;
+  background:var(--bg);
+  border-top:1px solid var(--border);
+  flex-direction:column;gap:8px;
+}
+.reports-group.open .reports-group-body{display:flex;}
+
+.reports-current{
+  /* The current report stands out a bit visually so the user knows
+     where to focus. Slight shadow + emphasized border. */
   position:relative;
 }
-/* First spine peeks out by ~22px under the active one. Each
-   subsequent older spine is slightly more inset and faded. */
-.deck-pos-1{margin-left:8px;margin-right:8px;opacity:.92;z-index:4;}
-.deck-pos-2{margin-left:14px;margin-right:14px;opacity:.78;z-index:3;}
-.deck-pos-3{margin-left:20px;margin-right:20px;opacity:.62;z-index:2;}
-.deck-pos-4{margin-left:24px;margin-right:24px;opacity:.5;z-index:1;}
-.deck-spine .info .ttl,
-.deck-spine .info .dt{font-size:12px;}
+.reports-current .report-row.is-current{
+  border-color:var(--slate);
+  box-shadow:0 2px 8px rgba(58,58,72,.08);
+}
 
-/* Excel icon: tiny stroked-line icon in the title row, opens
-   the per-report Excel file in a new tab. Same visual style
-   as the rest of the app's icons (1.5px stroke, slate color). */
+/* Excel icon — small stroked-line icon in the title row */
 .report-row .info .ttl{
   display:flex;align-items:center;gap:6px;
   font-size:13px;font-weight:600;color:var(--text);
@@ -265,8 +282,10 @@ input,textarea,button{font-family:inherit;}
 }
 .report-excel-btn:active{transform:scale(.9);background:var(--white);}
 .report-excel-btn svg{width:14px;height:14px;}
-.report-row.done .report-excel-btn,
-.deck-active .report-excel-btn{background:var(--white);}
+/* The clickable approved-row variant — visual hint that it opens a viewer */
+.approved-row.clickable{cursor:pointer;}
+.approved-row.clickable:active{background:rgba(0,0,0,.04);}
+.ar-url-hint{font-size:11px;color:var(--green);font-weight:600;margin-top:2px;}
 
 .req-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
 .req-list:first-child{margin-top:0;}
@@ -752,33 +771,36 @@ function rejectionCountFor(category, reportNum){
 /* ─── RENDER ─── */
 function render(){ renderReports(); renderDocs(); renderInfo(); }
 
-/* ─── REPORTS — "carousel of stacked cards" ─────────────────
-   Visual model: the report whose due date is closest to (but not
-   after) today is the "active" card and sits on top. Past reports
-   stack behind it like a deck of cards — the user can swipe/scroll
-   to see them. Future reports (not yet due) are hidden entirely.
-   The active card and at most ONE older one are visually full;
-   anything older peeks out from underneath as a thin "spine". */
+/* ─── REPORTS — past/current/future grouping ────────────────
+   Visual model:
+   - Past reports → collapsed under a "דוחות עבר" header.
+     If no past reports exist, the header doesn't render at all.
+   - Current report → always visible, full size, in the middle.
+   - Future reports → collapsed under "דוחות עתידיים".
+     If no future reports exist, the header doesn't render.
+   The lawyer/customer can tap each header to expand/collapse.
+   The current report is the one with the largest dateMs <= today;
+   if no report is due yet, the earliest one is treated as current.
+   Both headers' open/closed state persists during the session. */
+let _reportsGroupOpen = {past:false, future:false};
+
 function renderReports(){
   const list=$('reports-list');
   const detail=$('report-detail');
   const today=new Date(); today.setHours(0,0,0,0);
   const todayMs=today.getTime();
 
-  // Decide: which is the active report?
-  // Rule: the report with the largest dateMs that is still <= today.
-  // If no report is due yet at all, fall back to the earliest one.
+  // Identify the active (current) report.
   let activeIdx = -1;
   for(let i = 0; i < dataReportInfo.length; i++){
-    const info = dataReportInfo[i];
-    const dms = info.dateMs || 0;
+    const dms = dataReportInfo[i].dateMs || 0;
     if(!dms) continue;
     if(dms <= todayMs){
       if(activeIdx < 0 || dms > (dataReportInfo[activeIdx].dateMs||0)) activeIdx = i;
     }
   }
   if(activeIdx < 0){
-    // No report due yet — show the earliest by date as a stand-in.
+    // No report is due yet — pick the earliest by date.
     let bestMs = Infinity;
     for(let i = 0; i < dataReportInfo.length; i++){
       const dms = dataReportInfo[i].dateMs;
@@ -787,18 +809,51 @@ function renderReports(){
     if(activeIdx < 0) activeIdx = 0;
   }
 
-  // Build the visible deck: active + every older report.
-  // Future reports are NOT included at all.
-  const visible = [];
-  for(let i = 0; i <= activeIdx; i++){
-    visible.push({info: dataReportInfo[i], idx: i});
+  // Split into past / current / future
+  const past = [], future = [];
+  let current = null;
+  for(let i = 0; i < dataReportInfo.length; i++){
+    if(i === activeIdx) current = dataReportInfo[i];
+    else if(i < activeIdx) past.push(dataReportInfo[i]);
+    else future.push(dataReportInfo[i]);
   }
-  // Active sits at the END so it's rendered last (= visually on top
-  // when the deck is rendered with stack order). We reverse so the
-  // active is FIRST in the HTML order, then progressively older below.
-  visible.reverse();
 
-  const html = visible.map((entry, position) => _renderDeckCard(entry.info, position, todayMs)).join('');
+  let html = '';
+
+  // PAST group — only render if there's at least one past report
+  if(past.length){
+    html += `
+      <div class="reports-group ${_reportsGroupOpen.past?'open':''}" data-rg="past">
+        <div class="reports-group-head" data-rg-toggle="past">
+          <span class="reports-group-title">דוחות עבר</span>
+          <span class="reports-group-count">${past.length}</span>
+          <svg class="reports-group-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="reports-group-body">
+          ${past.map(info => _renderReportRow(info, todayMs)).join('')}
+        </div>
+      </div>`;
+  }
+
+  // CURRENT — always full and visible
+  if(current){
+    html += `<div class="reports-current">${_renderReportRow(current, todayMs, true)}</div>`;
+  }
+
+  // FUTURE group
+  if(future.length){
+    html += `
+      <div class="reports-group ${_reportsGroupOpen.future?'open':''}" data-rg="future">
+        <div class="reports-group-head" data-rg-toggle="future">
+          <span class="reports-group-title">דוחות עתידיים</span>
+          <span class="reports-group-count">${future.length}</span>
+          <svg class="reports-group-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="reports-group-body">
+          ${future.map(info => _renderReportRow(info, todayMs)).join('')}
+        </div>
+      </div>`;
+  }
 
   list.innerHTML = html || '<div class="empty">אין דוחות זמינים</div>';
 
@@ -822,35 +877,25 @@ function renderReports(){
   }
 }
 
-/* Render one card in the deck. position 0 = active (on top, full height,
-   tappable to open). position 1 = the previous one peeks out from below
-   the active card. position 2+ = even older — only a thin spine showing
-   the report number and date so the user can scroll/tap to access. */
-function _renderDeckCard(info, position, todayMs){
+/* Render a single report row. `isCurrent` makes it visually prominent. */
+function _renderReportRow(info, todayMs, isCurrent){
   const r = dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
-  const dateMs = info.dateMs||null;
   const isDone = !!info.status;
   const reqCount = (r.required||[]).length;
   const pendingC = dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num).length;
   const rejC = dataRejections.filter(rj=>rj.category==='reports'&&(rj.reportNum||null)===info.num).length;
 
-  // Visual class
-  const cls = ['report-row', 'deck-card'];
+  const cls = ['report-row'];
   if(isDone) cls.push('done');
   else cls.push('active');
-  if(position === 0) cls.push('deck-active');
-  else cls.push('deck-spine');
-  cls.push('deck-pos-'+Math.min(position, 4));
+  if(isCurrent) cls.push('is-current');
 
-  const badge = isDone ? esc(info.status) : (position===0 ? 'להגשה' : 'הוגש');
+  const badge = isDone ? esc(info.status) : (isCurrent ? 'להגשה' : 'הוגש');
 
   const meta=[];
   if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
   if(reqCount)      meta.push(reqCount+' פריטים נדרשים');
 
-  // Excel icon link — placeholder URL (will be wired to a sheet column
-  // later). For now we don't render the link if no URL is configured.
-  // The icon style mirrors the rest of the app: stroked SVG, slate color.
   const excelUrl = _reportExcelUrl(info.num);
   const excelBtn = excelUrl ? `
     <a class="report-excel-btn" href="${esc(excelUrl)}" target="_blank" rel="noopener" title="פתח קובץ אקסל לדוח" onclick="event.stopPropagation()">
@@ -880,15 +925,24 @@ function _renderDeckCard(info, position, todayMs){
     </div>`;
 }
 
-/* Look up the per-report Excel-file URL. Currently returns null because
-   the sheet column for these URLs hasn't been wired yet. When the
-   user tells us which column holds the URL, we'll read it from
-   dataReportInfo[i].excelUrl (populated in handleGetRequests on the
-   server side). */
+/* Look up the per-report Excel-file URL from data populated by Apps Script. */
 function _reportExcelUrl(num){
   const info = dataReportInfo.find(x => x.num === num);
   return (info && info.excelUrl) ? info.excelUrl : null;
 }
+
+/* Toggle past/future group via event delegation. */
+function _toggleReportsGroup(name){
+  _reportsGroupOpen[name] = !_reportsGroupOpen[name];
+  const grp = document.querySelector(`.reports-group[data-rg="${name}"]`);
+  if(grp) grp.classList.toggle('open', !!_reportsGroupOpen[name]);
+}
+document.addEventListener('click', function(e){
+  const head = e.target && e.target.closest && e.target.closest('[data-rg-toggle]');
+  if(!head) return;
+  const name = head.getAttribute('data-rg-toggle');
+  if(name === 'past' || name === 'future') _toggleReportsGroup(name);
+});
 
 function openReport(num){
   currentReportNum=num;
@@ -1119,23 +1173,94 @@ function buildReqCard(opts){
     </div>`;
 }
 function buildFilePillApproved(a){
+  // Click on the file opens the in-app PDF/image viewer (if we know the
+  // fileId), falling back to a Drive link otherwise.
+  const fileId = a.fileId || _extractFileIdFromUrl(a.url||'');
+  const onclickAttr = fileId
+    ? `onclick="openInAppViewer('${esc(fileId)}', '${esc(a.name||'')}', '${esc(a.url||'')}')"`
+    : (a.url ? `onclick="window.open('${esc(a.url)}','_blank')"` : '');
   return `
-    <div class="approved-row">
+    <div class="approved-row clickable" ${onclickAttr}>
       <div class="ar-name">
         <svg class="ar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
         <span>${esc(a.name||'')}</span>
       </div>
-      ${a.url?`<a class="ar-url" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a>`:''}
+      ${a.url?`<div class="ar-url-hint">לחץ לצפייה</div>`:''}
     </div>`;
 }
 function buildFilePillPending(p){
+  const fileId = p.fileId || _extractFileIdFromUrl(p.url||'');
+  const openAttr = fileId
+    ? `onclick="event.preventDefault();openInAppViewer('${esc(fileId)}', '${esc(p.name||'')}', '${esc(p.url||'')}')"`
+    : '';
   return `
     <div class="file-pill" data-file-id="${esc(p.fileId)}">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <a class="nm" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>
+      <a class="nm" href="${esc(p.url)}" target="_blank" rel="noopener" ${openAttr}>${esc(p.name)}</a>
       <button class="rm" onclick="removeFile('${esc(p.fileId)}')" title="הסר">✕</button>
     </div>`;
 }
+
+/* Extract a Drive fileId from a webViewLink-style URL. Used as a
+   fallback when the server didn't return an explicit fileId. */
+function _extractFileIdFromUrl(url){
+  if(!url) return '';
+  const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m1) return m1[1];
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m2) return m2[1];
+  return '';
+}
+
+/* ── In-app file viewer ───────────────────────────────────────
+   Opens a Drive file directly inside the app. Uses Drive's preview
+   URL via iframe for PDFs and images. The customer never has to
+   leave the app or open Drive separately. */
+function openInAppViewer(fileId, fileName, fallbackUrl){
+  if(!fileId){
+    if(fallbackUrl) window.open(fallbackUrl, '_blank');
+    return;
+  }
+  let modal = document.getElementById('inapp-viewer-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'inapp-viewer-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;background:rgba(20,20,28,0.96);flex-direction:column;';
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0">
+        <button onclick="closeInAppViewer()" style="background:var(--bg);border:1px solid var(--border);padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit">✕ סגור</button>
+        <div id="inapp-viewer-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        <a id="inapp-viewer-extlink" href="#" target="_blank" rel="noopener" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:12px;font-family:inherit;color:var(--text);text-decoration:none">פתח בדרייב</a>
+      </div>
+      <iframe id="inapp-viewer-iframe" style="flex:1;border:0;width:100%;background:#1a1a1c"></iframe>
+    `;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('inapp-viewer-name').textContent = fileName || '';
+  document.getElementById('inapp-viewer-extlink').href = fallbackUrl || '#';
+  document.getElementById('inapp-viewer-iframe').src =
+    `https://drive.google.com/file/d/${fileId}/preview`;
+  modal.style.display = 'flex';
+  history.pushState({page:'inapp-viewer'}, '');
+}
+function closeInAppViewer(){
+  const modal = document.getElementById('inapp-viewer-modal');
+  if(modal) modal.style.display = 'none';
+  // Clear iframe src so we don't keep streaming in the background
+  const iframe = document.getElementById('inapp-viewer-iframe');
+  if(iframe) iframe.src = 'about:blank';
+  if(history.state && history.state.page === 'inapp-viewer'){
+    try{ history.back(); }catch(_){}
+  }
+}
+window.addEventListener('popstate', (e) => {
+  const modal = document.getElementById('inapp-viewer-modal');
+  if(modal && modal.style.display === 'flex'){
+    modal.style.display = 'none';
+    const iframe = document.getElementById('inapp-viewer-iframe');
+    if(iframe) iframe.src = 'about:blank';
+  }
+});
 
 /* ─── SECTIONS ─── */
 function toggleSection(name){
@@ -1263,10 +1388,16 @@ $('file-input').addEventListener('change', async (e)=>{
 });
 
 /* Convert an array of image Blobs/Files into a single PDF Blob using
-   pdf-lib. Returns null if pdf-lib isn't loaded yet. Each image gets
-   its own page sized to its dimensions (capped at A4-like aspect to
-   keep file size reasonable). */
+   pdf-lib. Returns null only if pdf-lib fails to load (extreme case).
+   Each image gets its own page sized to its dimensions. */
 async function imagesToPdf(imageBlobs){
+  // Wait up to 5s for pdf-lib if it isn't loaded yet (defer + slow net).
+  if(!window.PDFLib){
+    const start = Date.now();
+    while(!window.PDFLib && (Date.now() - start) < 5000){
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
   if(!window.PDFLib) return null;
   const { PDFDocument } = window.PDFLib;
   const doc = await PDFDocument.create();
@@ -1280,8 +1411,6 @@ async function imagesToPdf(imageBlobs){
       // Treat anything else as JPEG. compressImage() always outputs JPEG.
       img = await doc.embedJpg(bytes);
     }
-    // Cap width/height so the PDF doesn't blow up in size; we already
-    // compressed images to 1920px max during preprocessing.
     const W = img.width, H = img.height;
     const page = doc.addPage([W, H]);
     page.drawImage(img, {x:0, y:0, width:W, height:H});
