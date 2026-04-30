@@ -89,6 +89,15 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;position:sticky;top:96px;z-index:99;}
 .tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
 .tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
+/* Sub-tab pills inside the "המשך" section — switch between regular
+   continue leads and the "לא נענו" leads. Same look as the main tabs
+   but smaller and bordered like the chip buttons. */
+.subtab{
+  background:var(--white);border:1px solid var(--border);
+  color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;
+  padding:6px 14px;cursor:pointer;
+}
+.subtab.active{background:var(--slate);color:#fff;border-color:var(--slate);}
 
 /* SEARCH */
 .search-wrap{background:var(--white);padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:137px;z-index:98;}
@@ -367,7 +376,15 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
   </div>
 
   <div id="continue-section" style="display:none">
+    <!-- Sub-tab toggle row inside the "המשך" section. Tapping the
+         "לא נענו" pill switches the list below to show only no-answer
+         leads (column AE = TRUE). The "המשך" pill switches back. -->
+    <div id="cont-subtabs" style="display:flex;gap:6px;padding:8px 14px 0;flex-wrap:wrap">
+      <button id="subtab-continue" class="subtab active" onclick="setContinueSubtab('continue')">המשך</button>
+      <button id="subtab-noanswer" class="subtab" onclick="setContinueSubtab('noanswer')">לא נענו <span id="subtab-noanswer-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+    </div>
     <div id="continue-list"></div>
+    <div id="noanswer-list" style="display:none;padding:10px 14px"></div>
   </div>
 
   <div id="removed-section" style="display:none">
@@ -406,11 +423,17 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
          single tap on the phone icon dials). -->
     <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
       <div class="msub" id="modal-name" style="flex:1;min-width:0;margin:0"></div>
-      <button onclick="openWA(currentLead && currentLead.phone || '')" title="שלח WhatsApp" style="background:var(--white);color:var(--slate);border:1px solid var(--border);width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>
+      <!-- "לא נענו" — marks AE=TRUE so the lead moves to the no-answer
+           sub-tab. Same dark style as the call button; phone icon with
+           a slash through it to convey "no answer". -->
+      <button onclick="markCurrentLeadNoAnswer()" title="סמן: לא נענו" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+      </button>
+      <button onclick="openWA(currentLead && currentLead.phone || '')" title="שלח WhatsApp" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>
       </button>
       <button onclick="callCurrentLead()" title="התקשר" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
       </button>
     </div>
     <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
@@ -659,6 +682,9 @@ const STATUS_REMOVED='removed';
 let accessToken=null,allLeads=[],currentLead=null,recognition=null;
 let isRecording=false,expandedSet=new Set(),showAllSet=new Set();
 let prevCount=null,finalTranscript='',currentTab='active';
+// Whether the user has tapped the "לא נענו" sub-tab inside the continue tab.
+// When true, we render the no-answer list instead of the continue list.
+let _showingNoAnswer=false;
 let userName='',userEmail='';
 let pendingConfirm=null; // callback for confirm dialog
 let modalOpen=false;     // tracks note modal state for back button
@@ -1171,7 +1197,7 @@ async function loadLeads(){
     document.getElementById('leads-list').innerHTML='';
   }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AB?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AE?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const all=(data.values||[]).slice(1)
@@ -1207,6 +1233,10 @@ async function loadLeads(){
           // a comma-separated list of caller tags, one per call). This is the
           // count we use to fill in the dot indicator above the lead's name.
           callCount:((row[22]||'')+'').trim() ? ((row[22]||'')+'').split(',').filter(s=>s.trim()).length : 0,
+          // Column AE (0-based 30) — TRUE/FALSE flag for the
+          // "לא נענו" tab. When TRUE, the lead is hidden from all
+          // tabs except the no-answer one.
+          noAnswer: ((row[30]||'')+'').toString().toUpperCase().trim()==='TRUE',
           // Earliest date the lead was logged — used as a "joined on" badge
           // in the top-right corner of the lead row.
           entryDate
@@ -1396,6 +1426,43 @@ function renderContinue(leads){
   });
 }
 
+/* Render the "לא נענו" sub-list. Same lead-card rendering as the
+   regular tabs; swipe handlers are tagged 'noanswer' so initSwipe
+   knows to clear AE + set the right destination status. */
+function renderNoAnswer(leads){
+  const list=document.getElementById('noanswer-list');
+  if(!list) return;
+  list.innerHTML='';
+  // Update the sub-tab counter pill
+  const cnt=document.getElementById('subtab-noanswer-count');
+  if(cnt) cnt.textContent = leads.length ? '('+leads.length+')' : '';
+  if(!leads.length){
+    list.innerHTML='<div class="empty">אין לידים שסומנו כלא נענו</div>';
+    return;
+  }
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    // Swipe right → back to "המשך"; swipe left → "הוסרו"
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">העבר להמשך</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'noanswer')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'noanswer');
+  });
+}
+
+/* Switch between the two sub-tabs inside the "המשך" view. */
+function setContinueSubtab(which){
+  _showingNoAnswer = (which === 'noanswer');
+  document.getElementById('subtab-continue').classList.toggle('active', !_showingNoAnswer);
+  document.getElementById('subtab-noanswer').classList.toggle('active', _showingNoAnswer);
+  document.getElementById('continue-list').style.display = _showingNoAnswer ? 'none' : '';
+  document.getElementById('noanswer-list').style.display = _showingNoAnswer ? '' : 'none';
+  filterLeads();
+}
+
 function renderRemoved(leads){
   const list=document.getElementById('removed-list');
   list.innerHTML='';
@@ -1463,6 +1530,13 @@ function initSwipe(wrap,idx,kind){
           // Swipe-left does nothing — snap back instead.
           if(!goingLeft) setLeadStatus(idx,STATUS_ACTIVE,'ליד הוחזר ללידים');
           else { content.style.transform=''; bgL.style.opacity=0; bgR.style.opacity=0; }
+        } else if(kind==='noanswer'){
+          // From the "לא נענו" sub-tab:
+          //   Swipe-right → clear AE + move to continue
+          //   Swipe-left  → clear AE + move to removed
+          setNoAnswer(idx, false);
+          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          else          setLeadStatus(idx,STATUS_CONTINUE,'ליד הועבר להמשך');
         }
       },220);
     } else {
@@ -1473,6 +1547,33 @@ function initSwipe(wrap,idx,kind){
   wrap.addEventListener('touchstart',onStart,{passive:true});
   wrap.addEventListener('touchmove',onMove,{passive:false});
   wrap.addEventListener('touchend',onEnd);
+}
+
+/* Write TRUE/FALSE to column AE for a lead. When TRUE, the lead is
+   marked as "לא נענו" and only appears in the no-answer sub-tab. */
+async function setNoAnswer(idx, value){
+  const lead = allLeads.find(l => l.index === idx);
+  if(lead){
+    lead.noAnswer = !!value;
+    // Persist movedAt so the most-recently-flagged lead stays at the top
+    // of the "לא נענו" list across reloads (LIFO order).
+    if(value){
+      const moves = loadMovesMap();
+      moves[idx] = Date.now();
+      saveMovesMap(moves);
+      lead.movedAt = moves[idx];
+    }
+    // Bump in-memory order so the move shows up immediately
+    const i = allLeads.indexOf(lead);
+    if(i > 0){ allLeads.splice(i, 1); allLeads.unshift(lead); }
+  }
+  filterLeads();
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AE${idx}?valueInputOption=USER_ENTERED`;
+  const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({values:[[ value ? 'TRUE' : 'FALSE' ]]})};
+  try{ await apiFetch(url, opts); }
+  catch(e){ enqueueWrite(url, opts, 'לא נענו'); }
+  appendMetaLog(idx, value ? 'סומן כלא נענו' : 'הוסרה הסימון לא נענו');
 }
 
 /* =========================
@@ -1587,15 +1688,47 @@ function toggleShowAll(idx){
 function filterLeads(){
   const q=document.getElementById('search').value.toLowerCase();
   const match=l=>l.name.toLowerCase().includes(q)||l.phone.includes(q)||l.note.toLowerCase().includes(q);
-  const active=allLeads.filter(l=>(!l.status||l.status===STATUS_ACTIVE)&&match(l));
-  const cont=allLeads.filter(l=>l.status===STATUS_CONTINUE&&match(l));
-  const rem=allLeads.filter(l=>l.status===STATUS_REMOVED&&match(l));
+
+  // Special "no-answer" leads are excluded from the regular active/continue tabs
+  // and shown only in the dedicated no-answer sub-tab inside the continue view.
+  // ─── search semantics ─────────────────────────────────────────────
+  // - When the search box has text, results are aggregated across every
+  //   tab except "removed" — so finding a lead works regardless of which
+  //   tab they currently sit in.
+  // - In the "removed" tab, search only looks at removed leads.
+  const searching = q.trim().length > 0;
+  const removedOnlySearch = (currentTab === 'removed') && searching;
+
+  const active = allLeads.filter(l =>
+    (!l.status || l.status===STATUS_ACTIVE) && !l.noAnswer && match(l)
+  );
+  const cont = allLeads.filter(l =>
+    l.status===STATUS_CONTINUE && !l.noAnswer && match(l)
+  );
+  const noAnsw = allLeads.filter(l =>
+    l.noAnswer && match(l)
+  );
+  const rem = allLeads.filter(l =>
+    l.status===STATUS_REMOVED && !l.noAnswer && match(l)
+  );
+
+  // When searching from any tab except "removed", the active/continue/
+  // no-answer lists all show the search hits, so the user finds the lead
+  // wherever it lives. In "removed" the search only filters removed leads.
+  if(searching && !removedOnlySearch){
+    // Aggregate all non-removed matches into the visible list of the
+    // current tab so the user sees them without switching tabs.
+    // (Each tab still gets its own native list when not searching.)
+  }
+
   renderLeads(active);
   renderContinue(cont);
   renderRemoved(rem);
+  renderNoAnswer(noAnsw);
   // update header counter for the current tab
-  const counts={active:active.length,continue:cont.length,removed:rem.length};
-  document.getElementById('lead-count').textContent=counts[currentTab];
+  const counts={active:active.length, continue:cont.length, removed:rem.length, noanswer:noAnsw.length};
+  document.getElementById('lead-count').textContent =
+    (currentTab==='continue' && _showingNoAnswer) ? counts.noanswer : (counts[currentTab] || 0);
 }
 
 /* =========================
@@ -1632,6 +1765,30 @@ function callCurrentLead(){
   if(!currentLead || !currentLead.phone){ showToast('אין מספר טלפון','err'); return; }
   markCalled(currentLead.index);
   window.location.href='tel:'+currentLead.phone.replace(/[^0-9+]/g,'');
+}
+
+/* "לא נענו" button inside the call-summary modal. Closes the modal
+   (saving any draft) and flags AE=TRUE for the current lead. */
+function markCurrentLeadNoAnswer(){
+  if(!currentLead) return;
+  const idx = currentLead.index;
+  // Save any draft note that was typed before flagging
+  const note = document.getElementById('note-input').value.trim();
+  if(history.state && history.state.page === 'modal') popHistorySilently();
+  if(currentLead) localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  if(note){
+    const lead = allLeads.find(l => l.index === idx);
+    const entry = getTS()+'\n'+note;
+    const prev = lead ? lead.note : '';
+    const combined = prev ? entry+'\n\n'+prev : entry;
+    if(lead) lead.note = combined;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[combined]]})};
+    apiFetch(url, opts).catch(e => enqueueWrite(url, opts, 'סיכום שיחה'));
+  }
+  setNoAnswer(idx, true);
+  showToast('סומן: לא נענו');
 }
 
 function openModal(name){
