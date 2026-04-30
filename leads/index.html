@@ -2261,28 +2261,18 @@ function closeLogEdit(){
   document.getElementById('log-edit-modal').classList.remove('open');
   if(history.state&&history.state.page==='logedit') popHistorySilently();
 }
-async function saveLogEdit(){
+function saveLogEdit(){
   const l=_logViewLead; if(!l) return;
   const txt=document.getElementById('log-edit-textarea').value;
+  // OPTIMISTIC: update local state + UI immediately, fire API in background
   l.note=txt;
   closeLogEdit();
-  showToast('שומר...');
-  try{
-    if(!accessToken){signOut();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${l.index}?valueInputOption=RAW`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[txt]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
-    showToast('נשמר','ok');
-    filterLeads();
-    if(_logViewLead){_logViewLead.note=txt;openLogView(_logViewLead.index);}
-  }catch(e){
-    showToast(e.message,'err');
-  }
+  filterLeads();
+  if(_logViewLead){_logViewLead.note=txt;openLogView(_logViewLead.index);}
+  showToast('נשמר','ok');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${l.index}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[txt]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'יומן ליד'));
 }
 
 // ── EDIT a single note entry (in column C, by entry index) ─────────────────
@@ -2328,21 +2318,11 @@ async function saveEditEntry(){
   // refresh whatever view is open
   if(_logViewLead&&_logViewLead.index===leadIdx) openLogView(leadIdx);
   filterLeads();
-  showToast('שומר...');
-  try{
-    if(!accessToken){signOut();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${lead.index}?valueInputOption=RAW`;
-    const r=await fetch(url,{
-      method:'PUT',
-      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-      body:JSON.stringify({values:[[newVal]]})
-    });
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
-    showToast('נשמר','ok');
-  }catch(e){
-    showToast(e.message,'err');
-  }
+  showToast('נשמר','ok');
+  // Fire API in background — no spinner, no waiting
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${lead.index}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'עריכת רשומה'));
 }
 
 // ── Delete a single entry (used by the "מחק" button in the entry editor) ────
@@ -2359,15 +2339,10 @@ async function deleteEntry(){
   closeEditEntry();
   if(_logViewLead&&_logViewLead.index===leadIdx) openLogView(leadIdx);
   filterLeads();
-  showToast('שומר...');
-  try{
-    if(!accessToken){signOut();throw new Error('אין הרשאה');}
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${lead.index}?valueInputOption=RAW`;
-    const r=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})});
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message);
-    showToast('נמחק','ok');
-  }catch(e){showToast(e.message,'err');}
+  showToast('נמחק','ok');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${lead.index}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'מחיקת רשומה'));
 }
 
 // ── Meeting scheduler (writes date to col X, start time to Y, end time to Z) ──
@@ -3267,6 +3242,41 @@ function checkLeadFromHash(){
 
   ['meeting-modal','log-view-modal','log-edit-modal','reminders-modal','confirm-dialog']
     .forEach(attach);
+})();
+
+/* =========================
+   KEYBOARD-AWARE INPUT FOCUS
+   When an input or textarea gets focus on mobile, the on-screen
+   keyboard rises and can hide the field. Scroll the focused element
+   into view so the user can see what they're typing. Use a small
+   delay so the keyboard finishes its animation first.
+
+   We use {block:'center'} which keeps the field roughly in the
+   middle of the visible area above the keyboard.
+   ========================= */
+(function attachKeyboardScroll(){
+  let scrollTimer = null;
+  function handleFocus(e){
+    const t = e.target;
+    if(!t) return;
+    const tag = t.tagName;
+    if(tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    // Skip checkboxes/radios/etc that don't summon the keyboard
+    if(tag === 'INPUT'){
+      const type = (t.type||'').toLowerCase();
+      if(type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit') return;
+    }
+    if(scrollTimer) clearTimeout(scrollTimer);
+    // Delay so the on-screen keyboard finishes animating up before we scroll.
+    scrollTimer = setTimeout(()=>{
+      try{
+        t.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'});
+      }catch(_){
+        try{ t.scrollIntoView(false); }catch(__){}
+      }
+    }, 280);
+  }
+  document.addEventListener('focusin', handleFocus, true);
 })();
 
 </script>
