@@ -271,9 +271,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   font-size:10px;color:var(--muted);
   transition:transform .15s;display:inline-block;width:12px;
 }
-.card-section.collapsed .card-section-chev{transform:rotate(-90deg);}
-.card-section.collapsed .card-section-body{display:none;}
+.card-section.collapsed > .card-section-chev,
+.card-section.collapsed .card-section-head .card-section-chev{transform:rotate(-90deg);}
 .card-section-body{display:flex;flex-direction:column;gap:5px;}
+/* The collapse rule must beat any inline style="display:flex" on
+   nested sections — use !important to lock it down. */
+.card-section.collapsed > .card-section-body,
+.card-section.collapsed .card-section-body{display:none !important;}
 .section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
 
 /* REPORTS */
@@ -2093,7 +2097,7 @@ function renderCards(clients){
             <span class="section-title" style="color:var(--slate);margin:0">השלמת מסמכים</span>
             ${docsDeadline?`<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap;margin-inline-start:auto">תאריך אחרון: ${docsDeadline}</span>`:''}
           </div>
-          <div class="card-section-body" style="display:flex;flex-direction:column;gap:5px">
+          <div class="card-section-body">
           <div class="status-row ${docsCls}"><span class="status-label">מסמכים</span><span class="status-badge ${docsBadge}">${withStatusIcon(docsText)}</span></div>
           <div class="section-controls">
             <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AE','תאריך התחלה',this.dataset.current)" data-current="${esc(c.docsAERaw||'')}" class="ctl-btn" title="ערוך תאריך התחלה">
@@ -2128,7 +2132,7 @@ function renderCards(clients){
             </div>
             ${c.srvDeadline?`<span style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;flex-shrink:0">תאריך אחרון: ${c.srvDeadline}</span>`:''}
           </div>
-          <div class="card-section-body" style="display:flex;flex-direction:column;gap:5px">
+          <div class="card-section-body">
           <div class="status-row ${srvCls}"><span class="status-label">אישורי מסירה</span><span class="status-badge ${srvBadge}">${withStatusIcon(srvText)}</span></div>
           <div class="section-controls">
             <button onclick="event.stopPropagation();editDateField(${c.rowNum},'BG','תאריך שליחה בדואר',this.dataset.current)" data-current="${esc(c.bgRaw||'')}" class="ctl-btn" title="ערוך תאריך שליחה">
@@ -2143,7 +2147,7 @@ function renderCards(clients){
             <span class="section-title" style="color:var(--slate);margin:0">עיכוב הליכים</span>
             ${c.injEndDate?`<span style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;margin-inline-start:auto">תאריך אחרון: ${c.injEndDate}</span>`:''}
           </div>
-          <div class="card-section-body" style="display:flex;flex-direction:column;gap:5px">
+          <div class="card-section-body">
           <div class="status-row ${injCls}"><span class="status-label">עיכוב הליכים</span><span class="status-badge ${c.injUrgent?'badge-red':'badge-gray'}">${withStatusIcon(injText)}</span></div>
           <div class="section-controls">
             <button onclick="event.stopPropagation();editDateField(${c.rowNum},'AJ','תאריך תחילת עיכוב',this.dataset.current)" data-current="${esc(c.injStartRaw||'')}" class="ctl-btn" title="ערוך תאריך תחילת עיכוב">
