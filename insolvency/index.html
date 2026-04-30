@@ -1528,6 +1528,7 @@ async function loadData(){
       renderTasks();
     } else {
       renderCards(active);
+      if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
     }
     _firstLoadDone=true;
   }catch(e){
@@ -2197,6 +2198,10 @@ function renderCards(clients){
     list.appendChild(wrap);
     initSwipe(wrap,c.rowNum,'waiting');
   });
+  // After all cards are in the DOM, apply the saved collapsed/expanded
+  // state so each section's chevron and visibility match the user's
+  // preferences.
+  if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
 }
 
 // ── RENDER WAITING ────────────────────────────────────────────────────────────
@@ -2487,13 +2492,7 @@ async function saveEditLogEntry(){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${currentLog.col}${currentLog.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'תיעוד');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תיעוד'));
 }
 
 // Delete a single entry from the currently-open log. Removes the entry
@@ -2513,8 +2512,7 @@ async function deleteLogEntry(idx){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${currentLog.col}${currentLog.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{ await apiFetch(url,opts); showToast('נמחק','ok'); }
-  catch(e){ enqueueWrite(url,opts,'תיעוד'); showToast('מחיקה תסונכרן כשהחיבור יחזור','ok'); }
+  showToast('נמחק','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תיעוד'));
 }
 
 // Open the viewer modal for a given client row.
@@ -2644,15 +2642,9 @@ async function saveBdEdit(){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BD${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-    // Reload to refresh the card display
-    setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 600);
-  }catch(e){
-    enqueueWrite(url,opts,'אישורי מסירה');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('נשמר','ok');
+  setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 600);
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'אישורי מסירה'));
 }
 
 /* =============================================================
@@ -2855,8 +2847,7 @@ async function _persistReqList(listKey){
   const list = _custState[listKey] || [];
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${_custState.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(list)]]})};
-  try{ await apiFetch(url,opts); }
-  catch(e){ enqueueWrite(url,opts,'אישור/דחייה'); }
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'אישור/דחייה'));
   // Also update local cache
   const c = allClients.find(x=>x.rowNum===_custState.rowNum);
   if(c){
@@ -3113,14 +3104,10 @@ function saveCustomerReqs(listKey, debounce=false){
     _custSaveTimers[listKey]=null;
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${_custState.rowNum}?valueInputOption=RAW`;
     const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[json]]})};
-    try{
-      await apiFetch(url,opts);
-      // Update local cache so other parts of the app see the change
-      const c=allClients.find(x=>x.rowNum===_custState.rowNum);
-      if(c){ c[listKey]=list; }
-    }catch(e){
-      enqueueWrite(url,opts,'דרישות לקוח');
-    }
+    // Optimistic: update local cache immediately, write in background.
+    const c=allClients.find(x=>x.rowNum===_custState.rowNum);
+    if(c){ c[listKey]=list; }
+    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'דרישות לקוח'));
   };
   if(debounce){ _custSaveTimers[listKey]=setTimeout(doSave, 700); }
   else { doSave(); }
@@ -3381,15 +3368,10 @@ async function toggleCustomerActive(checked){
   _custState.active=!!checked;
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CT${_custState.rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[checked?'TRUE':'FALSE']]})};
-  try{
-    await apiFetch(url,opts);
-    const c=allClients.find(x=>x.rowNum===_custState.rowNum);
-    if(c) c.customerActive=!!checked;
-    showToast(checked?'חיבור הופעל':'חיבור הושבת','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'אישור חיבור לקוח');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  const c=allClients.find(x=>x.rowNum===_custState.rowNum);
+  if(c) c.customerActive=!!checked;
+  showToast(checked?'חיבור הופעל':'חיבור הושבת','ok');
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'אישור חיבור לקוח'));
 }
 
 /* === Explanation editor (the half-sheet that opens on "?") === */
@@ -3828,13 +3810,7 @@ async function clearReminder(rowNum,col){
   showToast('מסיר תזכורת...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[""]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('תזכורת הוסרה','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'הסרת תזכורת');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('תזכורת הוסרה','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'הסרת תזכורת'));
 }
 
 // Set a reminder checkbox to TRUE or FALSE on the sheet.
@@ -3855,8 +3831,7 @@ async function editMonthlyAmount(rowNum){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/S${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[cleaned||'']]})};
-  try{ await apiFetch(url,opts); showToast('נשמר','ok'); }
-  catch(e){ enqueueWrite(url,opts,'תשלום חודשי'); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תשלום חודשי'));
 }
 
 // Edit the current-month payment (column T). Empty input = clear it (mark unpaid).
@@ -3877,8 +3852,7 @@ async function editCurrentPayment(rowNum){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/T${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[cleaned]]})};
-  try{ await apiFetch(url,opts); showToast('נשמר','ok'); }
-  catch(e){ enqueueWrite(url,opts,'תשלום'); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תשלום'));
 }
 
 /* =========================
@@ -3890,8 +3864,8 @@ async function editCurrentPayment(rowNum){
 async function _writeCellBlank(rowNum, colLetter, label){
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
-  try{ await apiFetch(url,opts); showToast('נמחק','ok'); }
-  catch(e){ enqueueWrite(url,opts,label); showToast('מחיקה תסונכרן כשהחיבור יחזור','ok'); }
+  showToast('נמחק','ok');
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,label));
 }
 
 /* =========================
@@ -4020,8 +3994,8 @@ async function confirmDatePicker(){
     // Cleared — write empty
     opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
   }
-  try{ await apiFetch(url,opts); showToast(selDay?'נשמר':'נמחק','ok'); }
-  catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  showToast(selDay?'נשמר':'נמחק','ok');
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,label));
   setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
 }
 
@@ -4037,9 +4011,8 @@ async function editDaysField(rowNum, colLetter, label, currentValue){
   const trimmed=(v||'').trim();
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[trimmed]]})};
-  showToast('שומר...');
-  try{ await apiFetch(url,opts); showToast('נשמר','ok'); }
-  catch(e){ enqueueWrite(url,opts,label); showToast('שמור — יסונכרן כשהחיבור יחזור','ok'); }
+  showToast('נשמר','ok');
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,label));
   setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
 }
 
@@ -4125,13 +4098,7 @@ async function setReminder(rowNum,col,value){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${col}${rowNum}?valueInputOption=USER_ENTERED`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[value?'TRUE':'FALSE']]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'תזכורת');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תזכורת'));
 }
 
 // Backward-compat alias — kept in case any older inline handler still calls it.
@@ -4310,13 +4277,7 @@ async function doOpsWrite(yVal,zVal){
   };
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`;
   const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'תאריך התחלה');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תאריך התחלה'));
 }
 
 // Convert a "DD/MM/YY" or "DD/MM/YYYY" string into a userEnteredValue object
@@ -4354,21 +4315,13 @@ async function saveDocsEdit(){
   if(!_docsEditFor)return;
   const c=_docsEditFor;
   const newVal=document.getElementById('docs-edit-textarea').value;
-  c.docsList=newVal; // optimistic
+  c.docsList=newVal;
   closeDocsEdit();
-  showToast('שומר...');
+  showToast('נשמר','ok');
+  if(typeof applyFilters==='function') applyFilters();
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${c.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-    // re-render so the new text appears
-    const active=allClients.filter(x=>!waitingSet.has(x.rowNum));
-    if(typeof applyFilters==='function') applyFilters(); else renderCards(active);
-  }catch(e){
-    enqueueWrite(url,opts,'מסמכים');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'מסמכים'));
 }
 
 // ── REPORT-DOCS EDITOR (column BA) — same UX as docs editor ───────────────
@@ -4392,19 +4345,13 @@ async function saveReportDocsEdit(){
   if(!_reportDocsEditFor)return;
   const c=_reportDocsEditFor;
   const newVal=document.getElementById('report-docs-edit-textarea').value;
-  c.reportDocsList=newVal; // optimistic
+  c.reportDocsList=newVal;
   closeReportDocsEdit();
-  showToast('שומר...');
+  showToast('נשמר','ok');
+  if(typeof applyFilters==='function') applyFilters();
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BA${c.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-    if(typeof applyFilters==='function') applyFilters();
-  }catch(e){
-    enqueueWrite(url,opts,'מסמכים לדוחות');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'מסמכים לדוחות'));
 }
 
 // ── CALL SUMMARY (column CH) — viewer + add + edit per entry ──────────────
@@ -4529,13 +4476,7 @@ async function saveCallSummary(){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'סיכום שיחה');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
 }
 
 // ── EDIT a single entry by index ─────────────────────────────────────────────
@@ -4574,13 +4515,7 @@ async function saveEditCallSummary(){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${c.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{
-    await apiFetch(url,opts);
-    showToast('נשמר','ok');
-  }catch(e){
-    enqueueWrite(url,opts,'סיכום שיחה');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  showToast('נשמר','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
 }
 
 // Delete one call summary entry. Removes it from the parsed list, serializes
@@ -4599,8 +4534,7 @@ async function deleteCallSummary(idx){
   showToast('שומר...');
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_CH}${c.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{ await apiFetch(url,opts); showToast('נמחק','ok'); }
-  catch(e){ enqueueWrite(url,opts,'סיכום שיחה'); showToast('מחיקה תסונכרן כשהחיבור יחזור','ok'); }
+  showToast('נמחק','ok'); apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
 }
 
 function toggleCallSummaryMic(){
