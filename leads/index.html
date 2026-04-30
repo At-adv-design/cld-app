@@ -469,6 +469,11 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
         <div class="mtitle" style="font-size:15px">סיכומי שיחות</div>
         <div class="msub" id="log-view-name" style="margin-top:2px"></div>
       </div>
+      <!-- Calendar button — opens an overlay with the user's Google Calendar -->
+      <button onclick="openCalendarOverlay()" title="ראה קלנדר Google" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>קלנדר</span>
+      </button>
     </div>
     <div class="log-content-area" id="log-view-content"></div>
     <div class="log-action-row">
@@ -543,6 +548,66 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
     <div id="reminders-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
   </div>
 </div>
+
+<!-- CALENDAR OVERLAY — covers most of the screen, shows the user's Google
+     Calendar so they can check availability while looking at a lead.
+     Background is fully blocked: no scroll, no input, nothing. Tapping
+     anywhere outside the calendar (or dragging diagonally) closes it. -->
+<div id="calendar-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.55);z-index:360;flex-direction:column;backdrop-filter:blur(2px);">
+  <!-- The closing tap area sits ABOVE the sheet but below it visually
+       so a click here closes the overlay. -->
+  <div id="calendar-backdrop" style="position:absolute;inset:0;cursor:pointer"></div>
+  <div class="calendar-sheet" style="position:relative;margin:auto auto 0;width:100%;max-width:580px;max-height:92vh;background:var(--white);display:flex;flex-direction:column;border-radius:0;box-shadow:0 -8px 30px rgba(0,0,0,.18);">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button onclick="closeCalendarOverlay()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>סגירה</span>
+      </button>
+      <div style="flex:1;text-align:center">
+        <div id="cal-month-label" style="font-size:15px;font-weight:700;color:var(--slate)"></div>
+        <div id="cal-day-label" style="font-size:11px;color:var(--muted);margin-top:1px"></div>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button onclick="calNavMonth(-1)" style="background:var(--bg);border:1px solid var(--border);padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit">‹</button>
+        <button onclick="calNavToday()" style="background:var(--bg);border:1px solid var(--border);padding:6px 9px;font-size:11px;cursor:pointer;font-family:inherit">היום</button>
+        <button onclick="calNavMonth(1)" style="background:var(--bg);border:1px solid var(--border);padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit">›</button>
+      </div>
+    </div>
+    <!-- Month grid -->
+    <div id="cal-month-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:10px;background:var(--bg);flex-shrink:0"></div>
+    <!-- Selected day events -->
+    <div style="border-top:1px solid var(--border);padding:8px 12px;background:var(--white);font-size:12px;font-weight:700;color:var(--slate);flex-shrink:0">
+      <span id="cal-selected-label">היום</span>
+      <span id="cal-event-count" style="font-weight:500;color:var(--muted);margin-right:6px"></span>
+    </div>
+    <div id="cal-events-list" style="flex:1;overflow-y:auto;padding:8px 10px 14px;display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+</div>
+<style>
+.cal-day{
+  aspect-ratio:1/1;background:var(--white);border:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:3px 2px;font-size:11px;cursor:pointer;
+  font-family:inherit;color:var(--text);position:relative;user-select:none;
+}
+.cal-day.outside{opacity:.35;}
+.cal-day.today{border-color:var(--slate);border-width:2px;font-weight:700;}
+.cal-day.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
+.cal-day-num{font-size:13px;font-weight:600;line-height:1.2;}
+.cal-day-dots{display:flex;gap:1px;margin-top:2px;flex-wrap:wrap;justify-content:center;max-width:100%;}
+.cal-day-dot{width:4px;height:4px;border-radius:50%;background:var(--blue, #3A5BB0);}
+.cal-day.selected .cal-day-dot{background:#fff;}
+.cal-day-weekday{font-size:9px;color:var(--muted);font-weight:600;padding:2px 0;text-align:center;}
+.cal-evt{
+  display:flex;flex-direction:column;gap:1px;
+  background:var(--bg);border:1px solid var(--border);border-right:3px solid var(--blue,#3A5BB0);
+  padding:7px 9px;
+}
+.cal-evt-time{font-size:11px;color:var(--muted);font-weight:600;}
+.cal-evt-title{font-size:12px;color:var(--text);font-weight:600;line-height:1.3;}
+.cal-evt-loc{font-size:10px;color:var(--muted);}
+.cal-empty{font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic;}
+</style>
 
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
   <div class="modal-sheet" style="padding:10px 12px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:100dvh;overflow:hidden;">
@@ -683,7 +748,7 @@ function toggleTheme(){
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
-const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar.readonly';
 const REDIRECT=location.origin+location.pathname;
 
 // Sheet status values stored in column V (per-row)
@@ -2253,6 +2318,250 @@ function closeLogView(){
   if(history.state&&history.state.page==='logview') popHistorySilently();
   _logViewLead=null;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   GOOGLE CALENDAR OVERLAY
+   Shows the user's primary Google Calendar in a month view.
+   Tapping a day reveals that day's events. Background is fully
+   blocked. Tapping the backdrop or dragging diagonally closes.
+   ═══════════════════════════════════════════════════════════ */
+let _calMonth = null;          // {y, m} of currently displayed month
+let _calSelected = null;       // 'YYYY-MM-DD' of selected day
+let _calEventsByDay = {};      // 'YYYY-MM-DD' → [events]
+let _calLoadedRanges = new Set(); // 'YYYY-MM' that we've already fetched
+
+function openCalendarOverlay(){
+  const today = new Date();
+  _calMonth = {y: today.getFullYear(), m: today.getMonth()};
+  _calSelected = _calFmtDay(today);
+  document.getElementById('calendar-modal').style.display = 'flex';
+  history.pushState({page:'calendar'}, '');
+  _calRender();
+  _calLoadMonth(_calMonth.y, _calMonth.m);
+}
+function closeCalendarOverlay(){
+  document.getElementById('calendar-modal').style.display = 'none';
+  if(history.state && history.state.page === 'calendar') popHistorySilently();
+}
+
+function _calFmtDay(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function _calNiceTime(iso){
+  // Returns HH:MM for a given ISO string, or '' for all-day
+  if(!iso) return '';
+  if(iso.length === 10) return '';   // YYYY-MM-DD = all-day
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+const _CAL_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const _CAL_HEB_WEEKDAYS = ['א','ב','ג','ד','ה','ו','ש'];
+const _CAL_HEB_WEEKDAYS_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+function calNavMonth(delta){
+  if(!_calMonth) return;
+  let y = _calMonth.y, m = _calMonth.m + delta;
+  while(m < 0){ m += 12; y--; }
+  while(m > 11){ m -= 12; y++; }
+  _calMonth = {y, m};
+  _calRender();
+  _calLoadMonth(y, m);
+}
+function calNavToday(){
+  const today = new Date();
+  _calMonth = {y: today.getFullYear(), m: today.getMonth()};
+  _calSelected = _calFmtDay(today);
+  _calRender();
+  _calLoadMonth(_calMonth.y, _calMonth.m);
+}
+
+function _calRender(){
+  if(!_calMonth) return;
+  const {y, m} = _calMonth;
+  document.getElementById('cal-month-label').textContent = _CAL_HEB_MONTHS[m] + ' ' + y;
+  document.getElementById('cal-day-label').textContent = '';
+
+  // Build the month grid: 6 rows × 7 columns (Sun..Sat). Some leading
+  // days come from the previous month, trailing from next.
+  const first = new Date(y, m, 1);
+  const startWeekday = first.getDay();        // 0 = Sun
+  const daysInThisMonth = new Date(y, m+1, 0).getDate();
+  const daysInPrevMonth = new Date(y, m, 0).getDate();
+  const today = _calFmtDay(new Date());
+
+  // Header row: weekday names
+  let html = _CAL_HEB_WEEKDAYS.map(d => `<div class="cal-day-weekday">${d}</div>`).join('');
+
+  // 42 cells (6 weeks * 7)
+  for(let i = 0; i < 42; i++){
+    let cy = y, cm = m, cd;
+    if(i < startWeekday){
+      cm = m - 1;
+      if(cm < 0){ cm = 11; cy = y - 1; }
+      cd = daysInPrevMonth - (startWeekday - 1 - i);
+    } else if(i - startWeekday >= daysInThisMonth){
+      cm = m + 1;
+      if(cm > 11){ cm = 0; cy = y + 1; }
+      cd = i - startWeekday - daysInThisMonth + 1;
+    } else {
+      cd = i - startWeekday + 1;
+    }
+    const date = new Date(cy, cm, cd);
+    const key  = _calFmtDay(date);
+    const isOutside = (cm !== m);
+    const isToday   = (key === today);
+    const isSel     = (key === _calSelected);
+    const events = _calEventsByDay[key] || [];
+    const dots = events.slice(0, 4).map(()=>'<span class="cal-day-dot"></span>').join('');
+    const cls = ['cal-day'];
+    if(isOutside) cls.push('outside');
+    if(isToday)   cls.push('today');
+    if(isSel)     cls.push('selected');
+    html += `<div class="${cls.join(' ')}" data-cal-day="${key}" data-cal-y="${cy}" data-cal-m="${cm}">
+      <span class="cal-day-num">${cd}</span>
+      ${dots ? `<div class="cal-day-dots">${dots}</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('cal-month-grid').innerHTML = html;
+
+  // Render selected day's events
+  _calRenderDay();
+}
+function _calRenderDay(){
+  if(!_calSelected) return;
+  const events = (_calEventsByDay[_calSelected] || [])
+    .slice()
+    .sort((a,b) => (a._sort||0) - (b._sort||0));
+  const [yy, mm, dd] = _calSelected.split('-').map(Number);
+  const date = new Date(yy, mm-1, dd);
+  const wd = _CAL_HEB_WEEKDAYS_FULL[date.getDay()];
+  document.getElementById('cal-selected-label').textContent = `יום ${wd}, ${dd}/${mm}/${yy}`;
+  document.getElementById('cal-event-count').textContent = events.length ? `(${events.length} אירועים)` : '';
+
+  const list = document.getElementById('cal-events-list');
+  if(!events.length){
+    list.innerHTML = '<div class="cal-empty">אין אירועים ביום זה — פנוי</div>';
+    return;
+  }
+  list.innerHTML = events.map(ev => {
+    const startT = _calNiceTime(ev.start && (ev.start.dateTime||ev.start.date));
+    const endT   = _calNiceTime(ev.end   && (ev.end.dateTime  ||ev.end.date));
+    const time = startT ? (endT ? startT+' – '+endT : startT) : 'יום שלם';
+    return `
+      <div class="cal-evt">
+        <div class="cal-evt-time">${esc(time)}</div>
+        <div class="cal-evt-title">${esc(ev.summary || '(ללא שם)')}</div>
+        ${ev.location ? `<div class="cal-evt-loc">${esc(ev.location)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+/* Fetch events for an entire month from Google Calendar API. We cache
+   per month so navigating back & forth is instant. */
+async function _calLoadMonth(y, m){
+  const key = y+'-'+String(m+1).padStart(2,'0');
+  if(_calLoadedRanges.has(key)) return;
+
+  const start = new Date(y, m, 1);
+  const end   = new Date(y, m+1, 1);
+  const params = new URLSearchParams({
+    timeMin: start.toISOString(),
+    timeMax: end.toISOString(),
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '250',
+  });
+  const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?' + params.toString();
+  try{
+    const data = await apiFetch(url);
+    const items = (data && data.items) || [];
+    items.forEach(ev => {
+      // Each event spans from ev.start.date(Time) to ev.end.date(Time).
+      // For multi-day events, add it to every day in the range.
+      const startStr = (ev.start && (ev.start.dateTime || ev.start.date)) || '';
+      const endStr   = (ev.end   && (ev.end.dateTime   || ev.end.date  )) || startStr;
+      const startDay = startStr ? new Date(startStr) : null;
+      const endDay   = endStr   ? new Date(endStr)   : startDay;
+      if(!startDay) return;
+      ev._sort = startDay.getTime();
+      // Walk day by day (cap at 31 to be safe)
+      const cur = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate());
+      const stopAt = endStr.length === 10
+        ? new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate())  // exclusive
+        : new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate()+1);
+      let safety = 31;
+      while(cur < stopAt && safety-- > 0){
+        const k = _calFmtDay(cur);
+        if(!_calEventsByDay[k]) _calEventsByDay[k] = [];
+        if(!_calEventsByDay[k].some(x => x.id === ev.id)){
+          _calEventsByDay[k].push(ev);
+        }
+        cur.setDate(cur.getDate()+1);
+      }
+    });
+    _calLoadedRanges.add(key);
+    _calRender();
+  }catch(e){
+    // Silent — show nothing rather than spamming an error
+    document.getElementById('cal-events-list').innerHTML =
+      '<div class="cal-empty">שגיאה בטעינת קלנדר — '+esc(e.message||'')+'</div>';
+  }
+}
+
+// Click handler: choose a day, or close on backdrop tap
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'calendar-backdrop'){
+    closeCalendarOverlay();
+    return;
+  }
+  const day = e.target && e.target.closest && e.target.closest('[data-cal-day]');
+  if(day){
+    const k = day.getAttribute('data-cal-day');
+    if(k){
+      _calSelected = k;
+      // If the user clicked an outside-month day, navigate to that month
+      const cy = parseInt(day.getAttribute('data-cal-y'), 10);
+      const cm = parseInt(day.getAttribute('data-cal-m'), 10);
+      if(!isNaN(cy) && !isNaN(cm) && (cy !== _calMonth.y || cm !== _calMonth.m)){
+        _calMonth = {y:cy, m:cm};
+        _calLoadMonth(cy, cm);
+      }
+      _calRender();
+    }
+  }
+});
+
+// Diagonal swipe to close. Detect a swipe of >40px in any direction
+// while NOT scrolling the events list.
+(function attachCalendarSwipe(){
+  const modal = document.getElementById('calendar-modal');
+  if(!modal) return;
+  let sx = 0, sy = 0, tracking = false;
+  modal.addEventListener('touchstart', e => {
+    // Don't track swipes that begin inside the events list (so the
+    // user can scroll through events).
+    if(e.target && e.target.closest && e.target.closest('#cal-events-list')) return;
+    if(e.target && e.target.closest && e.target.closest('#cal-month-grid')) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    tracking = true;
+  }, {passive:true});
+  modal.addEventListener('touchend', e => {
+    if(!tracking) return;
+    tracking = false;
+    const ch = e.changedTouches[0];
+    const dx = ch.clientX - sx;
+    const dy = ch.clientY - sy;
+    // Diagonal: both axes moved more than 40px
+    if(Math.abs(dx) > 40 && Math.abs(dy) > 40){
+      closeCalendarOverlay();
+    }
+  }, {passive:true});
+})();
 function openAddFromLogView(){
   const l=_logViewLead; if(!l) return;
   // Close the log-view first, then open the note modal. This avoids any
