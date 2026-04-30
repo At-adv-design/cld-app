@@ -79,7 +79,25 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
    spreadsheet cell. Tight layout: 2 small chips side-by-side. */
 .section-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
 /* === Customer-area modal sections === */
-.cust-section{background:var(--white);border:1px solid var(--border);padding:14px;}
+.cust-section{background:var(--white);border:1px solid var(--border);}
+/* Collapsible head — chevron on the left, title + badge on the right (RTL) */
+.cust-section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 13px;cursor:pointer;
+  transition:background .12s;
+}
+.cust-section-head:active{background:var(--bg);}
+.cust-section-head-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.cust-section-title-text{font-size:13px;font-weight:700;color:var(--slate);}
+.cust-section-badge{font-size:10px;font-weight:500;color:var(--muted);}
+.cust-section-chev{
+  width:14px;height:14px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.cust-section.open .cust-section-chev{transform:rotate(180deg);}
+.cust-section-body{display:none;border-top:1px solid var(--border);padding:13px;}
+.cust-section.open .cust-section-body{display:block;}
+/* Legacy class — still referenced in places, kept for back-compat */
 .cust-section-title{font-size:13px;font-weight:700;color:var(--slate);margin-bottom:10px;text-transform:none;}
 /* Big tappable button that opens the customer's Drive folder. Same look
    as the cards (white bg, subtle border) so it sits naturally next to
@@ -253,7 +271,27 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .rpf-btn.reject {background:var(--red);  color:#fff;border-color:var(--red);}
 .rpf-btn:active{transform:scale(.95);}
 
-/* Approved file pill — read-only link, green */
+/* Approved file — name on its own line, URL clickable on the next line */
+.req-approved-row{
+  padding:6px 8px;
+  background:var(--green-bg);
+  border:1px solid #C9DFD0;
+  display:flex;flex-direction:column;gap:3px;
+}
+.rar-name{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:var(--text);
+}
+.rar-name svg{width:13px;height:13px;color:var(--green);flex-shrink:0;}
+.rar-name span{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rar-name .rar-check{color:var(--green);font-weight:700;font-size:13px;flex:none;}
+.rar-url{
+  font-size:10px;color:var(--blue);text-decoration:underline;
+  word-break:break-all;line-height:1.3;
+}
+.rar-url:active{color:var(--slate);}
+/* Legacy approved pill — kept for back-compat */
 .req-approved-pill{
   display:flex;align-items:center;gap:6px;
   padding:5px 8px;
@@ -261,10 +299,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   border:1px solid #C9DFD0;
   font-size:12px;color:var(--text);text-decoration:none;
 }
-.req-approved-pill svg{width:13px;height:13px;color:var(--green);flex-shrink:0;}
-.req-approved-pill span{flex:1;min-width:0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;}
-.req-approved-pill .check{color:var(--green);font-weight:700;font-size:13px;flex:none;}
 
 /* Rejection note */
 .req-rejection-note{
@@ -2957,6 +2991,12 @@ function openCustomerArea(rowNum){
     pendingLoading:    true,
     // Which report card is open in the UI (1..6 or null = all collapsed)
     openReportNum: null,
+    // Top-level sections of the customer area — all collapsible.
+    // Each key tracks open/closed state across re-renders. Default is
+    // "everything collapsed" so the lawyer sees the whole structure
+    // at a glance and drills into what's needed. Persisted to localStorage
+    // so that re-opening the same customer keeps the same sections open.
+    openSections: _loadCustSectionState(rowNum),
   };
   document.getElementById('customer-area-name').textContent=c.name||'';
   renderCustomerArea();
@@ -2971,6 +3011,35 @@ function openCustomerArea(rowNum){
 function closeCustomerArea(){
   document.getElementById('customer-area-modal').classList.remove('open');
   if(history.state&&history.state.page==='customer-area') popHistorySilently();
+}
+
+/* ── Customer-area section state (which top-level section is open) ─
+   Stored in localStorage per-client so reopening the same client
+   restores their previous layout. */
+function _loadCustSectionState(rowNum){
+  try{
+    const raw = localStorage.getItem('at_cust_sections_'+rowNum);
+    if(raw) return JSON.parse(raw) || {};
+  }catch(_){}
+  return {};
+}
+function _saveCustSectionState(){
+  if(!_custState) return;
+  try{
+    localStorage.setItem('at_cust_sections_'+_custState.rowNum,
+      JSON.stringify(_custState.openSections||{}));
+  }catch(_){}
+}
+function toggleCustSection(key){
+  if(!_custState) return;
+  if(!_custState.openSections) _custState.openSections = {};
+  _custState.openSections[key] = !_custState.openSections[key];
+  _saveCustSectionState();
+  // Update only the affected section's class — no full re-render,
+  // so the scroll position is preserved.
+  const card = document.querySelector(`.cust-section[data-cust-key="${key}"]`);
+  if(card) card.classList.toggle('open', !!_custState.openSections[key]);
+  else renderCustomerArea();
 }
 
 /* ── Customer-API integration ─────────────────────────────────
@@ -3038,6 +3107,9 @@ async function loadCustomerPending(){
     }
     if(Array.isArray(res.docsRequired)) _custState.supplDocsRequired = res.docsRequired;
     if(Array.isArray(res.docsApproved)) _custState.supplDocsApproved = res.docsApproved;
+    // CW info questions — Q&A format. Server returns [{id, question, answer}].
+    // We keep them on _custState.infoQs (same key as before, new shape).
+    if(Array.isArray(res.info)) _custState.infoQs = res.info;
     _custState.pendingLoading = false;
     renderCustomerArea();
   }catch(err){
@@ -3122,31 +3194,75 @@ function previewCustomerFile(p){
 function renderCustomerArea(){
   if(!_custState) return;
   const body=document.getElementById('customer-area-body');
+  // Preserve scroll position across the re-render. Otherwise every
+  // edit (typing, adding, deleting) jumps the lawyer back to the top.
+  const savedScroll = body.scrollTop;
+  // Also remember which input was focused, so we can restore it.
+  const focusEl = document.activeElement;
+  const focusKey = focusEl && body.contains(focusEl) ? {
+    selector: focusEl.tagName.toLowerCase(),
+    name: focusEl.getAttribute('data-id') || focusEl.getAttribute('data-info-id') || '',
+    cursorStart: focusEl.selectionStart,
+    cursorEnd: focusEl.selectionEnd,
+    value: focusEl.value,
+  } : null;
 
-  // Total pending count (for the per-report sections we already inline
-  // the files, but a small badge at the top is useful).
+  const open = _custState.openSections || {};
+  const isOpen = key => !!open[key];
+
+  // Total pending count for the small banner at the top
   const pendingTotal = (_custState.pending||[]).length +
                        (_custState.infoQs||[]).filter(q=>q.status==='uploaded').length;
 
+  // Helper to build a collapsible section with chevron
+  const sect = (key, title, badge, contentHtml) => `
+    <div class="cust-section ${isOpen(key)?'open':''}" data-cust-key="${key}">
+      <div class="cust-section-head" onclick="toggleCustSection('${key}')">
+        <div class="cust-section-head-left">
+          <span class="cust-section-title-text">${title}</span>
+          ${badge?`<span class="cust-section-badge">${badge}</span>`:''}
+        </div>
+        <svg class="cust-section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="cust-section-body">${contentHtml}</div>
+    </div>`;
+
+  const docsBadge = (() => {
+    const r = (_custState.supplDocsRequired||[]).length;
+    const a = (_custState.supplDocsApproved||[]).length;
+    const p = (_custState.pending||[]).filter(x=>x.category==='docs').length;
+    const parts = [];
+    if(r) parts.push(r+' דרישות');
+    if(p) parts.push('<span style="color:var(--orange);font-weight:700">'+p+' ממתינים</span>');
+    if(a) parts.push('<span style="color:var(--green);font-weight:700">'+a+' אושרו</span>');
+    return parts.join(' • ');
+  })();
+
+  const infoBadge = (() => {
+    const total = (_custState.infoQs||[]).length;
+    const answered = (_custState.infoQs||[]).filter(q=>(q.answer||'').trim()).length;
+    if(!total) return '';
+    return total + ' שאלות' + (answered?' • <span style="color:var(--green);font-weight:700">'+answered+' עם תשובה</span>':'');
+  })();
+
+  const credsBadge = _custState.active ? '<span style="color:var(--green);font-weight:700">פעיל</span>' : '<span style="color:var(--muted)">לא פעיל</span>';
+
   body.innerHTML = `
-    <!-- Connection status / loading indicator -->
     ${_custState.pendingLoading ? `
-      <div class="cust-section" style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
+      <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
         טוען קבצים ממתינים…
       </div>
     ` : _custState.pendingError ? `
-      <div class="cust-section" style="padding:8px 12px;font-size:11px;color:var(--red);text-align:center">
+      <div style="padding:8px 12px;font-size:11px;color:var(--red);text-align:center">
         שגיאה בטעינת ממתינים: ${esc(_custState.pendingError)}
       </div>
     ` : pendingTotal ? `
-      <div class="cust-section" style="padding:8px 12px;font-size:12px;color:var(--text);background:var(--orange-bg);border-color:#E8D8B5">
+      <div style="padding:8px 12px;font-size:12px;color:var(--text);background:var(--orange-bg);border:1px solid #E8D8B5">
         <strong style="color:var(--orange)">${pendingTotal} פריטים ממתינים לאישור</strong> — מוצגים מתחת לכל דרישה רלוונטית.
       </div>
     ` : ''}
 
-    <!-- Customer Drive folder. -->
-    <div class="cust-section">
-      <div class="cust-section-title">תיקיית מסמכים — Google Drive</div>
+    ${sect('drive', 'תיקיית מסמכים — Google Drive', '', `
       <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
         <span class="cust-folder-icon">${(window.DocsFeature&&window.DocsFeature.icon)||''}</span>
         <span class="cust-folder-text">
@@ -3155,28 +3271,21 @@ function renderCustomerArea(){
         </span>
         <span class="cust-folder-chev">‹</span>
       </button>
-    </div>
+    `)}
 
-    <!-- Per-report docs sections — 6 collapsible cards, one per report. -->
-    ${_renderReportDocsSections()}
+    ${sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody())}
 
-    <!-- Supplemental docs section (NEW: backed by DJ + DK + DL) -->
-    <div class="cust-section">
-      <div class="cust-section-title">השלמת מסמכים</div>
+    ${sect('docs', 'השלמת מסמכים', docsBadge, `
       ${_renderSupplDocsList()}
       <button class="req-add-btn" onclick="addSupplDocRow()" style="margin-top:6px">+ הוסף שדה</button>
-    </div>
+    `)}
 
-    <!-- Info questions section -->
-    <div class="cust-section">
-      <div class="cust-section-title">השלמת פרטים (שאלות ללקוח)</div>
-      ${_renderReqList('infoQs')}
-      <button class="req-add-btn" onclick="addReqRow('infoQs')" style="margin-top:6px">+ הוסף שאלה</button>
-    </div>
+    ${sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
+      ${_renderInfoQAList()}
+      <button class="req-add-btn" onclick="addInfoQuestion()" style="margin-top:6px">+ הוסף שאלה</button>
+    `)}
 
-    <!-- Credentials section — moved to the BOTTOM of the customer area -->
-    <div class="cust-section">
-      <div class="cust-section-title">שם משתמש וסיסמה ללקוח</div>
+    ${sect('creds', 'שם משתמש וסיסמה ללקוח', credsBadge, `
       <div class="cust-creds">
         <input type="text" class="cust-input" id="cust-username" placeholder="שם משתמש (ת.ז)" value="${esc(_custState.username||'')}" inputmode="numeric"/>
         <input type="text" class="cust-input" id="cust-password" placeholder="סיסמה" value="${esc(_custState.password||'')}"/>
@@ -3186,8 +3295,93 @@ function renderCustomerArea(){
         <span>אפשר ללקוח להיכנס לאפליקציה</span>
       </label>
       <button class="cust-save-btn" onclick="saveCustomerCreds()" style="margin-top:10px">שמור פרטי כניסה</button>
-    </div>
+    `)}
   `;
+
+  // Restore scroll + focus
+  body.scrollTop = savedScroll;
+  if(focusKey){
+    setTimeout(()=>{
+      const tag = focusKey.selector;
+      const candidates = body.querySelectorAll(tag+'[data-id="'+focusKey.name+'"], '+tag+'[data-info-id="'+focusKey.name+'"], '+tag+'[data-info-textarea="'+focusKey.name+'"]');
+      const target = candidates[0];
+      if(target){
+        try{
+          target.focus();
+          if(target.value === focusKey.value && typeof focusKey.cursorStart === 'number'){
+            target.setSelectionRange(focusKey.cursorStart, focusKey.cursorEnd);
+          }
+        }catch(_){}
+      }
+    }, 0);
+  }
+}
+
+/* Aggregate badge for the per-reports section (shown next to title) */
+function _reportsBadge(){
+  if(!_custState) return '';
+  const data = _custState.reportDocsByNum || [];
+  let r = 0, a = 0;
+  data.forEach(s => {
+    r += (s.required||[]).length;
+    a += (s.approved||[]).length;
+  });
+  const p = (_custState.pending||[]).filter(x=>x.category==='reports').length;
+  const parts = [];
+  if(r) parts.push(r+' דרישות');
+  if(p) parts.push('<span style="color:var(--orange);font-weight:700">'+p+' ממתינים</span>');
+  if(a) parts.push('<span style="color:var(--green);font-weight:700">'+a+' אושרו</span>');
+  return parts.join(' • ');
+}
+
+/* Body of the per-reports section: 6 cards (one per report). */
+function _renderReportDocsSectionsBody(){
+  if(!_custState) return '';
+  const data = _custState.reportDocsByNum || [];
+  const c = allClients.find(x => x.rowNum === _custState.rowNum);
+  const reportDates  = (c && c.reports)       || ['','','','','',''];
+  const reportStatus = (c && c.reportStatus)  || ['','','','','',''];
+
+  return `<div class="report-doc-list">
+    ${[1,2,3,4,5,6].map(num => {
+      const slot = data.find(x => x.num === num) || {required:[], approved:[]};
+      const required = slot.required || [];
+      const approved = slot.approved || [];
+      const dateStr = reportDates[num-1] || '';
+      const statusStr = (reportStatus[num-1]||'').trim();
+      const isOpen = _custState.openReportNum === num;
+      const reqCount = required.length;
+      const apprCount = approved.length;
+      const pendingC = (_custState.pending||[]).filter(p =>
+        p.category==='reports' && (p.reportNum||null)===num
+      ).length;
+      const stCls = statusStr ? 'badge-green' : 'badge-gray';
+
+      return `
+        <div class="report-doc-card ${isOpen?'open':''}" data-rep="${num}">
+          <div class="report-doc-head" onclick="toggleReportDocSection(${num})">
+            <div class="report-doc-num">${num}</div>
+            <div class="report-doc-info">
+              <div class="report-doc-ttl">דוח ${num}</div>
+              <div class="report-doc-meta">
+                ${dateStr?`<span>תאריך: ${esc(dateStr)}</span>`:''}
+                ${reqCount?`<span>${reqCount} דרישות</span>`:''}
+                ${pendingC?`<span style="color:var(--orange);font-weight:700">${pendingC} ממתינים</span>`:''}
+                ${apprCount?`<span style="color:var(--green);font-weight:700">${apprCount} אושרו</span>`:''}
+              </div>
+            </div>
+            <div class="report-doc-badges">
+              ${statusStr?`<span class="status-badge ${stCls}">${esc(statusStr)}</span>`:''}
+              <svg class="report-doc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+          </div>
+          <div class="report-doc-body">
+            ${_renderReportReqList(num)}
+            <button class="req-add-btn" onclick="addReportReqRow(${num})" style="margin-top:6px">+ הוסף שדה</button>
+          </div>
+        </div>`;
+    }).join('')}
+  </div>`;
 }
 
 /* Render the supplemental-docs editable list (DJ-backed). Same shape as
@@ -3231,10 +3425,28 @@ function addSupplDocRow(){
   if(!Array.isArray(_custState.supplDocsRequired)) _custState.supplDocsRequired = [];
   _custState.supplDocsRequired.push({id:'tmp-'+Math.random().toString(36).slice(2,9), text:'', report:0});
   renderCustomerArea();
+  // Focus the new input WITHOUT jumping the page.
+  // The default `.focus()` behavior on mobile scrolls the input into
+  // view, which feels like the page is "jumping". We use the
+  // preventScroll option and explicitly restore scrollTop afterwards.
   setTimeout(()=>{
-    const inputs = document.querySelectorAll('.cust-section .req-row input');
-    const last = inputs[inputs.length-1];
-    if(last) last.focus();
+    const body = document.getElementById('customer-area-body');
+    const savedScroll = body ? body.scrollTop : 0;
+    // Find the supplemental docs section's req-blocks (they're the
+    // ones inside .cust-section that are NOT in a per-report card).
+    const sections = document.querySelectorAll('.cust-section');
+    let targetInputs = [];
+    sections.forEach(sec => {
+      const title = sec.querySelector('.cust-section-title');
+      if(title && title.textContent.trim() === 'השלמת מסמכים'){
+        targetInputs = sec.querySelectorAll('.req-row input[type="text"]');
+      }
+    });
+    const last = targetInputs[targetInputs.length-1];
+    if(last){
+      try{ last.focus({preventScroll:true}); }catch(_){ last.focus(); }
+      if(body) body.scrollTop = savedScroll;
+    }
   }, 50);
   saveSupplDocsList();
 }
@@ -3654,8 +3866,9 @@ function _renderReportReqList(num){
 }
 
 /* Render the inline attachments under one requirement row:
-   pending files (with view/approve/reject buttons), approved file
-   pills (read-only links), and a rejection note if there is one. */
+   pending files (with view/approve/reject buttons), approved files
+   shown as: name on one line, URL on the next (URL is clickable),
+   and a rejection note if there is one. */
 function _renderReqAttachments(o){
   const pending = o.pending || [];
   const approved = o.approved || [];
@@ -3674,10 +3887,13 @@ function _renderReqAttachments(o){
           </div>
         </div>`).join('')}
       ${approved.map(a => `
-        <a class="req-approved-pill" href="${esc(a.url||'')}" target="_blank" rel="noopener" title="${esc(a.name||'')}">
-          ${ICON.paper}<span>${esc(a.name||'')}</span>
-          <span class="check">✓</span>
-        </a>`).join('')}
+        <div class="req-approved-row">
+          <div class="rar-name">
+            ${ICON.paper}<span>${esc(a.name||'')}</span>
+            <span class="rar-check">✓</span>
+          </div>
+          ${a.url ? `<a class="rar-url" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a>` : ''}
+        </div>`).join('')}
       ${rejection ? `
         <div class="req-rejection-note">
           <strong>נדחה</strong>${rejection.reason?': '+esc(rejection.reason):''}
@@ -3689,6 +3905,126 @@ function _renderReqAttachments(o){
 function _jsArg(obj){
   return "JSON.parse(decodeURIComponent('" +
     encodeURIComponent(JSON.stringify(obj)) + "'))";
+}
+
+/* ── Q&A (CW info questions) ─────────────────────────────────
+   Each question is a collapsible card. When closed, only the
+   question is shown. When open, the answer textarea is editable
+   by the lawyer too — useful when the customer dictates an answer
+   over the phone and the lawyer wants to record it directly.
+   Persisted open-state per-question on _custState.infoQAOpen. */
+function _renderInfoQAList(){
+  if(!_custState) return '';
+  const list = _custState.infoQs || [];
+  if(!list.length){
+    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו שאלות. הקלד שאלות בעמודה CW או לחץ "+ הוסף שאלה".</div>';
+  }
+  if(!_custState.infoQAOpen) _custState.infoQAOpen = {};
+  return list.map((q, idx) => {
+    const id = q.id || ('qidx-'+idx);
+    const text = q.question || q.text || '';
+    const answer = q.answer || '';
+    const isOpen = !!_custState.infoQAOpen[id];
+    const has = !!answer.trim();
+    return `
+      <div class="qa-card-l ${isOpen?'open':''} ${has?'has-answer':''}" data-qid="${esc(id)}">
+        <div class="qa-head-l" onclick="toggleInfoQA('${esc(id)}')">
+          <input type="text" class="qa-q-input" placeholder="טקסט השאלה..."
+            value="${esc(text)}"
+            onclick="event.stopPropagation()"
+            oninput="updateInfoQuestion('${esc(id)}',${idx},this.value)"/>
+          <button class="qa-del" onclick="event.stopPropagation();removeInfoQuestion('${esc(id)}',${idx})" title="מחק שאלה">${ICON.trash}</button>
+          <svg class="qa-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="qa-body-l">
+          <textarea class="qa-a-input" placeholder="תשובה (אופציונלי — הלקוח ימלא, או רשום ישירות אם הוא עונה בטלפון)"
+            oninput="updateInfoAnswer('${esc(id)}',${idx},this.value)">${esc(answer)}</textarea>
+        </div>
+      </div>`;
+  }).join('');
+}
+function toggleInfoQA(id){
+  if(!_custState) return;
+  if(!_custState.infoQAOpen) _custState.infoQAOpen = {};
+  _custState.infoQAOpen[id] = !_custState.infoQAOpen[id];
+  // Toggle just this card without a full re-render
+  const card = document.querySelector(`.qa-card-l[data-qid="${id}"]`);
+  if(card) card.classList.toggle('open', !!_custState.infoQAOpen[id]);
+  else renderCustomerArea();
+}
+function updateInfoQuestion(id, idx, val){
+  if(!_custState) return;
+  const list = _custState.infoQs || [];
+  if(idx >= 0 && idx < list.length){
+    list[idx].question = val;
+    list[idx].text = val;  // back-compat
+    saveInfoQuestions(true);
+  }
+}
+function updateInfoAnswer(id, idx, val){
+  if(!_custState) return;
+  const list = _custState.infoQs || [];
+  if(idx >= 0 && idx < list.length){
+    list[idx].answer = val;
+    saveInfoQuestions(true);
+    // Update the visual "answered" state on this card
+    const card = document.querySelector(`.qa-card-l[data-qid="${id}"]`);
+    if(card) card.classList.toggle('has-answer', !!val.trim());
+  }
+}
+function addInfoQuestion(){
+  if(!_custState) return;
+  if(!Array.isArray(_custState.infoQs)) _custState.infoQs = [];
+  _custState.infoQs.push({id:'tmp-'+Math.random().toString(36).slice(2,9), question:'', answer:''});
+  renderCustomerArea();
+  setTimeout(()=>{
+    const body = document.getElementById('customer-area-body');
+    const savedScroll = body ? body.scrollTop : 0;
+    const inputs = document.querySelectorAll('.qa-q-input');
+    const last = inputs[inputs.length-1];
+    if(last){
+      try{ last.focus({preventScroll:true}); }catch(_){ last.focus(); }
+      if(body) body.scrollTop = savedScroll;
+    }
+  }, 50);
+  saveInfoQuestions();
+}
+function removeInfoQuestion(id, idx){
+  if(!_custState) return;
+  if(!confirm('למחוק שאלה זו?')) return;
+  const list = _custState.infoQs || [];
+  if(idx >= 0 && idx < list.length){
+    list.splice(idx, 1);
+    renderCustomerArea();
+    saveInfoQuestions();
+  }
+}
+/* Save the entire CW cell as plain Q&A text. Debounced for typing. */
+let _infoSaveTimer = null;
+function saveInfoQuestions(debounce=false){
+  if(!_custState) return;
+  const list = _custState.infoQs || [];
+  // Build the plain-text serialization that the Apps Script also uses.
+  const text = list.map(e => {
+    const q = (e.question || e.text || '').trim();
+    const a = (e.answer || '').trim();
+    if(!q) return '';
+    return a ? (q + '\n' + a) : q;
+  }).filter(Boolean).join('\n\n');
+
+  if(_infoSaveTimer) clearTimeout(_infoSaveTimer);
+  const doSave = ()=>{
+    _infoSaveTimer = null;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CW${_custState.rowNum}?valueInputOption=RAW`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({values:[[text]]})};
+    apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'השלמת פרטים'));
+    // Sync allClients cache
+    const c = allClients.find(x => x.rowNum === _custState.rowNum);
+    if(c) c.infoQs = list.map(e => ({...e}));
+  };
+  if(debounce) _infoSaveTimer = setTimeout(doSave, 800);
+  else doSave();
 }
 
 /* Open/close one of the 6 report cards (accordion). */
@@ -3718,12 +4054,16 @@ function addReportReqRow(num){
   _custState.openReportNum = num;
   renderCustomerArea();
   setTimeout(()=>{
-    // Focus the last empty input inside the just-rendered card
+    const body = document.getElementById('customer-area-body');
+    const savedScroll = body ? body.scrollTop : 0;
     const card = document.querySelector(`.report-doc-card[data-rep="${num}"]`);
     if(card){
       const inputs = card.querySelectorAll('input[type="text"]');
       const last = inputs[inputs.length-1];
-      if(last) last.focus();
+      if(last){
+        try{ last.focus({preventScroll:true}); }catch(_){ last.focus(); }
+        if(body) body.scrollTop = savedScroll;
+      }
     }
   }, 50);
   saveReportReqList(num);
@@ -5970,6 +6310,35 @@ window.addEventListener('popstate',()=>{
   // ─── חשיפה גלובלית ─────────────────────────────────────────────────────
   window.DocsFeature = { open, close, icon: FOLDER_ICON, isOpen: () => isOpen, scan: scanAll };
   window.openDocsModal = open;
+})();
+
+/* =========================
+   KEYBOARD-AWARE INPUT FOCUS
+   When an input or textarea gets focus on mobile, the on-screen
+   keyboard rises and can hide the field. Scroll the focused element
+   into view so the user can see what they're typing.
+   ========================= */
+(function attachKeyboardScroll(){
+  let scrollTimer = null;
+  function handleFocus(e){
+    const t = e.target;
+    if(!t) return;
+    const tag = t.tagName;
+    if(tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    if(tag === 'INPUT'){
+      const type = (t.type||'').toLowerCase();
+      if(type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit') return;
+    }
+    if(scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(()=>{
+      try{
+        t.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'});
+      }catch(_){
+        try{ t.scrollIntoView(false); }catch(__){}
+      }
+    }, 280);
+  }
+  document.addEventListener('focusin', handleFocus, true);
 })();
 
 </script>
