@@ -1197,7 +1197,7 @@ async function loadLeads(){
     document.getElementById('leads-list').innerHTML='';
   }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AE?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AF?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const all=(data.values||[]).slice(1)
@@ -1237,6 +1237,11 @@ async function loadLeads(){
           // "לא נענו" tab. When TRUE, the lead is hidden from all
           // tabs except the no-answer one.
           noAnswer: ((row[30]||'')+'').toString().toUpperCase().trim()==='TRUE',
+          // Column AF (0-based 31) — timestamp (ms) of when the lead was
+          // flagged as "לא נענו". Used to keep the most recently flagged
+          // lead at the top of the no-answer list, persisted across reloads
+          // and devices (not just localStorage).
+          noAnswerTs: parseInt(((row[31]||'')+'').toString().trim(), 10) || 0,
           // Earliest date the lead was logged — used as a "joined on" badge
           // in the top-right corner of the lead row.
           entryDate
@@ -1553,26 +1558,37 @@ function initSwipe(wrap,idx,kind){
    marked as "לא נענו" and only appears in the no-answer sub-tab. */
 async function setNoAnswer(idx, value){
   const lead = allLeads.find(l => l.index === idx);
+  const ts = value ? Date.now() : 0;
   if(lead){
     lead.noAnswer = !!value;
-    // Persist movedAt so the most-recently-flagged lead stays at the top
-    // of the "לא נענו" list across reloads (LIFO order).
+    lead.noAnswerTs = ts;
+    // Also keep the local "movedAt" in sync — the in-memory order uses
+    // it. When unmarking, we reset to 0 so the lead drops off the list.
     if(value){
       const moves = loadMovesMap();
-      moves[idx] = Date.now();
+      moves[idx] = ts;
       saveMovesMap(moves);
-      lead.movedAt = moves[idx];
+      lead.movedAt = ts;
     }
     // Bump in-memory order so the move shows up immediately
     const i = allLeads.indexOf(lead);
     if(i > 0){ allLeads.splice(i, 1); allLeads.unshift(lead); }
   }
   filterLeads();
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AE${idx}?valueInputOption=USER_ENTERED`;
-  const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+  // Two parallel writes: AE (flag) and AF (timestamp). When unmarking
+  // we clear AF too so the lead doesn't keep an obsolete timestamp.
+  const urlAE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AE${idx}?valueInputOption=USER_ENTERED`;
+  const optsAE = {method:'PUT', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({values:[[ value ? 'TRUE' : 'FALSE' ]]})};
-  try{ await apiFetch(url, opts); }
-  catch(e){ enqueueWrite(url, opts, 'לא נענו'); }
+  const urlAF = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AF${idx}?valueInputOption=RAW`;
+  const optsAF = {method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({values:[[ value ? String(ts) : '' ]]})};
+  try{
+    await Promise.all([apiFetch(urlAE, optsAE), apiFetch(urlAF, optsAF)]);
+  }catch(e){
+    enqueueWrite(urlAE, optsAE, 'לא נענו');
+    enqueueWrite(urlAF, optsAF, 'תאריך לא נענו');
+  }
   appendMetaLog(idx, value ? 'סומן כלא נענו' : 'הוסרה הסימון לא נענו');
 }
 
@@ -1707,7 +1723,7 @@ function filterLeads(){
   );
   const noAnsw = allLeads.filter(l =>
     l.noAnswer && match(l)
-  );
+  ).sort((a,b) => (b.noAnswerTs||0) - (a.noAnswerTs||0));
   const rem = allLeads.filter(l =>
     l.status===STATUS_REMOVED && !l.noAnswer && match(l)
   );
@@ -1803,6 +1819,11 @@ function openModal(name){
   // history entry so back button closes (and saves draft) instead of leaving
   history.pushState({page:'modal'},'');
   stopMic();
+  // While the call-summary is open, lock the page underneath: ANY
+  // downward swipe anywhere on the screen closes the modal (saving the
+  // draft) and is fully consumed — no pull-to-refresh, no rubber-banding,
+  // no background scrolling.
+  _attachNoteScrollLock();
   // Don't auto-focus the textarea — the keyboard popping up is annoying when
   // the user just wants to tap one of the action buttons (continue/meeting/
   // reminder/remove). Some browsers/Android WebView auto-focus the first
@@ -1814,6 +1835,120 @@ function openModal(name){
   };
   requestAnimationFrame(()=>{ blurAny(); requestAnimationFrame(blurAny); });
   setTimeout(blurAny, 60);
+}
+
+/* ── Global scroll-lock for the call-summary modal ──────────────────
+   Goal: while the modal is open, ANY downward swipe anywhere on the
+   screen should close the modal and do nothing else — no page scroll,
+   no pull-to-refresh, no rubber-banding behind the sheet.
+
+   Strategy:
+   1. Lock body scroll via overflow:hidden + overscroll-behavior:none
+      (the second one disables pull-to-refresh on Chrome Android).
+   2. Add a document-level touchmove listener with {passive:false} that
+      preventDefault()s every move while the modal is open. The same
+      listener detects a meaningful downward swipe and triggers close.
+   3. Allow scrolling INSIDE the textarea (the only scrollable area
+      that should still respond) — we skip the prevent + close logic
+      when the touch started on the textarea AND its content overflows. */
+let _noteScrollLock = null;
+function _attachNoteScrollLock(){
+  if(_noteScrollLock) return; // already attached
+  // Lock the body so the page can't scroll behind the modal.
+  const prevBodyOverflow = document.body.style.overflow;
+  const prevBodyOverscroll = document.body.style.overscrollBehavior;
+  const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+  document.body.style.overflow = 'hidden';
+  document.body.style.overscrollBehavior = 'none';
+  document.documentElement.style.overscrollBehavior = 'none';
+
+  let startY = 0, startedInScrollable = false;
+  const noteSheet = document.querySelector('#note-modal .modal-sheet');
+  const textarea = document.getElementById('note-input');
+
+  const onStart = (e)=>{
+    if(!modalOpen){ return; }
+    if(!e.touches || !e.touches[0]) return;
+    startY = e.touches[0].clientY;
+    // If the touch started inside the textarea AND it overflows, allow
+    // native scrolling there (we won't preventDefault for that case).
+    startedInScrollable = false;
+    if(textarea && textarea.contains(e.target)){
+      const canScroll = textarea.scrollHeight > textarea.clientHeight;
+      if(canScroll) startedInScrollable = true;
+    }
+  };
+
+  const onMove = (e)=>{
+    if(!modalOpen) return;
+    if(!e.touches || !e.touches[0]) return;
+    const dy = e.touches[0].clientY - startY;
+    // Allow native scrolling inside the textarea (when it actually scrolls)
+    if(startedInScrollable){
+      // But still close on big downward swipes from inside the textarea
+      // when the textarea is scrolled to its top.
+      if(dy > 80 && textarea && textarea.scrollTop <= 0){
+        if(e.cancelable) e.preventDefault();
+        _closeNoteOnSwipe();
+      }
+      return;
+    }
+    // Default: block ANY page movement while the modal is open.
+    if(e.cancelable) e.preventDefault();
+    // A meaningful downward swipe → close the modal.
+    if(dy > 60){
+      _closeNoteOnSwipe();
+    }
+  };
+
+  // Wheel: also block scrolling on desktop / mouse wheel.
+  const onWheel = (e)=>{
+    if(!modalOpen) return;
+    if(textarea && textarea.contains(e.target)){
+      const canScroll = textarea.scrollHeight > textarea.clientHeight;
+      if(canScroll) return; // let the textarea scroll normally
+    }
+    if(e.cancelable) e.preventDefault();
+    if(e.deltaY > 30){
+      _closeNoteOnSwipe();
+    }
+  };
+
+  document.addEventListener('touchstart', onStart, {passive:true});
+  document.addEventListener('touchmove',  onMove,  {passive:false});
+  document.addEventListener('wheel',      onWheel, {passive:false});
+
+  _noteScrollLock = ()=>{
+    document.removeEventListener('touchstart', onStart);
+    document.removeEventListener('touchmove',  onMove);
+    document.removeEventListener('wheel',      onWheel);
+    document.body.style.overflow = prevBodyOverflow;
+    document.body.style.overscrollBehavior = prevBodyOverscroll;
+    document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
+    _noteScrollLock = null;
+  };
+}
+
+function _detachNoteScrollLock(){
+  if(_noteScrollLock) _noteScrollLock();
+}
+
+/* Close the modal due to a swipe gesture: save the draft (so what the
+   user typed isn't lost) and animate the sheet out. */
+let _swipeCloseInFlight = false;
+function _closeNoteOnSwipe(){
+  if(_swipeCloseInFlight) return;
+  _swipeCloseInFlight = true;
+  const sheet = document.querySelector('#note-modal .modal-sheet');
+  if(sheet){
+    sheet.style.transition = 'transform 0.18s cubic-bezier(.32,.72,0,1)';
+    sheet.style.transform = 'translateY(100%)';
+  }
+  setTimeout(()=>{
+    if(sheet){ sheet.style.transition=''; sheet.style.transform=''; }
+    saveDraftAndCloseModal();
+    _swipeCloseInFlight = false;
+  }, 180);
 }
 function closeModal(){
   // user clicked "סגור בלי לשמור" -> drop the draft
@@ -1835,6 +1970,8 @@ function _closeModalCore(){
   document.getElementById('note-modal').classList.remove('open');
   modalOpen=false;
   stopMic();
+  // Release the page-wide scroll lock that openModal installed.
+  if(typeof _detachNoteScrollLock === 'function') _detachNoteScrollLock();
   // Don't re-render the list here — closing without saving shouldn't cause
   // a visible flash. Save flows (saveAndMove etc.) trigger their own
   // filterLeads() so the UI stays in sync when there's an actual change.
@@ -2786,8 +2923,10 @@ function checkLeadFromHash(){
 
 (function attachDragToClose(){
   // Map modal element id → close function name (called as closer())
+  // Note: 'note-modal' (call summary) gets a separate, stronger handler
+  // (see attachNoteModalGlobalClose below) — any swipe anywhere closes
+  // it without scrolling the page or pull-to-refreshing.
   const closerMap={
-    'note-modal':()=>closeModal(),
     'meeting-modal':()=>closeMeetingDialog(),
     // Fullscreen sheets — dragging the title bar down is also a close gesture
     'log-view-modal':()=>closeLogView(),
@@ -2922,7 +3061,7 @@ function checkLeadFromHash(){
     sheet.addEventListener('touchcancel', onEnd, {passive:true});
   }
 
-  ['note-modal','meeting-modal','log-view-modal','log-edit-modal','reminders-modal','confirm-dialog']
+  ['meeting-modal','log-view-modal','log-edit-modal','reminders-modal','confirm-dialog']
     .forEach(attach);
 })();
 
