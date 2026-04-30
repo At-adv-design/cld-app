@@ -310,44 +310,54 @@ input,textarea,button{font-family:inherit;}
 .answer-row button:disabled{opacity:.5;cursor:not-allowed;}
 
 /* ── Q&A cards (CW info questions) ──────────────────────────
-   Each question is collapsible with a chevron. Closed = just
-   the question + a tiny status dot. Open = textarea + save. */
+   Each question is a card with a chevron. Closed = question +
+   status pill on the side. Open = textarea + save button.
+   Visual mirrors the original `req-card` look (which the user
+   preferred). */
 .qa-card{
   background:var(--white);
   border:1px solid var(--border);
-  margin-bottom:8px;
+  padding:12px;
+  margin-bottom:10px;
 }
 .qa-card.has-answer{background:var(--green-bg);border-color:#C9DFD0;}
 .qa-head{
-  display:flex;align-items:center;gap:8px;
-  padding:11px 12px;cursor:pointer;
+  display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+  /* No padding here — the .qa-card already has padding. */
 }
-.qa-head:active{background:rgba(0,0,0,.03);}
 .qa-q{
   flex:1;min-width:0;
   font-size:13px;font-weight:600;color:var(--text);
-  line-height:1.4;word-break:break-word;
+  line-height:1.45;word-break:break-word;
 }
-.qa-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;}
-.qa-dot{
-  width:8px;height:8px;border-radius:50%;display:inline-block;
+.qa-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;
+  margin-top:1px;
 }
-.qa-dot.answered{background:var(--green);}
-.qa-dot.empty{background:var(--border-strong);}
-.qa-chev{width:16px;height:16px;color:var(--muted);transition:transform .15s ease;}
+.qa-status-pill{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 8px;color:#fff;white-space:nowrap;
+}
+.qa-status-pill.answered{background:var(--green);}
+.qa-status-pill.empty{background:var(--orange);}
+.qa-chev{
+  width:16px;height:16px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
 .qa-card.open .qa-chev{transform:rotate(180deg);}
 .qa-body{
-  display:none;border-top:1px solid var(--border);
-  padding:11px 12px;background:var(--white);
-  flex-direction:column;gap:8px;
+  display:none;
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--border);
 }
-.qa-card.open .qa-body{display:flex;}
+.qa-card.has-answer .qa-body{border-top-color:#C9DFD0;}
+.qa-card.open .qa-body{display:flex;flex-direction:column;gap:8px;}
 .qa-body textarea{
   width:100%;min-height:80px;padding:9px 10px;
-  background:var(--bg);border:1px solid var(--border);border-radius:0;
+  background:var(--white);border:1px solid var(--border);border-radius:0;
   font-size:13px;color:var(--text);resize:vertical;outline:none;
   font-family:inherit;
 }
+.qa-card.has-answer .qa-body textarea{border-color:#C9DFD0;}
 .qa-body textarea:focus{border-color:var(--slate);}
 .qa-actions{display:flex;justify-content:flex-end;}
 .qa-actions button{
@@ -884,7 +894,9 @@ function renderInfo(){
         <div class="qa-head" onclick="toggleInfo('${escAttr(id)}')">
           <div class="qa-q">${esc(text)}</div>
           <div class="qa-meta">
-            ${hasAnswer?'<span class="qa-dot answered" title="ענית"></span>':'<span class="qa-dot empty" title="טרם ענית"></span>'}
+            ${hasAnswer
+              ? '<span class="qa-status-pill answered">ענית</span>'
+              : '<span class="qa-status-pill empty">ממתין לתשובה</span>'}
             <svg class="qa-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
         </div>
@@ -1061,36 +1073,32 @@ $('file-input').addEventListener('change', async (e)=>{
     toast(err.message||'שגיאה בהעלאה', 'error');
   }
 });
-async function removeFile(fileId){
+function removeFile(fileId){
   if(!confirm('להסיר את הקובץ?')) return;
-  try{
-    showLoading(true);
-    await api('removeFile',{token:currentUser.token, fileId});
-    toast('הקובץ הוסר', 'success');
-    await loadData(true);
-  }catch(err){
-    toast(err.message||'שגיאה', 'error');
-  }finally{
-    showLoading(false);
-  }
+  // OPTIMISTIC: remove from local pending list + re-render
+  dataPending = (dataPending||[]).filter(p => p.fileId !== fileId);
+  render();
+  toast('הקובץ הוסר', 'success');
+  api('removeFile',{token:currentUser.token, fileId})
+    .catch(err => toast('שגיאה בהסרה: '+(err.message||''), 'error'));
 }
 
 /* ─── ANSWER ─── */
-async function submitAnswer(reqId){
+function submitAnswer(reqId){
   const ta=document.querySelector(`textarea[data-info-textarea="${reqId}"]`);
   if(!ta) return;
   const ans=ta.value.trim();
   if(!ans){ toast('נא הקלד תשובה', 'error'); return; }
-  try{
-    showLoading(true);
-    await api('submitAnswer',{token:currentUser.token, reqId, answer:ans});
-    toast('התשובה נשלחה', 'success');
-    await loadData(true);
-  }catch(err){
-    toast(err.message||'שגיאה', 'error');
-  }finally{
-    showLoading(false);
-  }
+  // OPTIMISTIC: update local state + UI immediately. Don't show a
+  // spinner. Don't wait for Apps Script. The user already sees their
+  // answer saved instantly and can continue working.
+  const q = (dataInfo||[]).find(x => x.id === reqId);
+  if(q){ q.answer = ans; renderInfo(); }
+  toast('נשמר', 'success');
+  // Fire the API call in the background. Errors surface via toast
+  // but don't block the UI.
+  api('submitAnswer',{token:currentUser.token, reqId, answer:ans})
+    .catch(err => toast('שגיאה בשמירה: '+(err.message||''), 'error'));
 }
 
 /* ─── IMAGE COMPRESSION ─── */
