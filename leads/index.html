@@ -790,15 +790,12 @@ async function apiFetch(url,opts={},attempt=0){
     throw e;
   }
   const headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+tok});
-  // Apply a timeout so a stalled request doesn't hang forever
   const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(),20000);
+  const t=setTimeout(()=>ctrl.abort(),30000);
   try{
     const res=await fetch(url,Object.assign({},opts,{headers,signal:ctrl.signal}));
     clearTimeout(t);
-    // 401: token rejected mid-flight (e.g. revoked or clock skew). Refresh + retry once.
-    if(res.status===401 && attempt===0){
-      // Force token to be considered expired so getValidToken refreshes
+    if(res.status===401 && attempt<2){
       localStorage.setItem('lte','0');
       return apiFetch(url,opts,attempt+1);
     }
@@ -806,15 +803,20 @@ async function apiFetch(url,opts={},attempt=0){
     try{ data=await res.json(); }catch(_){}
     if(!res.ok){
       const msg=(data&&data.error&&data.error.message)||('HTTP '+res.status);
+      // Retry on transient server errors (5xx / rate limit) up to 3 times
+      if((res.status>=500 || res.status===429) && attempt<3){
+        setOnlineBadge('retrying','שולח שוב...');
+        await new Promise(r=>setTimeout(r, 800*(attempt+1)));
+        return apiFetch(url,opts,attempt+1);
+      }
       throw new Error(msg);
     }
     setOnlineBadge('online');
     return data;
   }catch(e){
     clearTimeout(t);
-    // Network error: retry with backoff (up to 3 attempts)
     const isNetwork=(e.name==='AbortError'||e.name==='TypeError'||/network/i.test(e.message||''));
-    if(isNetwork && attempt<3){
+    if(isNetwork && attempt<5){
       setOnlineBadge('retrying','מחבר מחדש...');
       await new Promise(r=>setTimeout(r, 600*(attempt+1)));
       return apiFetch(url,opts,attempt+1);
@@ -913,6 +915,19 @@ setInterval(()=>{
 
 // Try flushing the queue every 30s in case anything is stuck
 setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
+
+// Proactive token refresh: every 5 minutes, check whether the token
+// is going to expire in the next 10 minutes. If so, refresh it now
+// while the app is idle. This way the user never sees a "session
+// expired" error mid-action.
+setInterval(()=>{
+  if(!navigator.onLine || !accessToken) return;
+  const exp = parseInt(localStorage.getItem('ite')||'0');
+  const tenMinutes = 10 * 60 * 1000;
+  if(exp && (exp - Date.now()) < tenMinutes){
+    silentReauth().catch(()=>{});
+  }
+},5*60*1000);
 
 
 function doLogin(){
