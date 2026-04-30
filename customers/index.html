@@ -309,6 +309,19 @@ async function showApp(){
 async function loadRequestsFromServer(){
   if(!CONFIG.API_URL){
     requests=buildDemoRequests();
+    // Demo mode: make all 6 reports available with friendly fake dates
+    // so the user sees the UI work without needing the live backend.
+    const now=new Date();
+    _reportInfo = [];
+    for(let i=0;i<6;i++){
+      const d=new Date(now.getFullYear(), now.getMonth()-2+i, 1);
+      _reportInfo.push({
+        num: i+1,
+        dateMs: d.getTime(),
+        dateText: ('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear(),
+        status: '',
+      });
+    }
     renderAll(); return;
   }
   showSpinner(true);
@@ -358,44 +371,34 @@ function toggleSection(cat){
 }
 
 function renderAll(){
-  const root=document.getElementById('accordion');
-  if(!root) return;
-  root.innerHTML = renderAccordion();
+  // Update tab counts
+  ['reports','docs','info'].forEach(cat=>{
+    const pending = requests.filter(r=>r.category===cat && (r.status==='pending'||r.status==='rejected')).length;
+    const el = document.getElementById('cnt-'+cat);
+    if(el){
+      el.textContent = pending;
+      el.classList.toggle('zero', pending===0);
+    }
+  });
+  // Render the active tab's content
+  const area = document.getElementById('content-area');
+  if(!area) return;
+  if(currentCategory==='reports'){
+    area.innerHTML = currentReportNum ? renderReportItems() : renderReportsGrid();
+  } else {
+    area.innerHTML = renderFlatList(currentCategory);
+  }
 }
 
-/* Build the 3-section accordion. Each section is a header (always
-   visible) + a body (visible only when open). Pending counts are
-   shown on each header so the customer knows where to look. */
-function renderAccordion(){
-  const sections = [
-    {key:'reports', title:'מסמכי דוחות'},
-    {key:'docs',    title:'השלמת מסמכים'},
-    {key:'info',    title:'השלמת פרטים'},
-  ];
-  return sections.map(s=>{
-    const items = requests.filter(r=>r.category===s.key);
-    const pending = items.filter(r=>r.status==='pending'||r.status==='rejected').length;
-    const open = !!_sectionOpen[s.key];
-    const badge = pending > 0
-      ? `<span class="acc-badge">${pending}</span>`
-      : (items.length ? `<span class="acc-badge zero">✓</span>` : '');
-    let body = '';
-    if(open){
-      if(s.key==='reports'){
-        body = currentReportNum ? renderReportItems() : renderReportsGrid();
-      } else {
-        body = renderFlatList(s.key);
-      }
-    }
-    return `<div class="acc-section ${open?'open':''}">
-      <button class="acc-header" onclick="toggleSection('${s.key}')">
-        <span class="acc-chev">${open?'▾':'▸'}</span>
-        <span class="acc-title">${s.title}</span>
-        ${badge}
-      </button>
-      ${open ? `<div class="acc-body">${body}</div>` : ''}
-    </div>`;
-  }).join('');
+/* Switch which category tab is active. */
+function switchCat(cat){
+  currentCategory = cat;
+  currentReportNum = null;
+  ['reports','docs','info'].forEach(c=>{
+    const el = document.getElementById('cat-'+c);
+    if(el) el.classList.toggle('active', c===cat);
+  });
+  renderAll();
 }
 
 /* Status helpers — does this report have a due date that's already arrived?
