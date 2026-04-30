@@ -209,6 +209,71 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .report-doc-appr-pill .nm{font-weight:600;}
 .report-doc-appr-pill .rq{color:var(--muted);font-weight:400;flex:1;min-width:0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ── Per-requirement attachment block (used in customer area) ──
+   Sits directly under each requirement row inside the customer
+   area's per-report sections and the supplemental-docs section. */
+.req-block{margin-bottom:8px;}
+.req-attachments{
+  margin-top:5px;margin-right:6px;
+  display:flex;flex-direction:column;gap:5px;
+  padding:6px 8px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:0;
+}
+/* A pending file row: name + view/approve/reject buttons */
+.req-pending-file{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 6px;
+  background:var(--orange-bg);
+  border:1px solid #E8D8B5;
+}
+.req-pending-file .rpf-name{
+  flex:1;min-width:0;
+  background:transparent;border:none;
+  padding:3px 4px;
+  display:flex;align-items:center;gap:5px;
+  font-family:inherit;font-size:12px;color:var(--text);
+  cursor:pointer;text-align:right;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.req-pending-file .rpf-name svg{width:13px;height:13px;color:var(--orange);flex-shrink:0;}
+.req-pending-file .rpf-name span{
+  flex:1;min-width:0;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.req-pending-file .rpf-actions{display:flex;gap:4px;flex-shrink:0;}
+.rpf-btn{
+  padding:4px 9px;font-size:11px;font-weight:700;
+  border:1px solid var(--border);background:var(--white);color:var(--text);
+  cursor:pointer;font-family:inherit;
+}
+.rpf-btn.approve{background:var(--green);color:#fff;border-color:var(--green);}
+.rpf-btn.reject {background:var(--red);  color:#fff;border-color:var(--red);}
+.rpf-btn:active{transform:scale(.95);}
+
+/* Approved file pill — read-only link, green */
+.req-approved-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 8px;
+  background:var(--green-bg);
+  border:1px solid #C9DFD0;
+  font-size:12px;color:var(--text);text-decoration:none;
+}
+.req-approved-pill svg{width:13px;height:13px;color:var(--green);flex-shrink:0;}
+.req-approved-pill span{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;}
+.req-approved-pill .check{color:var(--green);font-weight:700;font-size:13px;flex:none;}
+
+/* Rejection note */
+.req-rejection-note{
+  padding:5px 8px;
+  background:var(--red-bg);border:1px solid var(--red-border);
+  font-size:11px;color:#5C2520;font-weight:500;
+}
+.req-rejection-note strong{color:var(--red);font-weight:700;}
+
 /* Date-picker grid buttons. Compact (24x32) so a full month fits without
    scrolling on a phone. Selected day = filled slate, today = bordered. */
 .dp-day{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
@@ -773,6 +838,23 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 </div>
 
+<!-- REJECT FILE MODAL -->
+<div id="reject-file-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:385;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div class="modal-sheet" style="background:var(--white);width:100%;max-width:480px;padding:14px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+    <div class="mhandle" style="width:36px;height:3px;background:var(--border);margin:0 auto 4px"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700">דחיית קובץ</div>
+        <div id="reject-file-name" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px"></div>
+      </div>
+      <button onclick="closeRejectModal()" style="background:var(--bg);border:1px solid var(--border);padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer">ביטול</button>
+      <button onclick="confirmRejectFile()" style="background:var(--red);color:#fff;border:1px solid var(--red);padding:6px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">דחייה</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);font-weight:500">הקובץ יימחק מהתיקייה של הלקוח. ההערה (אופציונלית) תוצג ללקוח כדי שידע מה לתקן.</div>
+    <textarea id="reject-file-textarea" style="flex:1;min-height:120px;padding:10px;background:var(--bg);border:1px solid var(--border);font-size:13px;font-family:inherit;color:var(--text);direction:rtl;resize:none;" placeholder="סיבת הדחייה (אופציונלי) — למשל: קובץ לא ברור, חסר עמוד 2, וכו׳"></textarea>
+  </div>
+</div>
+
 <!-- LOG ADD MODAL -->
 <div id="log-add-modal">
   <div class="log-sheet">
@@ -1176,6 +1258,32 @@ const C_REPORT_APPR_COLS = [102, 104, 106, 108, 110, 112];
 // Sheet column LETTERS for write URLs
 const COL_REPORT_REQ_LETTERS  = ['CX','CZ','DB','DD','DF','DH'];
 const COL_REPORT_APPR_LETTERS = ['CY','DA','DC','DE','DG','DI'];
+
+// Supplemental documents — NEW structure replacing CV.
+// DJ = required text (one line per requirement, edited by lawyer)
+// DK = approved files JSON (written by Apps Script on approval)
+// DL = rejections JSON (written by Apps Script on rejection)
+const C_DJ = 113;  // 0-based — DJ
+const C_DK = 114;  // 0-based — DK
+const C_DL = 115;  // 0-based — DL
+const COL_DJ = 'DJ';
+const COL_DK = 'DK';
+const COL_DL = 'DL';
+
+// Apps Script Web App URL — used for approve/reject calls that need to
+// move/trash files in Drive. Without this, the lawyer cannot approve
+// or reject incoming customer files from inside this app.
+const CUSTOMER_API_URL = 'https://script.google.com/macros/s/AKfycbyw2h2n6TNprU2JCNtX8VOLB01eSoFbc8v3KfUbTWAZ3J4r4APnWy3uQ0yWjq6vlXjXaA/exec';
+
+/* Stable hash of a requirement text — must match what Apps Script does.
+   Used to match pending uploads (which carry a hash-based reqId) back to
+   their requirement row. */
+function _hashReqId(text){
+  let h = 0;
+  const s = String(text||'');
+  for(let i=0; i<s.length; i++){ h = ((h<<5) - h) + s.charCodeAt(i); h |= 0; }
+  return Math.abs(h).toString(36).slice(0, 8);
+}
 
 let accessToken=null,allClients=[],expandedSet=new Set();
 // Collection total — read from cell T1 in the spreadsheet on every load.
@@ -1714,8 +1822,13 @@ function parseClient(row,rowNum){
     return Math.abs(h).toString(36).slice(0, 8);
   }
   const reportDocs = parseReqList(g(C_CU));   // legacy — keep for back-compat
-  const supplDocs  = parseReqList(g(C_CV));   // supplemental documents
+  const supplDocs  = parseReqList(g(C_CV));   // legacy CV — keep for back-compat
   const infoQs     = parseReqList(g(C_CW));   // info questions
+
+  // NEW structure for supplemental docs: DJ (required text) + DK (approved JSON) + DL (rejections)
+  const supplDocsRequired = parseRequiredText(g(C_DJ), 0);
+  const supplDocsApproved = parseReqList(g(C_DK));
+  const rejections        = parseReqList(g(C_DL));
 
   // NEW: per-report document requirements (CX..DH) and approved-files
   // lists (CY..DI). reportDocsByNum[k-1] = {required:[{id,text}], approved:[...]}.
@@ -1785,6 +1898,7 @@ function parseClient(row,rowNum){
     docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, bdRaw, srvDeadline,
     customerUsername, customerPassword, customerActive, reportDocs, supplDocs, infoQs,
     reportDocsByNum,
+    supplDocsRequired, supplDocsApproved, rejections,
     // How many items are waiting for our approval (status === 'uploaded')
     customerPendingCount: (
       reportDocs.filter(r=>r.status==='uploaded').length +
@@ -2834,6 +2948,13 @@ function openCustomerArea(rowNum){
     infoQs:     JSON.parse(JSON.stringify(c.infoQs    ||[])),
     // NEW: per-report (1..6) document requirements + already-approved files
     reportDocsByNum: JSON.parse(JSON.stringify(c.reportDocsByNum || [])),
+    // NEW supplemental docs structure (DJ/DK)
+    supplDocsRequired: JSON.parse(JSON.stringify(c.supplDocsRequired || [])),
+    supplDocsApproved: JSON.parse(JSON.stringify(c.supplDocsApproved || [])),
+    rejections:        JSON.parse(JSON.stringify(c.rejections || [])),
+    // pending uploads loaded async from Apps Script
+    pending:           [],
+    pendingLoading:    true,
     // Which report card is open in the UI (1..6 or null = all collapsed)
     openReportNum: null,
   };
@@ -2841,6 +2962,10 @@ function openCustomerArea(rowNum){
   renderCustomerArea();
   document.getElementById('customer-area-modal').classList.add('open');
   history.pushState({page:'customer-area'},'');
+  // Load pending uploads from Apps Script (uses customer's credentials
+  // from the sheet — username CR, password CS — to authenticate). This
+  // gives us the list of files currently sitting in the inbox folders.
+  loadCustomerPending();
 }
 
 function closeCustomerArea(){
@@ -2848,36 +2973,175 @@ function closeCustomerArea(){
   if(history.state&&history.state.page==='customer-area') popHistorySilently();
 }
 
+/* ── Customer-API integration ─────────────────────────────────
+   For approve/reject we need Apps Script: it physically moves
+   files in Drive (approve = move out of inbox; reject = trash).
+   We log in to the Apps Script using the customer's own credentials
+   that the lawyer has already set in CR/CS — these are stored
+   in _custState.username + _custState.password. The token returned
+   is per-client and cannot reach other clients' data. */
+async function _custApi(action, payload){
+  if(!CUSTOMER_API_URL) throw new Error('Apps Script API לא מוגדר');
+  const body = Object.assign({action}, payload || {});
+  let res;
+  try{
+    res = await fetch(CUSTOMER_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(body),
+      redirect:'follow'
+    });
+  }catch(err){
+    throw new Error('שגיאת רשת: '+(err.message||err));
+  }
+  let json;
+  try{ json = await res.json(); }
+  catch(_){ throw new Error('תגובה לא תקינה מ-Apps Script'); }
+  if(!json.ok) throw new Error(json.error || 'שגיאת Apps Script');
+  return json;
+}
+/* Get a customer-API token by logging in with the customer's creds
+   that we already have on the spreadsheet. Cached per session so we
+   don't login every action. */
+const _custTokenCache = {};   // rowNum → token
+async function _custGetToken(){
+  if(!_custState) throw new Error('אין מצב לקוח פעיל');
+  const k = _custState.rowNum;
+  if(_custTokenCache[k]) return _custTokenCache[k];
+  if(!_custState.username || !_custState.password){
+    throw new Error('הלקוח עדיין לא הוגדר עם שם משתמש וסיסמה');
+  }
+  const res = await _custApi('login', {username:_custState.username, password:_custState.password});
+  if(!res.user || !res.user.token) throw new Error('לא ניתן להתחבר עבור הלקוח');
+  _custTokenCache[k] = res.user.token;
+  return res.user.token;
+}
+
+/* Load the pending-uploads list from Apps Script and store on _custState.
+   Re-renders when done. Failures are non-fatal (we just show an empty
+   pending list with a warning). */
+async function loadCustomerPending(){
+  if(!_custState) return;
+  try{
+    const token = await _custGetToken();
+    const res = await _custApi('getRequests', {token});
+    if(!_custState) return;  // closed in meantime
+    _custState.pending = Array.isArray(res.pending) ? res.pending : [];
+    _custState.rejections = Array.isArray(res.rejections) ? res.rejections : (_custState.rejections||[]);
+    // Also refresh the per-report approved lists with fresh Drive data
+    if(Array.isArray(res.reports)){
+      _custState.reportDocsByNum = res.reports.map(r => ({
+        num: r.num,
+        required: r.required || [],
+        approved: r.approved || [],
+      }));
+    }
+    if(Array.isArray(res.docsRequired)) _custState.supplDocsRequired = res.docsRequired;
+    if(Array.isArray(res.docsApproved)) _custState.supplDocsApproved = res.docsApproved;
+    _custState.pendingLoading = false;
+    renderCustomerArea();
+  }catch(err){
+    _custState.pendingLoading = false;
+    _custState.pendingError = err.message || String(err);
+    try{ renderCustomerArea(); }catch(_){}
+  }
+}
+
+/* Approve a pending file: calls Apps Script to move the file from inbox
+   to the target folder, and to log the approval in CY/DA/.../DK. */
+async function approveCustomerFile(p){
+  if(!_custState) return;
+  showToast('שולח אישור…','info');
+  try{
+    const token = await _custGetToken();
+    await _custApi('approveItem', {
+      token, fileId:p.fileId, category:p.category,
+      reportNum:p.reportNum, reqId:p.reqId, reqText:p.reqText,
+    });
+    showToast('אושר','ok');
+    // Refresh pending + approved
+    await loadCustomerPending();
+  }catch(err){
+    showToast('שגיאה באישור: '+(err.message||err),'err');
+  }
+}
+
+/* Reject a pending file. Pops a small prompt for an optional reason
+   (Cancel = cancel; empty = no reason; text = reason). The Apps Script
+   trashes the file and records the rejection in DL. */
+/* Reject a pending file. Opens the reject modal where the lawyer can
+   add an optional reason. The file will be trashed and the rejection
+   recorded in DL. */
+let _pendingRejectFile = null;
+async function rejectCustomerFile(p){
+  if(!_custState) return;
+  _pendingRejectFile = p;
+  document.getElementById('reject-file-name').textContent = p.name || '';
+  document.getElementById('reject-file-textarea').value = '';
+  document.getElementById('reject-file-modal').style.display = 'flex';
+  history.pushState({page:'reject-file'},'');
+  // Auto-focus the textarea after modal is shown
+  setTimeout(()=>document.getElementById('reject-file-textarea').focus(), 80);
+}
+function closeRejectModal(){
+  document.getElementById('reject-file-modal').style.display = 'none';
+  _pendingRejectFile = null;
+  if(history.state && history.state.page === 'reject-file') popHistorySilently();
+}
+async function confirmRejectFile(){
+  const p = _pendingRejectFile;
+  if(!p) return closeRejectModal();
+  const reason = document.getElementById('reject-file-textarea').value.trim();
+  closeRejectModal();
+  showToast('שולח דחייה…','info');
+  try{
+    const token = await _custGetToken();
+    await _custApi('rejectItem', {
+      token, fileId:p.fileId, category:p.category,
+      reportNum:p.reportNum, reqId:p.reqId, reqText:p.reqText,
+      reason: reason || '',
+    });
+    showToast('הקובץ נדחה','ok');
+    await loadCustomerPending();
+  }catch(err){
+    showToast('שגיאה בדחייה: '+(err.message||err),'err');
+  }
+}
+function previewCustomerFile(p){
+  if(!p || !p.fileId){
+    if(p && p.url) window.open(p.url, '_blank');
+    return;
+  }
+  if(typeof openDrivePreview === 'function'){
+    openDrivePreview({id:p.fileId, name:p.name, mimeType:p.mimeType||'', webViewLink:p.url});
+  } else if(p.url){
+    window.open(p.url, '_blank');
+  }
+}
+
 function renderCustomerArea(){
   if(!_custState) return;
   const body=document.getElementById('customer-area-body');
-  // Build the list of pending-approval items across all 3 lists.
-  // An item is "pending approval" when status === 'uploaded' (the
-  // customer has done their part; we need to approve or reject).
-  const pending = [];
-  ['reportDocs','supplDocs','infoQs'].forEach(listKey=>{
-    const list = _custState[listKey] || [];
-    list.forEach(req=>{
-      if(req.status === 'uploaded'){
-        pending.push({
-          listKey, req,
-          category: listKey==='reportDocs'?'מסמכי דוחות':listKey==='supplDocs'?'השלמת מסמכים':'השלמת פרטים',
-        });
-      }
-    });
-  });
+
+  // Total pending count (for the per-report sections we already inline
+  // the files, but a small badge at the top is useful).
+  const pendingTotal = (_custState.pending||[]).length +
+                       (_custState.infoQs||[]).filter(q=>q.status==='uploaded').length;
+
   body.innerHTML = `
-    ${pending.length ? `
-    <!-- Pending approval section — only when something needs review. -->
-    <div class="cust-section pending-section">
-      <div class="cust-section-title" style="display:flex;align-items:center;gap:6px">
-        <span class="pending-dot"></span>
-        <span>ממתינים לאישור (${pending.length})</span>
+    <!-- Connection status / loading indicator -->
+    ${_custState.pendingLoading ? `
+      <div class="cust-section" style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
+        טוען קבצים ממתינים…
       </div>
-      <div class="pending-list">
-        ${pending.map(p=>renderPendingItem(p)).join('')}
+    ` : _custState.pendingError ? `
+      <div class="cust-section" style="padding:8px 12px;font-size:11px;color:var(--red);text-align:center">
+        שגיאה בטעינת ממתינים: ${esc(_custState.pendingError)}
       </div>
-    </div>
+    ` : pendingTotal ? `
+      <div class="cust-section" style="padding:8px 12px;font-size:12px;color:var(--text);background:var(--orange-bg);border-color:#E8D8B5">
+        <strong style="color:var(--orange)">${pendingTotal} פריטים ממתינים לאישור</strong> — מוצגים מתחת לכל דרישה רלוונטית.
+      </div>
     ` : ''}
 
     <!-- Customer Drive folder. -->
@@ -2893,7 +3157,24 @@ function renderCustomerArea(){
       </button>
     </div>
 
-    <!-- Credentials section -->
+    <!-- Per-report docs sections — 6 collapsible cards, one per report. -->
+    ${_renderReportDocsSections()}
+
+    <!-- Supplemental docs section (NEW: backed by DJ + DK + DL) -->
+    <div class="cust-section">
+      <div class="cust-section-title">השלמת מסמכים</div>
+      ${_renderSupplDocsList()}
+      <button class="req-add-btn" onclick="addSupplDocRow()" style="margin-top:6px">+ הוסף שדה</button>
+    </div>
+
+    <!-- Info questions section -->
+    <div class="cust-section">
+      <div class="cust-section-title">השלמת פרטים (שאלות ללקוח)</div>
+      ${_renderReqList('infoQs')}
+      <button class="req-add-btn" onclick="addReqRow('infoQs')" style="margin-top:6px">+ הוסף שאלה</button>
+    </div>
+
+    <!-- Credentials section — moved to the BOTTOM of the customer area -->
     <div class="cust-section">
       <div class="cust-section-title">שם משתמש וסיסמה ללקוח</div>
       <div class="cust-creds">
@@ -2906,25 +3187,83 @@ function renderCustomerArea(){
       </label>
       <button class="cust-save-btn" onclick="saveCustomerCreds()" style="margin-top:10px">שמור פרטי כניסה</button>
     </div>
-
-    <!-- Per-report docs sections — 6 collapsible cards, one per report. -->
-    ${_renderReportDocsSections()}
-
-    <!-- Supplemental docs section -->
-    <div class="cust-section">
-      <div class="cust-section-title">השלמת מסמכים</div>
-      ${_renderReqList('supplDocs')}
-      <button class="req-add-btn" onclick="addReqRow('supplDocs')" style="margin-top:6px">+ הוסף שדה</button>
-    </div>
-
-    <!-- Info questions section -->
-    <div class="cust-section">
-      <div class="cust-section-title">השלמת פרטים (שאלות ללקוח)</div>
-      ${_renderReqList('infoQs')}
-      <button class="req-add-btn" onclick="addReqRow('infoQs')" style="margin-top:6px">+ הוסף שאלה</button>
-    </div>
   `;
 }
+
+/* Render the supplemental-docs editable list (DJ-backed). Same shape as
+   per-report lists: row of editable text + delete + inline pending/approved
+   files attached to that requirement. */
+function _renderSupplDocsList(){
+  const required  = _custState.supplDocsRequired || [];
+  const approved  = _custState.supplDocsApproved || [];
+  const pending   = (_custState.pending||[]).filter(p => p.category === 'docs');
+  const rejections= _custState.rejections || [];
+
+  if(!required.length){
+    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו דרישות — הקלד שורות בעמודה DJ באקסל או לחץ "+ הוסף שדה".</div>';
+  }
+
+  const idForReq = r => r.id && !String(r.id).startsWith('tmp-') ? r.id : ('r0-'+_hashReqId(r.text||''));
+  return required.map(r => {
+    const stableId = idForReq(r);
+    const myPending  = pending.filter(p  => p.reqId === stableId);
+    const myApproved = approved.filter(a => a.reqId === stableId);
+    const myReject   = rejections.find(rj => rj.reqId === stableId);
+    return `
+      <div class="req-block" data-id="${esc(r.id)}">
+        <div class="req-row">
+          <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
+            oninput="updateSupplDocText('${esc(r.id)}',this.value)"/>
+          <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק שדה">${ICON.trash}</button>
+        </div>
+        ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
+      </div>`;
+  }).join('');
+}
+
+function updateSupplDocText(id, val){
+  if(!_custState) return;
+  const r = (_custState.supplDocsRequired||[]).find(x => x.id === id);
+  if(r){ r.text = val; saveSupplDocsList(true); }
+}
+function addSupplDocRow(){
+  if(!_custState) return;
+  if(!Array.isArray(_custState.supplDocsRequired)) _custState.supplDocsRequired = [];
+  _custState.supplDocsRequired.push({id:'tmp-'+Math.random().toString(36).slice(2,9), text:'', report:0});
+  renderCustomerArea();
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('.cust-section .req-row input');
+    const last = inputs[inputs.length-1];
+    if(last) last.focus();
+  }, 50);
+  saveSupplDocsList();
+}
+function removeSupplDocRow(id){
+  if(!confirm('למחוק שדה?')) return;
+  _custState.supplDocsRequired = (_custState.supplDocsRequired||[]).filter(r => r.id !== id);
+  renderCustomerArea();
+  saveSupplDocsList();
+}
+let _supplDocsSaveTimer = null;
+function saveSupplDocsList(debounce=false){
+  if(!_custState) return;
+  const required = _custState.supplDocsRequired || [];
+  const text = required.map(r => (r.text||'').trim()).filter(Boolean).join('\n');
+  if(_supplDocsSaveTimer) clearTimeout(_supplDocsSaveTimer);
+  const doSave = ()=>{
+    _supplDocsSaveTimer = null;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_DJ}${_custState.rowNum}?valueInputOption=RAW`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({values:[[text]]})};
+    apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'דרישות השלמת מסמכים'));
+    // Sync allClients cache
+    const c = allClients.find(x => x.rowNum === _custState.rowNum);
+    if(c) c.supplDocsRequired = required.map(r => ({id:r.id, text:r.text, report:0}));
+  };
+  if(debounce) _supplDocsSaveTimer = setTimeout(doSave, 800);
+  else doSave();
+}
+
 
 /* Render a single "pending approval" row in the section above. */
 function renderPendingItem(p){
@@ -3282,15 +3621,74 @@ function _renderReportDocsSections(){
 function _renderReportReqList(num){
   const slot = (_custState.reportDocsByNum||[]).find(x => x.num === num);
   const required = (slot && slot.required) || [];
+  const approved = (slot && slot.approved) || [];
+  const pending  = (_custState.pending || []).filter(p =>
+    p.category === 'reports' && (p.reportNum||null) === num
+  );
+  const rejections = _custState.rejections || [];
+
   if(!required.length){
     return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו דרישות לדוח זה.</div>';
   }
-  return required.map(r => `
-    <div class="req-row" data-id="${esc(r.id)}">
-      <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
-        oninput="updateReportReqText(${num},'${esc(r.id)}',this.value)"/>
-      <button class="req-icon-btn" onclick="removeReportReqRow(${num},'${esc(r.id)}')" title="מחק שדה">${ICON.trash}</button>
-    </div>`).join('');
+
+  // Hash of req text → matches the id Apps Script computed for new reqs
+  // (handles the case where the requirement was just typed and not yet
+  // re-loaded from the server, so the id is "tmp-...").
+  const idForReq = r => r.id && !String(r.id).startsWith('tmp-') ? r.id : ('r'+num+'-'+_hashReqId(r.text||''));
+
+  return required.map(r => {
+    const stableId = idForReq(r);
+    const myPending  = pending.filter(p  => p.reqId === stableId);
+    const myApproved = approved.filter(a => a.reqId === stableId);
+    const myReject   = rejections.find(rj => rj.reqId === stableId);
+    return `
+      <div class="req-block" data-id="${esc(r.id)}">
+        <div class="req-row">
+          <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
+            oninput="updateReportReqText(${num},'${esc(r.id)}',this.value)"/>
+          <button class="req-icon-btn" onclick="removeReportReqRow(${num},'${esc(r.id)}')" title="מחק שדה">${ICON.trash}</button>
+        </div>
+        ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
+      </div>`;
+  }).join('');
+}
+
+/* Render the inline attachments under one requirement row:
+   pending files (with view/approve/reject buttons), approved file
+   pills (read-only links), and a rejection note if there is one. */
+function _renderReqAttachments(o){
+  const pending = o.pending || [];
+  const approved = o.approved || [];
+  const rejection = o.rejection || null;
+  if(!pending.length && !approved.length && !rejection) return '';
+  return `
+    <div class="req-attachments">
+      ${pending.map(p => `
+        <div class="req-pending-file">
+          <button class="rpf-name" onclick="previewCustomerFile(${_jsArg(p)})" title="צפייה">
+            ${ICON.paper}<span>${esc(p.name||'')}</span>
+          </button>
+          <div class="rpf-actions">
+            <button class="rpf-btn approve" onclick="approveCustomerFile(${_jsArg(p)})">✓ אישור</button>
+            <button class="rpf-btn reject"  onclick="rejectCustomerFile(${_jsArg(p)})">✗ דחייה</button>
+          </div>
+        </div>`).join('')}
+      ${approved.map(a => `
+        <a class="req-approved-pill" href="${esc(a.url||'')}" target="_blank" rel="noopener" title="${esc(a.name||'')}">
+          ${ICON.paper}<span>${esc(a.name||'')}</span>
+          <span class="check">✓</span>
+        </a>`).join('')}
+      ${rejection ? `
+        <div class="req-rejection-note">
+          <strong>נדחה</strong>${rejection.reason?': '+esc(rejection.reason):''}
+        </div>` : ''}
+    </div>`;
+}
+
+/* Encode a value for use as a JS arg in an onclick attribute. */
+function _jsArg(obj){
+  return "JSON.parse(decodeURIComponent('" +
+    encodeURIComponent(JSON.stringify(obj)) + "'))";
 }
 
 /* Open/close one of the 6 report cards (accordion). */
@@ -4911,6 +5309,7 @@ window.addEventListener('popstate',()=>{
   const bdEditOpen=document.getElementById('bd-edit-modal') && document.getElementById('bd-edit-modal').classList.contains('open');
   const custAreaOpen=document.getElementById('customer-area-modal') && document.getElementById('customer-area-modal').classList.contains('open');
   const reqExplainOpen=document.getElementById('req-explain-modal') && document.getElementById('req-explain-modal').style.display==='flex';
+  const rejectFileOpen=document.getElementById('reject-file-modal') && document.getElementById('reject-file-modal').style.display==='flex';
   const opsEditOpen=document.getElementById('ops-edit-modal').style.display==='flex';
   const callSumOpen=document.getElementById('call-summary-modal').style.display==='flex';
   const callAddOpen=document.getElementById('call-add-modal').style.display==='flex';
@@ -4923,6 +5322,11 @@ window.addEventListener('popstate',()=>{
   _backPressCount=0;
   // ── EDIT MODES — back press SAVES + closes (instead of discarding) ─────
   // Inner-most call modals first (on top of the viewer)
+  if(rejectFileOpen){
+    // Reject-file modal — back press just cancels (no auto-confirm)
+    closeRejectModal();
+    return;
+  }
   if(reqExplainOpen){
     // Half-sheet explanation editor — save on back-press, like other editors
     if(typeof saveReqExplain==='function'){ saveReqExplain(); }
@@ -5059,6 +5463,7 @@ window.addEventListener('popstate',()=>{
     'drive-preview-modal':()=>{ if(typeof closeDrivePreview==='function') closeDrivePreview(); },
     'customer-area-modal':()=>{ if(typeof closeCustomerArea==='function') closeCustomerArea(); },
     'req-explain-modal':()=>{ if(typeof closeReqExplain==='function') closeReqExplain(); },
+    'reject-file-modal':()=>{ if(typeof closeRejectModal==='function') closeRejectModal(); },
     // Date picker — drag down to close = cancel (no save)
     'date-picker-modal':()=>{ if(typeof closeDatePicker==='function') closeDatePicker(); }
   };
@@ -5183,7 +5588,8 @@ window.addEventListener('popstate',()=>{
     'ops-edit-modal','docs-edit-modal','report-docs-edit-modal',
     'call-summary-modal','call-add-modal','call-edit-modal',
     'bd-edit-modal','drive-browser-modal','drive-preview-modal',
-    'customer-area-modal','req-explain-modal','date-picker-modal'
+    'customer-area-modal','req-explain-modal','date-picker-modal',
+    'reject-file-modal'
   ];
   let savedScrollY = 0;
   let lockCount = 0;
