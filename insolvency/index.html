@@ -162,6 +162,53 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .req-icon-btn.has-explanation{background:var(--blue-bg);color:var(--blue);border-color:var(--blue);}
 .req-add-btn{background:var(--bg);border:1px dashed var(--border);color:var(--muted);padding:8px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;justify-content:center;width:100%;}
 .req-add-btn:hover{color:var(--slate);border-color:var(--slate);}
+
+/* ── Per-report doc cards inside the customer area ─────────────
+   Six accordion cards (one per report) showing the editable
+   required-list and the read-only approved-list for each report. */
+.report-doc-list{display:flex;flex-direction:column;gap:8px;}
+.report-doc-card{background:var(--bg);border:1px solid var(--border);}
+.report-doc-card.open{background:var(--white);}
+.report-doc-head{display:flex;align-items:center;gap:10px;padding:9px 10px;cursor:pointer;}
+.report-doc-head:active{background:rgba(0,0,0,.03);}
+.report-doc-num{
+  width:26px;height:26px;flex-shrink:0;
+  background:var(--slate);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;
+}
+.report-doc-info{flex:1;min-width:0;}
+.report-doc-ttl{font-size:13px;font-weight:700;color:var(--text);}
+.report-doc-meta{font-size:10px;color:var(--muted);margin-top:1px;display:flex;flex-wrap:wrap;gap:8px;}
+.report-doc-badges{display:flex;align-items:center;gap:6px;}
+.report-doc-chev{
+  width:14px;height:14px;color:var(--muted);
+  transition:transform .15s ease;
+}
+.report-doc-card.open .report-doc-chev{transform:rotate(180deg);}
+.report-doc-body{
+  display:none;border-top:1px solid var(--border);
+  padding:10px;background:var(--white);
+}
+.report-doc-card.open .report-doc-body{display:block;}
+.report-doc-approved{
+  margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);
+}
+.report-doc-approved-title{
+  font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px;
+}
+.report-doc-appr-pill{
+  display:flex;align-items:center;gap:7px;
+  padding:7px 9px;margin-bottom:5px;
+  background:var(--green-bg, #EBF3EE);
+  border:1px solid #C9DFD0;
+  font-size:12px;color:var(--text);text-decoration:none;
+}
+.report-doc-appr-pill:active{background:#DBEEDF;}
+.report-doc-appr-pill svg{width:14px;height:14px;color:var(--green);flex-shrink:0;}
+.report-doc-appr-pill .nm{font-weight:600;}
+.report-doc-appr-pill .rq{color:var(--muted);font-weight:400;flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* Date-picker grid buttons. Compact (24x32) so a full month fits without
    scrolling on a phone. Selected day = filled slate, today = bordered. */
 .dp-day{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
@@ -1116,6 +1163,20 @@ const COL_CF='CF';   // for write URL
 const C_REP_DATES=[39,41,43,45,47,49]; // AN AP AR AT AV AX
 const C_REP_STATUS=[40,42,44,46,48,50]; // AO AQ AS AU AW AY
 
+// Per-report document requirements (NEW structure, replaces the legacy
+// single CU column). Each report 1..6 has 2 columns:
+//   REQ column = newline-separated text — one line per required document
+//   APPR column = JSON list of {fileId, name, url, reqId, reqText, approvedAt}
+// (The APPR list is written by the Apps Script when the lawyer approves
+//  an uploaded file. This app only READS it.)
+//                                CX  CZ  DB  DD  DF  DH (0-based)
+const C_REPORT_REQ_COLS = [101, 103, 105, 107, 109, 111];
+//                                CY  DA  DC  DE  DG  DI (0-based)
+const C_REPORT_APPR_COLS = [102, 104, 106, 108, 110, 112];
+// Sheet column LETTERS for write URLs
+const COL_REPORT_REQ_LETTERS  = ['CX','CZ','DB','DD','DF','DH'];
+const COL_REPORT_APPR_LETTERS = ['CY','DA','DC','DE','DG','DI'];
+
 let accessToken=null,allClients=[],expandedSet=new Set();
 // Collection total — read from cell T1 in the spreadsheet on every load.
 // Apps Script keeps T1 updated based on T-cell background colors.
@@ -1630,9 +1691,44 @@ function parseClient(row,rowNum){
       return Array.isArray(parsed) ? parsed : [];
     }catch(e){ return []; }
   }
-  const reportDocs = parseReqList(g(C_CU));   // documents for next report
+  /* Parse a "required documents" cell which is plain TEXT — one line per
+     requirement. Each line becomes {id, text}. The id is a deterministic
+     hash of the text, matching exactly what the Apps Script generates,
+     so that the customer app's pending-uploads can be matched back to
+     their requirement. */
+  function parseRequiredText(raw, reportNum){
+    if(!raw) return [];
+    return String(raw).split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(text => ({
+        id: 'r' + (reportNum||0) + '-' + _hashReqId(text),
+        text,
+        report: reportNum || null,
+      }));
+  }
+  function _hashReqId(text){
+    let h = 0;
+    const s = String(text||'');
+    for(let i=0; i<s.length; i++){ h = ((h<<5) - h) + s.charCodeAt(i); h |= 0; }
+    return Math.abs(h).toString(36).slice(0, 8);
+  }
+  const reportDocs = parseReqList(g(C_CU));   // legacy — keep for back-compat
   const supplDocs  = parseReqList(g(C_CV));   // supplemental documents
   const infoQs     = parseReqList(g(C_CW));   // info questions
+
+  // NEW: per-report document requirements (CX..DH) and approved-files
+  // lists (CY..DI). reportDocsByNum[k-1] = {required:[{id,text}], approved:[...]}.
+  const reportDocsByNum = [];
+  for(let i=0; i<6; i++){
+    const reqRaw  = g(C_REPORT_REQ_COLS[i]);
+    const apprRaw = g(C_REPORT_APPR_COLS[i]);
+    reportDocsByNum.push({
+      num: i+1,
+      required: parseRequiredText(reqRaw, i+1),
+      approved: parseReqList(apprRaw),
+    });
+  }
   const agDate=parseDate(docsAGRaw),aeDate=parseDate(g(C_DOCS_AE));
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
@@ -1688,6 +1784,7 @@ function parseClient(row,rowNum){
     // Raw values used by the inline edit buttons in each section
     docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, bdRaw, srvDeadline,
     customerUsername, customerPassword, customerActive, reportDocs, supplDocs, infoQs,
+    reportDocsByNum,
     // How many items are waiting for our approval (status === 'uploaded')
     customerPendingCount: (
       reportDocs.filter(r=>r.status==='uploaded').length +
@@ -2735,6 +2832,10 @@ function openCustomerArea(rowNum){
     reportDocs: JSON.parse(JSON.stringify(c.reportDocs||[])),
     supplDocs:  JSON.parse(JSON.stringify(c.supplDocs ||[])),
     infoQs:     JSON.parse(JSON.stringify(c.infoQs    ||[])),
+    // NEW: per-report (1..6) document requirements + already-approved files
+    reportDocsByNum: JSON.parse(JSON.stringify(c.reportDocsByNum || [])),
+    // Which report card is open in the UI (1..6 or null = all collapsed)
+    openReportNum: null,
   };
   document.getElementById('customer-area-name').textContent=c.name||'';
   renderCustomerArea();
@@ -2806,12 +2907,8 @@ function renderCustomerArea(){
       <button class="cust-save-btn" onclick="saveCustomerCreds()" style="margin-top:10px">שמור פרטי כניסה</button>
     </div>
 
-    <!-- Report docs section -->
-    <div class="cust-section">
-      <div class="cust-section-title">מסמכים לדוחות</div>
-      ${_renderReqList('reportDocs')}
-      <button class="req-add-btn" onclick="addReqRow('reportDocs')" style="margin-top:6px">+ הוסף שדה</button>
-    </div>
+    <!-- Per-report docs sections — 6 collapsible cards, one per report. -->
+    ${_renderReportDocsSections()}
 
     <!-- Supplemental docs section -->
     <div class="cust-section">
@@ -3109,6 +3206,171 @@ function _renderReqList(key){
       <button class="req-icon-btn" onclick="removeReqRow('${key}','${r.id}')" title="מחק שדה">${ICON.trash}</button>
     </div>`;
   }).join('');
+}
+
+/* ── Per-report docs sections ─────────────────────────────────
+   Renders 6 collapsible cards inside the customer area, one per
+   report (CX..DH for required text, CY..DI for approved files).
+   Open one at a time (accordion). Persistent open-state lives
+   on _custState.openReportNum.
+*/
+function _renderReportDocsSections(){
+  if(!_custState) return '';
+  const data = _custState.reportDocsByNum || [];
+  // Pull the current client's report info so we can show the date
+  // and status next to each report number.
+  const c = allClients.find(x => x.rowNum === _custState.rowNum);
+  const reportDates  = (c && c.reports)       || ['','','','','',''];
+  const reportStatus = (c && c.reportStatus)  || ['','','','','',''];
+
+  return `<div class="cust-section">
+    <div class="cust-section-title">מסמכים לדוחות</div>
+    <div class="report-doc-list">
+      ${[1,2,3,4,5,6].map(num => {
+        const slot = data.find(x => x.num === num) || {required:[], approved:[]};
+        const required = slot.required || [];
+        const approved = slot.approved || [];
+        const dateStr = reportDates[num-1] || '';
+        const statusStr = (reportStatus[num-1]||'').trim();
+        const isOpen = _custState.openReportNum === num;
+        const reqCount = required.length;
+        const apprCount = approved.length;
+
+        // small status badge: status text, or "פעיל", or empty
+        const stCls = statusStr ? 'badge-green' : 'badge-gray';
+        const stTxt = statusStr || (dateStr ? esc(dateStr) : '—');
+
+        return `
+          <div class="report-doc-card ${isOpen?'open':''}" data-rep="${num}">
+            <div class="report-doc-head" onclick="toggleReportDocSection(${num})">
+              <div class="report-doc-num">${num}</div>
+              <div class="report-doc-info">
+                <div class="report-doc-ttl">דוח ${num}</div>
+                <div class="report-doc-meta">
+                  ${dateStr?`<span>תאריך: ${esc(dateStr)}</span>`:''}
+                  ${reqCount?`<span>${reqCount} דרישות</span>`:''}
+                  ${apprCount?`<span style="color:var(--green)">${apprCount} אושרו</span>`:''}
+                </div>
+              </div>
+              <div class="report-doc-badges">
+                ${statusStr?`<span class="status-badge ${stCls}">${esc(statusStr)}</span>`:''}
+                <svg class="report-doc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </div>
+            </div>
+            <div class="report-doc-body">
+              ${_renderReportReqList(num)}
+              <button class="req-add-btn" onclick="addReportReqRow(${num})" style="margin-top:6px">+ הוסף שדה</button>
+              ${apprCount?`
+                <div class="report-doc-approved">
+                  <div class="report-doc-approved-title">קבצים שאושרו (${apprCount})</div>
+                  ${approved.map(a => `
+                    <a class="report-doc-appr-pill" href="${esc(a.url||'')}" target="_blank" rel="noopener">
+                      ${ICON.paper}<span class="nm">${esc(a.name||'')}</span>
+                      ${a.reqText?`<span class="rq">— ${esc(a.reqText)}</span>`:''}
+                    </a>
+                  `).join('')}
+                </div>
+              `:''}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+/* Render the editable "required documents" list for a single report. */
+function _renderReportReqList(num){
+  const slot = (_custState.reportDocsByNum||[]).find(x => x.num === num);
+  const required = (slot && slot.required) || [];
+  if(!required.length){
+    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו דרישות לדוח זה.</div>';
+  }
+  return required.map(r => `
+    <div class="req-row" data-id="${esc(r.id)}">
+      <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
+        oninput="updateReportReqText(${num},'${esc(r.id)}',this.value)"/>
+      <button class="req-icon-btn" onclick="removeReportReqRow(${num},'${esc(r.id)}')" title="מחק שדה">${ICON.trash}</button>
+    </div>`).join('');
+}
+
+/* Open/close one of the 6 report cards (accordion). */
+function toggleReportDocSection(num){
+  if(!_custState) return;
+  _custState.openReportNum = (_custState.openReportNum === num) ? null : num;
+  renderCustomerArea();
+}
+
+/* Update one requirement's text. We keep the id stable as long as the
+   user types, but the canonical id is a hash of the text — so when we
+   eventually persist, we recompute the id of every line. */
+function updateReportReqText(num, id, val){
+  const slot = (_custState.reportDocsByNum||[]).find(x => x.num === num);
+  if(!slot) return;
+  const r = (slot.required||[]).find(x => x.id === id);
+  if(r){ r.text = val; saveReportReqList(num, true); }
+}
+
+function addReportReqRow(num){
+  const slot = (_custState.reportDocsByNum||[]).find(x => x.num === num);
+  if(!slot) return;
+  if(!Array.isArray(slot.required)) slot.required = [];
+  // Use a temp id until we save; once saved, parseRequiredText will
+  // assign the canonical hash-based id on next reload.
+  slot.required.push({id: 'tmp-'+Math.random().toString(36).slice(2,9), text:'', report: num});
+  _custState.openReportNum = num;
+  renderCustomerArea();
+  setTimeout(()=>{
+    // Focus the last empty input inside the just-rendered card
+    const card = document.querySelector(`.report-doc-card[data-rep="${num}"]`);
+    if(card){
+      const inputs = card.querySelectorAll('input[type="text"]');
+      const last = inputs[inputs.length-1];
+      if(last) last.focus();
+    }
+  }, 50);
+  saveReportReqList(num);
+}
+
+function removeReportReqRow(num, id){
+  if(!confirm('למחוק שדה?')) return;
+  const slot = (_custState.reportDocsByNum||[]).find(x => x.num === num);
+  if(!slot) return;
+  slot.required = (slot.required||[]).filter(r => r.id !== id);
+  renderCustomerArea();
+  saveReportReqList(num);
+}
+
+/* Persist a report's required-list back to the sheet column (CX/CZ/...).
+   The sheet stores plain text — one line per requirement. Debounced. */
+const _reportReqSaveTimers = {};
+function saveReportReqList(num, debounce=false){
+  if(!_custState) return;
+  const idx = num - 1;
+  if(idx < 0 || idx > 5) return;
+  const colLetter = COL_REPORT_REQ_LETTERS[idx];
+  const slot = (_custState.reportDocsByNum||[]).find(x => x.num === num);
+  const required = (slot && slot.required) || [];
+  // Plain text — one line per requirement (matches what Apps Script reads)
+  const text = required.map(r => (r.text||'').trim()).filter(Boolean).join('\n');
+
+  if(_reportReqSaveTimers[num]) clearTimeout(_reportReqSaveTimers[num]);
+  const doSave = ()=>{
+    _reportReqSaveTimers[num] = null;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${_custState.rowNum}?valueInputOption=RAW`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({values:[[text]]})};
+    apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, `דרישות דוח ${num}`));
+    // Keep allClients cache in sync so the card view shows the new list
+    const c = allClients.find(x => x.rowNum === _custState.rowNum);
+    if(c){
+      if(!Array.isArray(c.reportDocsByNum)) c.reportDocsByNum = [];
+      let target = c.reportDocsByNum.find(x => x.num === num);
+      if(!target){ target = {num, required:[], approved:[]}; c.reportDocsByNum.push(target); }
+      target.required = required.map(r => ({id:r.id, text:r.text, report:num}));
+    }
+  };
+  if(debounce) _reportReqSaveTimers[num] = setTimeout(doSave, 800);
+  else doSave();
 }
 
 function updateReqText(listKey, id, val){
