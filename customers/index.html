@@ -1,811 +1,1046 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<meta name="theme-color" content="#3a3a48"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#3a3a48">
 <title>תיק שלי — אבי טל ושות׳</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="icon" type="image/png" href="../icon.png"/>
 <link rel="apple-touch-icon" href="../icon.png"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+:root{
+  --bg:#FAF9F5;
+  --white:#FFFFFF;
+  --text:#1A1A28;
+  --muted:#6B6B7A;
+  --slate:#3A3A48;
+  --border:#E5E2D8;
+  --border-strong:#C9C5B8;
+  --red:#C8362A;
+  --red-bg:#FBEEEC;
+  --red-border:#E8C4BF;
+  --green:#2F8550;
+  --green-bg:#EBF3EE;
+  --orange:#C77B1E;
+  --orange-bg:#FBF1E1;
+  --blue:#3A5BB0;
+  --blue-bg:#EDF1FA;
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-:root,:root[data-theme="parchment"]{--slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#FDECEC;--red-border:#f5c0c0;--green:#1A7A45;--green-bg:#E8F5EE;--green-border:#bfe0cd;--orange:#C75B12;--orange-bg:#FCF0E5;--orange-border:#f4cda1;--blue:#1A5F9E;--blue-bg:#E5F0FB;--bg:#FAF9F5;--white:#FFFFFF;--border:#D9D6CA;--muted:#6B6A65;--text:#1F1E1B;}
-:root[data-theme="dark"]{--slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;--red-bg:#3A2222;--red-border:#5C2D2D;--green:#5BB37D;--green-bg:#1F2E27;--green-border:#2F4A3B;--orange:#D88248;--orange-bg:#3B2D1F;--orange-border:#5C4528;--blue:#5A9FE0;--blue-bg:#1F2C3B;--bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
-.header{background:var(--white);height:96px;padding:0 16px 0 40px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;border-bottom:1px solid var(--border);}
-.header-spacer{height:96px;}
-.hdr-right{display:flex;gap:8px;align-items:center;}
-.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:26px;height:26px;font-size:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
-.hdr-btn svg{width:14px;height:14px;}
-.hdr-count{font-size:10px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 9px;height:26px;display:inline-flex;align-items:center;flex-shrink:0;}
-.header img{height:80px;object-fit:contain;}
-.login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;background:var(--bg);}
-.login-card{background:var(--white);border:1px solid var(--border);padding:30px 24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:14px;}
-.login-card .logo{height:80px;object-fit:contain;align-self:center;margin-bottom:6px;background:transparent;border:none;border-radius:0;box-shadow:none;}
-.login-card h1{font-size:18px;font-weight:700;text-align:center;color:var(--text);}
-.login-card p{font-size:13px;color:var(--muted);text-align:center;font-weight:500;line-height:1.5;}
-.login-input{background:var(--bg);border:1px solid var(--border);padding:12px 14px;font-size:14px;font-family:inherit;color:var(--text);direction:rtl;}
-.login-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
-.login-btn{background:var(--slate);color:#fff;border:1px solid var(--slate);padding:13px 0;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
-.login-btn:active{transform:scale(.98);}
-.login-btn:disabled{opacity:.5;cursor:not-allowed;}
-.login-error{font-size:12px;color:var(--red);text-align:center;font-weight:600;background:var(--red-bg);border:1px solid var(--red-border);padding:8px;display:none;}
-.login-error.show{display:block;}
-.main{padding:16px;max-width:600px;margin:0 auto;}
-.welcome-card{background:var(--white);border:1px solid var(--border);padding:18px 16px;margin-bottom:14px;}
-.welcome-card h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;}
-.welcome-card p{font-size:12px;color:var(--muted);font-weight:500;line-height:1.5;}
-/* Accordion sections — replaces the old tabs. */
-.acc-section{background:var(--white);border:1px solid var(--border);margin-bottom:8px;}
-.acc-header{
-  width:100%;display:flex;align-items:center;gap:10px;
-  padding:14px 16px;background:transparent;border:none;cursor:pointer;
-  font-family:inherit;color:var(--text);
-  border-bottom:1px solid transparent;transition:border-color .15s;
+button,input,textarea,select,.section-head,.req-card,.report-row,.file-pill{
+  -webkit-user-select:none;user-select:none;
 }
-.acc-section.open .acc-header{border-bottom-color:var(--border);}
-.acc-chev{font-size:12px;color:var(--muted);width:14px;text-align:center;}
-.acc-title{flex:1;font-size:14px;font-weight:700;text-align:right;}
-.acc-badge{
-  display:inline-block;background:var(--red);color:#fff;
-  font-size:10px;font-weight:700;padding:2px 7px;min-width:22px;text-align:center;
+input,textarea{-webkit-user-select:text;user-select:text;}
+html,body{height:100%;}
+body{
+  font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;-webkit-font-smoothing:antialiased;
+  font-size:14px;line-height:1.5;
+  overscroll-behavior:none;
 }
-.acc-badge.zero{background:var(--green);}
-.acc-body{padding:14px 14px 16px;}
+input,textarea,button{font-family:inherit;}
 
-/* Report grid — three states: available, locked (date hasn't arrived),
-   done (already submitted). Disabled buttons are visibly faded. */
-.cat-tabs{display:flex;gap:0;background:var(--white);border:1px solid var(--border);margin-bottom:14px;}
-.cat-tab{flex:1;padding:12px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:transparent;border-right:1px solid var(--border);border-top:none;border-left:none;font-family:inherit;}
-.cat-tab:last-child{border-right:none;}
-.cat-tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:700;}
-.cat-tab .badge{display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;margin-inline-start:4px;min-width:14px;}
-.cat-tab .badge.zero{background:var(--green);}
-.reports-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:0;}
-.report-btn{background:var(--white);border:1px solid var(--border);padding:14px 8px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text);transition:all .12s;}
-.report-btn:not(:disabled):active{transform:scale(.96);background:var(--bg);}
-.report-btn .num{font-size:22px;font-weight:700;color:var(--slate);}
-.report-btn .lbl{font-size:11px;font-weight:600;color:var(--muted);}
-.report-btn .date{font-size:10px;color:var(--text);font-weight:700;}
-.report-btn .sub{font-size:10px;}
-/* Locked: date hasn't arrived yet — visibly grey, not clickable */
-.report-btn.locked{
-  opacity:.45;cursor:not-allowed;background:var(--bg);
+#login-screen{
+  position:fixed;inset:0;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+  padding-top:calc(20px + env(safe-area-inset-top));
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  z-index:100;
 }
-.report-btn.locked .num{color:var(--muted);}
-/* Done: report already submitted — faded grey with a checkmark */
-.report-btn.done{
-  opacity:.5;cursor:not-allowed;background:var(--bg);
-  color:var(--muted);
+.login-box{
+  width:100%;max-width:380px;
+  background:var(--white);
+  border:1px solid var(--border);
+  padding:28px 24px;
+  display:flex;flex-direction:column;gap:14px;
 }
-.report-btn.done .num{color:var(--muted);}
-.report-btn.done .date{color:var(--muted);font-weight:600;}
-.report-btn.done .sub{color:var(--green);font-weight:700;}
-.report-back-btn{background:transparent;border:none;color:var(--slate);padding:0 0 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;}
-.req-item{background:var(--white);border:1px solid var(--border);padding:14px;margin-bottom:8px;}
-.req-row-top{display:flex;align-items:flex-start;gap:10px;}
-.req-text{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text);line-height:1.45;padding-top:6px;}
-.req-actions{display:flex;gap:6px;flex-shrink:0;}
-.req-btn{background:var(--white);border:1px solid var(--border);width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--slate);font-family:inherit;padding:0;transition:all .12s;}
-.req-btn:active{transform:scale(.92);background:var(--bg);}
-.req-btn:disabled{opacity:.5;cursor:not-allowed;}
-.req-btn svg{width:18px;height:18px;}
-.req-btn.has-help{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
-.req-btn.uploaded{background:var(--green);color:#fff;border-color:var(--green);}
-.req-status{font-size:11px;font-weight:700;padding:3px 8px;margin-top:8px;display:inline-block;}
-.req-status.pending{color:var(--orange);background:var(--orange-bg);border:1px solid var(--orange-border);}
-.req-status.uploaded{color:var(--blue);background:var(--blue-bg);}
-.req-status.approved{color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);}
-.req-status.rejected{color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);}
-/* Rejection reason — shown below the rejected status pill so the
-   customer knows exactly why their previous upload was declined. */
-.rej-reason{
-  margin-top:6px;font-size:12px;color:var(--text);
-  background:var(--red-bg);border:1px solid var(--red-border);
-  padding:8px 10px;line-height:1.5;
-  white-space:pre-wrap;word-break:break-word;
+.login-logo{
+  width:180px;max-width:100%;
+  height:auto;align-self:center;
+  margin-bottom:6px;object-fit:contain;
+  background:#FCFAEF;
+  padding:14px 18px;
+  border:1px solid var(--border);
+  display:block;
 }
-.rej-reason-label{
-  display:inline-block;font-weight:700;color:var(--red);margin-inline-end:4px;
+.login-title{font-size:18px;font-weight:700;text-align:center;color:var(--text);}
+.login-sub{font-size:13px;color:var(--muted);text-align:center;margin-top:-6px;margin-bottom:6px;}
+.login-field{display:flex;flex-direction:column;gap:5px;}
+.login-field label{font-size:12px;font-weight:600;color:var(--slate);}
+.login-field input{
+  padding:11px 12px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:0;
+  font-size:15px;color:var(--text);
+  outline:none;
 }
-.req-files{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
-.req-file-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:4px 8px;align-self:flex-start;font-weight:600;}
-.req-file-pill svg{width:12px;height:12px;color:var(--slate);}
-.req-file-pill .x{margin-inline-start:6px;cursor:pointer;color:var(--red);font-weight:700;}
-.req-file-pill a{color:var(--blue);text-decoration:none;}
-.req-question{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
-.req-textarea{width:100%;min-height:60px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);font-size:13px;color:var(--text);font-family:inherit;direction:rtl;resize:vertical;}
-.req-textarea:focus{outline:none;border-color:var(--slate);background:var(--white);}
-.req-save-btn{align-self:flex-start;background:var(--slate);color:#fff;border:1px solid var(--slate);padding:6px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;}
-input[type="file"]{display:none;}
-.empty{text-align:center;padding:40px 16px;color:var(--muted);background:var(--white);border:1px solid var(--border);}
-.empty svg{width:48px;height:48px;color:var(--border);margin:0 auto 12px;display:block;}
-.empty-title{font-size:14px;font-weight:700;margin-bottom:4px;color:var(--text);}
-.empty-text{font-size:12px;color:var(--muted);}
-.help-modal{position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:380;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
-.help-modal.open{display:flex;}
-.help-sheet{background:var(--white);width:100%;max-width:480px;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
-.help-handle{width:36px;height:3px;background:var(--border);margin:0 auto 4px;}
-.help-title{font-size:14px;font-weight:700;color:var(--text);}
-.help-text{font-size:13px;color:var(--text);line-height:1.6;background:var(--bg);border:1px solid var(--border);padding:14px;white-space:pre-wrap;word-break:break-word;}
-.help-empty{font-size:13px;color:var(--muted);text-align:center;padding:20px 0;font-style:italic;}
-.help-close{background:var(--slate);color:#fff;border:1px solid var(--slate);padding:9px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;align-self:flex-end;}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 18px;font-size:13px;font-weight:600;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
-.toast.show{opacity:1;}
-.toast.ok{background:var(--green);}
-.toast.err{background:var(--red);}
-.section-header{font-size:12px;font-weight:700;color:var(--muted);margin:14px 4px 8px;}
-.spinner-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.85);display:none;align-items:center;justify-content:center;z-index:500;}
-.spinner-overlay.show{display:flex;}
-.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .6s linear infinite;}
+.login-field input:focus{border-color:var(--slate);}
+.login-btn{
+  margin-top:6px;padding:12px;
+  background:var(--slate);color:#fff;border:none;
+  font-size:14px;font-weight:600;cursor:pointer;
+}
+.login-btn:active{transform:scale(.98);}
+.login-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.login-error{
+  font-size:12px;color:var(--red);background:var(--red-bg);
+  border:1px solid var(--red-border);padding:8px 10px;
+  display:none;
+}
+.login-error.show{display:block;}
+
+#app{display:none;flex-direction:column;min-height:100vh;}
+#app.shown{display:flex;}
+/* HEADER — matches insolvency app exactly */
+.header{
+  background:var(--white);height:96px;padding:0 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  border-bottom:1px solid var(--border);
+  padding-top:env(safe-area-inset-top);
+  height:calc(96px + env(safe-area-inset-top));
+}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-name{
+  font-size:13px;color:var(--text);font-weight:600;
+  background:var(--bg);border:1px solid var(--border);
+  padding:0 12px;height:32px;display:inline-flex;align-items:center;
+  flex-shrink:0;max-width:46vw;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hdr-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.hdr-btn:active{background:var(--border);}
+.avatar{
+  width:32px;height:32px;border-radius:4px;
+  background:var(--slate);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;color:#fff;cursor:pointer;
+  overflow:hidden;flex-shrink:0;
+}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+.header-logo{
+  height:80px;object-fit:contain;
+  pointer-events:none;
+}
+
+.content{flex:1;padding:14px;padding-bottom:calc(40px + env(safe-area-inset-bottom));}
+
+.section{
+  background:var(--white);
+  border:1px solid var(--border);
+  margin-bottom:12px;
+}
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:13px 14px;cursor:pointer;
+  background:var(--white);
+  transition:background .12s;
+}
+.section-head:active{background:var(--bg);}
+.section-head .left{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
+.section-icon{
+  width:28px;height:28px;flex-shrink:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--slate);
+}
+.section-icon svg{width:16px;height:16px;}
+.section-title{font-size:14px;font-weight:700;color:var(--text);}
+.section-meta{font-size:11px;color:var(--muted);font-weight:500;}
+.section-chev{
+  width:18px;height:18px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.section.open .section-chev{transform:rotate(180deg);}
+.section-body{display:none;border-top:1px solid var(--border);padding:12px 14px;}
+.section.open .section-body{display:block;}
+.section-pending{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--orange);padding:2px 7px;
+}
+
+.reports-list{display:flex;flex-direction:column;gap:8px;}
+.report-row{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 12px;
+  background:var(--white);
+  border:1px solid var(--border);
+  cursor:pointer;
+}
+.report-row:active{background:var(--bg);}
+.report-row.locked{
+  background:var(--bg);opacity:.7;cursor:not-allowed;
+}
+.report-row.done{
+  background:var(--green-bg);border-color:#C9DFD0;
+}
+.report-row .num{
+  width:28px;height:28px;flex-shrink:0;
+  background:var(--slate);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;
+}
+.report-row.locked .num{background:var(--border-strong);}
+.report-row.done .num{background:var(--green);}
+.report-row .info{flex:1;min-width:0;}
+.report-row .info .ttl{font-size:13px;font-weight:600;color:var(--text);}
+.report-row .info .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+.report-row .pills{
+  display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end;
+}
+.report-row .badge{
+  font-size:10px;font-weight:700;padding:3px 8px;white-space:nowrap;
+}
+.report-row.locked .badge{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.report-row.done .badge{background:var(--green);color:#fff;}
+.report-row.active .badge{background:var(--slate);color:#fff;}
+.report-pending-pill{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--orange);padding:2px 7px;
+}
+.report-rejected-pill{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--red);padding:2px 7px;
+}
+
+.req-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.req-list:first-child{margin-top:0;}
+.req-card{
+  background:var(--white);
+  border:1px solid var(--border);
+  padding:12px;
+}
+.req-card.approved{background:var(--green-bg);border-color:#C9DFD0;}
+.req-card.pending{background:var(--orange-bg);border-color:#E8D8B5;}
+.req-card.rejected{background:var(--red-bg);border-color:var(--red-border);}
+.req-text{font-size:13px;font-weight:600;color:var(--text);line-height:1.45;word-break:break-word;}
+.req-status-pill{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 8px;margin-top:6px;color:#fff;
+}
+.req-status-pill.uploaded{background:var(--orange);}
+.req-status-pill.approved{background:var(--green);}
+.req-status-pill.rejected{background:var(--red);}
+.reject-reason{
+  margin-top:8px;padding:8px 10px;
+  background:#fff;border:1px solid var(--red-border);
+  font-size:12px;color:#5C2520;line-height:1.4;word-break:break-word;
+}
+.reject-reason strong{color:var(--red);}
+
+.file-pills{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.file-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 9px;
+  background:var(--white);
+  border:1px solid var(--border);
+  font-size:12px;color:var(--text);
+  text-decoration:none;
+}
+.file-pill .ico{width:16px;height:16px;color:var(--slate);flex-shrink:0;}
+.file-pill .nm{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none;}
+.file-pill .rm{
+  background:transparent;border:none;cursor:pointer;
+  padding:2px 6px;font-size:13px;color:var(--muted);
+}
+.file-pill .rm:active{color:var(--red);}
+.file-pill.approved{background:var(--green-bg);border-color:#C9DFD0;}
+
+.upload-btn{
+  margin-top:10px;width:100%;
+  padding:10px 12px;
+  background:var(--white);color:var(--slate);
+  border:1px dashed var(--slate);
+  font-size:13px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.upload-btn:active{background:var(--bg);}
+.upload-btn svg{width:15px;height:15px;}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.answer-area{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+.answer-area textarea{
+  width:100%;min-height:70px;padding:9px 10px;
+  background:var(--bg);border:1px solid var(--border);border-radius:0;
+  font-size:13px;color:var(--text);resize:vertical;outline:none;
+}
+.answer-area textarea:focus{border-color:var(--slate);}
+.answer-saved{
+  font-size:12px;color:var(--text);background:var(--white);
+  border:1px solid var(--border);padding:8px 10px;
+  white-space:pre-wrap;word-break:break-word;line-height:1.45;
+  margin-top:8px;
+}
+.answer-row{display:flex;gap:8px;}
+.answer-row button{
+  padding:8px 14px;background:var(--slate);color:#fff;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;
+}
+.answer-row button:active{transform:scale(.97);}
+.answer-row button:disabled{opacity:.5;cursor:not-allowed;}
+
+.empty{padding:18px 12px;text-align:center;color:var(--muted);font-size:12px;}
+
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(255,255,255,.7);
+  display:none;align-items:center;justify-content:center;
+  z-index:200;
+}
+.loading-overlay.shown{display:flex;}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--border);
+  border-top-color:var(--slate);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--slate);color:#fff;
+  padding:10px 16px;font-size:13px;font-weight:500;
+  z-index:300;opacity:0;transition:opacity .2s, transform .2s;
+  pointer-events:none;max-width:90vw;text-align:center;
+}
+.toast.shown{opacity:1;transform:translateX(-50%) translateY(-4px);}
+.toast.error{background:var(--red);}
+.toast.success{background:var(--green);}
+
+.report-detail{display:none;flex-direction:column;}
+.report-detail.shown{display:flex;}
+.report-detail-head{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--bg);
+  border:1px solid var(--border);margin-bottom:10px;
+}
+.report-detail-head .back{
+  background:var(--white);border:1px solid var(--border);
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--slate);
+}
+.report-detail-head .back:active{background:var(--border);}
+.report-detail-head .back svg{width:16px;height:16px;}
+.report-detail-head .ttl{font-size:14px;font-weight:700;}
+.report-detail-head .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+
 </style>
 </head>
 <body>
 
-<div id="login-screen" class="login-screen">
-  <div class="login-card">
-    <img src="../logo.png" alt="אבי טל ושות׳" class="logo" onerror="this.style.display='none'"/>
-    <h1>תיק שלי</h1>
-    <p>הזן את שם המשתמש והסיסמה שקיבלת מהמשרד.</p>
-    <input type="text" id="login-username" class="login-input" placeholder="שם משתמש (תעודת זהות)" inputmode="numeric" maxlength="9" autocomplete="username"/>
-    <input type="password" id="login-password" class="login-input" placeholder="סיסמה" autocomplete="current-password"/>
-    <button class="login-btn" id="login-btn" onclick="tryLogin()">כניסה</button>
-    <div class="login-error" id="login-error"></div>
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <img src="../logo.png?v=2" alt="אבי טל ושות׳" class="login-logo">
+    <div class="login-title">תיק שלי</div>
+    <div class="login-sub">אבי טל ושות׳ — משרד עורכי דין</div>
+    <div id="login-error" class="login-error"></div>
+    <div class="login-field">
+      <label for="username">תעודת זהות</label>
+      <input type="tel" id="username" inputmode="numeric" pattern="[0-9]*" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label for="password">סיסמה</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">כניסה</button>
   </div>
 </div>
 
-<div id="app" style="display:none">
+<!-- APP -->
+<div id="app">
   <div class="header">
     <div class="hdr-right">
-      <button class="hdr-btn" onclick="logout()" title="יציאה">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span class="hdr-name" id="topbar-name"></span>
+      <button class="hdr-btn" onclick="loadData()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
       </button>
-      <div class="hdr-count" id="user-name-display">לקוח</div>
+      <div class="avatar" id="user-avatar" onclick="doLogout()" title="יציאה"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" onerror="this.style.display='none'"/>
+    <img src="../logo.png" alt="אבי טל ושות׳" class="header-logo" onerror="this.style.display='none'">
   </div>
-  <div class="header-spacer"></div>
-  <div class="main">
-    <div class="welcome-card">
-      <h2 id="welcome-name">שלום</h2>
-      <p>כאן תוכל להעלות מסמכים שביקשנו ולהשיב על שאלות מהמשרד.</p>
+  <div class="content">
+
+    <!-- REPORTS -->
+    <div class="section" id="sec-reports">
+      <div class="section-head" onclick="toggleSection('reports')">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+          </div>
+          <div>
+            <div class="section-title">דוחות</div>
+            <div class="section-meta" id="reports-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="reports-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="reports-list" id="reports-list"></div>
+        <div class="report-detail" id="report-detail"></div>
+      </div>
     </div>
-    <div class="cat-tabs">
-      <button class="cat-tab active" id="cat-reports" onclick="switchCat('reports')">מסמכי דוחות<span class="badge zero" id="cnt-reports">0</span></button>
-      <button class="cat-tab" id="cat-docs" onclick="switchCat('docs')">השלמת מסמכים<span class="badge zero" id="cnt-docs">0</span></button>
-      <button class="cat-tab" id="cat-info" onclick="switchCat('info')">השלמת פרטים<span class="badge zero" id="cnt-info">0</span></button>
+
+    <!-- DOCS (CV) -->
+    <div class="section" id="sec-docs">
+      <div class="section-head" onclick="toggleSection('docs')">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">השלמת מסמכים</div>
+            <div class="section-meta" id="docs-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="docs-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="docs-list"></div>
+      </div>
     </div>
-    <div id="content-area"></div>
+
+    <!-- INFO (CW) -->
+    <div class="section" id="sec-info">
+      <div class="section-head" onclick="toggleSection('info')">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">השלמת פרטים</div>
+            <div class="section-meta" id="info-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="info-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="info-list"></div>
+      </div>
+    </div>
+
   </div>
-  <input type="file" id="file-input" accept="image/*,application/pdf"/>
-  <input type="file" id="camera-input" accept="image/*" capture="environment"/>
 </div>
 
-<div class="help-modal" id="help-modal">
-  <div class="help-sheet">
-    <div class="help-handle"></div>
-    <div class="help-title" id="help-title">הסבר</div>
-    <div id="help-body"></div>
-    <button class="help-close" onclick="closeHelp()">סגור</button>
-  </div>
-</div>
-
-<!-- File name confirmation modal — shown after the user chooses a file.
-     Pre-filled with the requirement description; user can edit. -->
-<div class="help-modal" id="name-modal">
-  <div class="help-sheet">
-    <div class="help-handle"></div>
-    <div class="help-title">שם הקובץ לפני שליחה</div>
-    <div style="font-size:11px;color:var(--muted);font-weight:600;line-height:1.5">דרישה: <span id="name-modal-text" style="color:var(--text);font-weight:700"></span></div>
-    <input type="text" id="name-modal-input" class="login-input" style="font-size:13px" placeholder="שם הקובץ"/>
-    <div style="display:flex;gap:8px;margin-top:6px">
-      <button class="help-close" style="background:var(--white);color:var(--slate);border-color:var(--border);flex:1" onclick="cancelNameModal()">ביטול</button>
-      <button class="help-close" style="flex:1" onclick="confirmNameAndUpload()">שלח</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast" class="toast"></div>
-<div id="spinner-overlay" class="spinner-overlay"><div class="spinner"></div></div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" accept="image/*,application/pdf" style="display:none">
 
 <script>
 'use strict';
 
-/* ============================================================
-   CONFIG — paste your Apps Script Web App URL below.
-   Until you do, the app runs in DEMO mode.
-   ============================================================ */
+/* ═══════════════════════════════════════════════════════════
+   CONFIG — paste your deployed Apps Script Web App URL here.
+   ═══════════════════════════════════════════════════════════ */
 const CONFIG = {
-  API_URL: '' // ← e.g. 'https://script.google.com/macros/s/AKfy.../exec'
+  API_URL: ''  // e.g. 'https://script.google.com/macros/s/AKfy.../exec'
 };
 
-const _SVG=(p,sz=16)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:${sz}px;height:${sz}px;display:block">${p}</svg>`;
-const ICON={
-  camera: _SVG('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',18),
-  upload: _SVG('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',18),
-  question:_SVG('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',18),
-  paper:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',12),
-  check:  _SVG('<polyline points="20 6 9 17 4 12"/>',18),
-  empty:  _SVG('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',48),
-};
+const STORAGE_KEY      = 'at_customer_session_v1';
+const SECTION_STATE_KEY= 'at_customer_sections_v1';
 
-let currentUser=null;
-let requests=[];
-let currentCategory='reports';
-let currentReportNum=null;
-// Track which accordion sections are open. All start closed so the
-// customer sees just three big tappable headers and isn't overwhelmed.
-const _sectionOpen = {reports:false, docs:false, info:false};
-// Per-report due dates and statuses, fetched together with requirements.
-let _reportInfo = []; // [{num, dateMs, dateText, status}, ...]
-let _activeReqId=null;
-const LS_USER='at_customer_session_v2';
+/* STATE */
+let currentUser   = null;   // {rowNum, name, username, token}
+let dataReports   = [];     // [{num, required:[{id,text}], approved:[{name,url,fileId,reqId,reqText}]}]
+let dataReportInfo= [];     // [{num, dateMs, dateText, status}]
+let dataDocs      = [];     // CV — [{id, text, status?, files?, rejectionReason?}]
+let dataInfo      = [];     // CW — [{id, text, status?, answer?, rejectionReason?}]
+let dataPending   = [];     // every uploaded-but-unprocessed file across all categories
+let currentReportNum = null;
+let sectionState  = {reports:false, docs:false, info:false};
+let uploadCtx     = null;
+let isLoading     = false;
 
-async function apiCall(action, payload){
+/* ─── API ─── */
+async function api(action, payload){
   if(!CONFIG.API_URL) throw new Error('האפליקציה לא מוגדרת — צור קשר עם המשרד');
-  const body = JSON.stringify(Object.assign({action}, payload));
-  const res = await fetch(CONFIG.API_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body,
-  });
-  if(!res.ok) throw new Error('שגיאת רשת — נסה שוב');
-  let data;
-  try{ data = await res.json(); }
+  const body = Object.assign({action}, payload || {});
+  let res;
+  try{
+    res = await fetch(CONFIG.API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(body),
+      redirect:'follow'
+    });
+  }catch(_){ throw new Error('אין חיבור לאינטרנט — נסה שוב'); }
+  let json;
+  try{ json = await res.json(); }
   catch(_){ throw new Error('תגובה לא תקינה מהשרת'); }
-  if(!data.ok) throw new Error(data.error || 'שגיאה');
-  return data;
+  if(!json.ok) throw new Error(json.error || 'שגיאה לא ידועה');
+  return json;
 }
 
-async function tryLogin(){
-  const u=document.getElementById('login-username').value.trim();
-  const p=document.getElementById('login-password').value.trim();
-  const err=document.getElementById('login-error');
+/* ─── SESSION ─── */
+function saveSession(u){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); }catch(_){} }
+function loadSession(){ try{ const r=localStorage.getItem(STORAGE_KEY); return r?JSON.parse(r):null; }catch(_){ return null; } }
+function clearSession(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(_){} }
+function loadSectionState(){ try{ const r=localStorage.getItem(SECTION_STATE_KEY); if(r) sectionState=Object.assign(sectionState,JSON.parse(r)); }catch(_){} }
+function saveSectionState(){ try{ localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(sectionState)); }catch(_){} }
+
+/* ─── HELPERS ─── */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(s){ return esc(s).replace(/`/g,'&#96;'); }
+function showLoading(on){ isLoading=!!on; $('loading').classList.toggle('shown', !!on); }
+let _toastTimer=null;
+function toast(msg, type){
+  const el=$('toast');
+  el.textContent=msg;
+  el.classList.remove('error','success');
+  if(type) el.classList.add(type);
+  el.classList.add('shown');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('shown'), 2400);
+}
+
+/* ─── LOGIN ─── */
+async function doLogin(){
+  const u=$('username').value.trim();
+  const p=$('password').value.trim();
+  const err=$('login-error');
   err.classList.remove('show');
-  if(!u || !p){ err.textContent='הזן שם משתמש וסיסמה'; err.classList.add('show'); return; }
-  if(!CONFIG.API_URL){
-    if(!/^\d{9}$/.test(u)){ err.textContent='מספר זהות חייב להכיל 9 ספרות'; err.classList.add('show'); return; }
-    if(!/^\d{6}$/.test(p)){ err.textContent='סיסמה חייבת להכיל 6 ספרות'; err.classList.add('show'); return; }
-    currentUser={rowNum:0, name:'לקוח לדוגמה (דמו)', username:u, token:''};
-    localStorage.setItem(LS_USER, JSON.stringify(currentUser));
-    showApp(); return;
-  }
-  const btn=document.getElementById('login-btn');
-  btn.disabled=true; btn.textContent='בודק...';
+  if(!u||!p){ err.textContent='הזן תעודת זהות וסיסמה'; err.classList.add('show'); return; }
+  $('login-btn').disabled=true;
+  showLoading(true);
   try{
-    const data = await apiCall('login', {username:u, password:p});
-    currentUser = data.user;
-    localStorage.setItem(LS_USER, JSON.stringify(currentUser));
+    const res=await api('login',{username:u,password:p});
+    currentUser=res.user;
+    saveSession(currentUser);
     showApp();
+    await loadData();
   }catch(e){
-    err.textContent = e.message || 'שגיאה';
+    err.textContent=e.message||'שגיאה';
     err.classList.add('show');
   }finally{
-    btn.disabled=false; btn.textContent='כניסה';
+    $('login-btn').disabled=false;
+    showLoading(false);
+  }
+}
+function doLogout(){
+  if(!confirm('להתנתק?')) return;
+  clearSession();
+  currentUser=null;
+  dataReports=[]; dataReportInfo=[]; dataDocs=[]; dataInfo=[]; dataPending=[];
+  currentReportNum=null;
+  $('app').classList.remove('shown');
+  $('login-screen').style.display='flex';
+  $('username').value=''; $('password').value='';
+}
+function showApp(){
+  $('login-screen').style.display='none';
+  $('app').classList.add('shown');
+  updateHeaderUser();
+  loadSectionState();
+  applySectionState();
+}
+function updateHeaderUser(){
+  const name = (currentUser && currentUser.name) || '';
+  $('topbar-name').textContent = name;
+  // Compute avatar initials (up to 2 chars from the first words)
+  const av = $('user-avatar');
+  if(av){
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    const initials = parts.length === 0 ? '?' :
+                     parts.length === 1 ? parts[0].slice(0,2) :
+                     parts[0].charAt(0) + parts[parts.length-1].charAt(0);
+    av.textContent = initials;
   }
 }
 
-function logout(){
-  if(!confirm('להתנתק מהאפליקציה?')) return;
-  localStorage.removeItem(LS_USER);
-  currentUser=null; requests=[];
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('login-username').value='';
-  document.getElementById('login-password').value='';
-}
-
-async function showApp(){
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('welcome-name').textContent='שלום, '+(currentUser.name||'');
-  document.getElementById('user-name-display').textContent=currentUser.name||'';
-  await loadRequestsFromServer();
-}
-
-async function loadRequestsFromServer(){
-  if(!CONFIG.API_URL){
-    requests=buildDemoRequests();
-    // Demo mode: make all 6 reports available with friendly fake dates
-    // so the user sees the UI work without needing the live backend.
-    const now=new Date();
-    _reportInfo = [];
-    for(let i=0;i<6;i++){
-      const d=new Date(now.getFullYear(), now.getMonth()-2+i, 1);
-      _reportInfo.push({
-        num: i+1,
-        dateMs: d.getTime(),
-        dateText: ('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear(),
-        status: '',
-      });
-    }
-    renderAll(); return;
-  }
-  showSpinner(true);
+/* ─── DATA LOAD ─── */
+async function loadData(silent){
+  if(!currentUser) return;
+  if(!silent) showLoading(true);
   try{
-    const data = await apiCall('getRequests', {token: currentUser.token});
-    requests = [];
-    (data.reports || []).forEach(r => {
-      const reportNum = r.report || 1;
-      requests.push(Object.assign({}, r, {category:'reports', report:reportNum, kind:'doc'}));
-    });
-    (data.docs || []).forEach(r => {
-      requests.push(Object.assign({}, r, {category:'docs', kind:'doc'}));
-    });
-    (data.info || []).forEach(r => {
-      requests.push(Object.assign({}, r, {category:'info', kind:'question'}));
-    });
-    if(data.name) currentUser.name = data.name;
-    _reportInfo = data.reportInfo || [];
-    document.getElementById('welcome-name').textContent='שלום, '+(currentUser.name||'');
-    document.getElementById('user-name-display').textContent=currentUser.name||'';
-    renderAll();
-  }catch(e){
-    showToast(e.message||'שגיאה בטעינה','err');
-    if((e.message||'').includes('פג תוקף')){ logout(); return; }
-  }finally{
-    showSpinner(false);
-  }
-}
-
-function buildDemoRequests(){
-  const tmpl=['תלושי שכר 2 חודשים אחרונים','דפי חשבון בנק','חשבונות חשמל וארנונה'];
-  const list=[];
-  for(let r=1;r<=6;r++){
-    tmpl.forEach((t,i)=>list.push({id:`r${r}-${i}`,category:'reports',report:r,kind:'doc',text:t,explanation:'',status:'pending',files:[]}));
-  }
-  list.push({id:'d1',category:'docs',kind:'doc',text:'תעודת זהות',explanation:'',status:'pending',files:[]});
-  list.push({id:'i1',category:'info',kind:'question',text:'מה המצב המשפחתי?',explanation:'',status:'pending',answer:''});
-  return list;
-}
-
-/* Toggle an accordion section open/closed. Closing a section also
-   closes any drilled-in report view. */
-function toggleSection(cat){
-  _sectionOpen[cat] = !_sectionOpen[cat];
-  if(!_sectionOpen[cat] && cat==='reports') currentReportNum = null;
-  renderAll();
-}
-
-function renderAll(){
-  // Update tab counts
-  ['reports','docs','info'].forEach(cat=>{
-    const pending = requests.filter(r=>r.category===cat && (r.status==='pending'||r.status==='rejected')).length;
-    const el = document.getElementById('cnt-'+cat);
-    if(el){
-      el.textContent = pending;
-      el.classList.toggle('zero', pending===0);
+    const res=await api('getRequests',{token:currentUser.token});
+    dataReports    = Array.isArray(res.reports)    ? res.reports    : [];
+    dataReportInfo = Array.isArray(res.reportInfo) ? res.reportInfo : [];
+    dataDocs       = Array.isArray(res.docs)       ? res.docs       : [];
+    dataInfo       = Array.isArray(res.info)       ? res.info       : [];
+    dataPending    = Array.isArray(res.pending)    ? res.pending    : [];
+    if(res.name){
+      currentUser.name=res.name;
+      $('topbar-name').textContent=res.name;
+      saveSession(currentUser);
     }
-  });
-  // Render the active tab's content
-  const area = document.getElementById('content-area');
-  if(!area) return;
-  if(currentCategory==='reports'){
-    area.innerHTML = currentReportNum ? renderReportItems() : renderReportsGrid();
+    render();
+  }catch(e){
+    if(/פג תוקף/.test(e.message)){
+      doLogout();
+      toast('פג תוקף הכניסה — התחבר מחדש', 'error');
+      return;
+    }
+    if(!silent) toast(e.message||'שגיאה בטעינה', 'error');
+  }finally{
+    if(!silent) showLoading(false);
+  }
+}
+
+/* ─── PENDING LOOKUPS ─── */
+function pendingCountFor(category, reportNum){
+  return dataPending.filter(p =>
+    p.category===category && p.status==='uploaded' &&
+    (reportNum==null || (p.reportNum||null)===reportNum)
+  ).length;
+}
+
+/* ─── RENDER ─── */
+function render(){ renderReports(); renderDocs(); renderInfo(); }
+
+function renderReports(){
+  const list=$('reports-list');
+  const detail=$('report-detail');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const todayMs=today.getTime();
+
+  const rows=dataReportInfo.map(info=>{
+    const r=dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
+    const dateMs=info.dateMs||null;
+    const isLocked=dateMs && dateMs>todayMs;
+    const isDone=!!info.status;
+    const cls=isLocked?'locked':(isDone?'done':'active');
+    const badge=isLocked?'נעול':(isDone?esc(info.status):'פעיל');
+    const reqCount=(r.required||[]).length;
+    const pendingC=dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num&&p.status==='uploaded').length;
+    const rejC   =dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num&&p.status==='rejected').length;
+
+    const meta=[];
+    if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
+    if(reqCount)      meta.push(reqCount+' פריטים נדרשים');
+
+    const handler=isLocked?'':`onclick="openReport(${info.num})"`;
+
+    return `
+      <div class="report-row ${cls}" ${handler}>
+        <div class="num">${info.num}</div>
+        <div class="info">
+          <div class="ttl">דוח ${info.num}</div>
+          <div class="dt">${meta.join(' • ')||'&nbsp;'}</div>
+        </div>
+        <div class="pills">
+          ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
+          ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
+          <span class="badge">${badge}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  list.innerHTML=rows||'<div class="empty">אין דוחות זמינים</div>';
+
+  const total=dataReportInfo.length;
+  const done =dataReportInfo.filter(r=>r.status).length;
+  $('reports-meta').textContent=total?`${done} מתוך ${total} בוצעו`:'אין נתונים';
+
+  const totalPending=pendingCountFor('reports', null);
+  const pEl=$('reports-pending');
+  if(totalPending){ pEl.textContent=totalPending+' ממתינים'; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+
+  if(currentReportNum!==null){
+    list.style.display='none';
+    detail.classList.add('shown');
+    renderReportDetail();
   } else {
-    area.innerHTML = renderFlatList(currentCategory);
+    list.style.display='flex';
+    detail.classList.remove('shown');
+    detail.innerHTML='';
   }
 }
 
-/* Switch which category tab is active. */
-function switchCat(cat){
-  currentCategory = cat;
-  currentReportNum = null;
-  ['reports','docs','info'].forEach(c=>{
-    const el = document.getElementById('cat-'+c);
-    if(el) el.classList.toggle('active', c===cat);
-  });
-  renderAll();
+function openReport(num){
+  currentReportNum=num;
+  history.pushState({page:'report',num},'');
+  renderReports();
+  setTimeout(()=>$('sec-reports').scrollIntoView({behavior:'smooth',block:'start'}), 30);
+}
+function closeReport(){
+  currentReportNum=null;
+  renderReports();
 }
 
-/* Status helpers — does this report have a due date that's already arrived?
-   Has it already been marked "בוצע" (done)? */
-function _reportInfoFor(n){
-  return (_reportInfo || []).find(x => x && x.num === n) || {num:n, dateMs:null, dateText:'', status:''};
-}
-function _reportIsDone(info){
-  // The lawyer marks "בוצע" when a report has been submitted. We treat
-  // anything non-empty as "done" to be safe (matches the insolvency app).
-  return !!(info && (info.status||'').trim());
-}
-function _reportIsAvailable(info){
-  if(!info) return false;
-  if(_reportIsDone(info)) return false;
-  // No date set → not yet relevant; lock it.
-  if(!info.dateMs) return false;
-  return Date.now() >= info.dateMs;
-}
+function renderReportDetail(){
+  const num=currentReportNum;
+  const info=dataReportInfo.find(x=>x.num===num)||{};
+  const r=dataReports.find(x=>x.num===num)||{required:[],approved:[]};
+  const required=r.required||[];
+  const approved=r.approved||[];
+  const pendingHere=dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===num);
 
-/* Format a date as "חודש שנה" (e.g. "מאי 2026") for the report cards. */
-const _HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-function _formatReportDate(info){
-  if(!info || !info.dateMs) return info && info.dateText ? info.dateText : '—';
-  const d = new Date(info.dateMs);
-  return _HEB_MONTHS[d.getMonth()] + ' ' + d.getFullYear();
-}
+  const cards=required.map(req=>buildReqCard({
+    category:'reports',
+    reportNum:num,
+    reqId:req.id,
+    reqText:req.text,
+    approved:approved.filter(a=>a.reqId===req.id),
+    pending:pendingHere.filter(p=>p.reqId===req.id),
+  })).join('');
 
-function renderReportsGrid(){
-  const cells = [1,2,3,4,5,6].map(n=>{
-    const info = _reportInfoFor(n);
-    const items = requests.filter(r=>r.category==='reports' && r.report===n);
-    const pending = items.filter(r=>r.status==='pending'||r.status==='rejected').length;
-    const done = _reportIsDone(info);
-    const available = _reportIsAvailable(info);
-    const dateLbl = _formatReportDate(info);
-    let cls = 'report-btn';
-    if(done) cls += ' done';
-    else if(!available) cls += ' locked';
-    const click = (done || !available) ? '' : `onclick="openReport(${n})"`;
-    const subLine = done
-      ? '✓ הוגש'
-      : (!available
-          ? 'טרם הגיע המועד'
-          : (items.length ? `${pending}/${items.length} פתוחים` : 'אין מסמכים'));
-    return `<button class="${cls}" ${click} ${(done||!available)?'disabled':''}>
-      <span class="num">${n}</span>
-      <span class="lbl">דוח ${n}</span>
-      <span class="lbl date">${dateLbl}</span>
-      <span class="lbl sub">${subLine}</span>
-    </button>`;
-  }).join('');
-  return `<div class="section-header" style="margin-top:0">בחר דוח להעלאת מסמכים</div>
-    <div class="reports-grid">${cells}</div>`;
-}
-
-function openReport(n){
-  const info = _reportInfoFor(n);
-  if(_reportIsDone(info) || !_reportIsAvailable(info)) return; // safety
-  currentReportNum=n; renderAll();
-  // Scroll the accordion section into view nicely
-  setTimeout(()=>{
-    const el=document.querySelector('.acc-section.open');
-    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
-  }, 50);
-}
-function closeReport(){ currentReportNum=null; renderAll(); }
-
-function renderReportItems(){
-  const info = _reportInfoFor(currentReportNum);
-  const items = requests.filter(r=>r.category==='reports' && r.report===currentReportNum);
-  const dateLbl = _formatReportDate(info);
-  if(!items.length){
-    return `<button class="report-back-btn" onclick="closeReport()">‹ חזרה לרשימת הדוחות</button>
-      <div class="empty">${ICON.empty}<div class="empty-title">אין מסמכים נדרשים לדוח ${currentReportNum}</div></div>`;
-  }
-  return `<button class="report-back-btn" onclick="closeReport()">‹ חזרה לרשימת הדוחות</button>
-    <div class="section-header" style="margin-top:0">מסמכים לדוח ${currentReportNum} · ${dateLbl}</div>
-    ${items.map(renderRequestItem).join('')}`;
-}
-
-function renderFlatList(cat){
-  const items = requests.filter(r=>r.category===cat);
-  if(!items.length){
-    return `<div class="empty">${ICON.empty}<div class="empty-title">אין פריטים בקטגוריה זו</div><div class="empty-text">הכל מעודכן 👌</div></div>`;
-  }
-  const order = {pending:0, rejected:1, uploaded:2, approved:3};
-  items.sort((a,b)=>(order[a.status]||9)-(order[b.status]||9));
-  return items.map(renderRequestItem).join('');
-}
-
-function esc(s){return (s||'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);}
-
-function renderRequestItem(r){
-  const statusLbl={
-    pending:'<span class="req-status pending">⏳ ממתין</span>',
-    uploaded:'<span class="req-status uploaded">✓ הועלה — ממתין לאישור</span>',
-    approved:'<span class="req-status approved">✓ אושר</span>',
-    rejected:'<span class="req-status rejected">✗ נדחה — נא להעלות שוב</span>',
-  }[r.status] || '';
-  // If rejected, show the rejection reason that the office wrote.
-  // The reason comes from the sheet (rejectionReason field set by the
-  // approve/reject flow in the insolvency app).
-  const rejReason = (r.status==='rejected' && (r.rejectionReason||'').trim())
-    ? `<div class="rej-reason"><span class="rej-reason-label">סיבת הדחייה:</span> ${esc(r.rejectionReason)}</div>`
-    : '';
-  const hasHelp = !!(r.explanation||'').trim();
-  const helpBtn = `<button class="req-btn ${hasHelp?'has-help':''}" onclick="openHelp('${r.id}')" title="${hasHelp?'יש הסבר':'אין הסבר'}">${ICON.question}</button>`;
-
-  if(r.kind==='question'){
-    return `<div class="req-item">
-      <div class="req-row-top">
-        <div class="req-text">${esc(r.text)}</div>
-        <div class="req-actions">${helpBtn}</div>
+  // Orphan pending uploads (uploaded against an old/removed requirement)
+  const orphans=pendingHere.filter(p=>!required.some(req=>req.id===p.reqId));
+  const orphansHtml=orphans.length?`
+    <div class="req-card pending">
+      <div class="req-text">קבצים נוספים שהעלית</div>
+      <div class="file-pills">
+        ${orphans.filter(p=>p.status==='uploaded').map(p=>buildFilePillPending(p)).join('')}
       </div>
-      ${statusLbl}
-      ${rejReason}
-      <div class="req-question">
-        <textarea class="req-textarea" id="ans-${r.id}" placeholder="כתוב את התשובה כאן..." ${r.status==='approved'?'readonly':''}>${esc(r.answer||'')}</textarea>
-        ${r.status!=='approved' ? `<button class="req-save-btn" onclick="saveAnswer('${r.id}')">שלח תשובה</button>` : ''}
-      </div>
-    </div>`;
-  }
-  const filesList = (r.files||[]).map(f=>{
-    const link = f._uploading
-      ? `<span style="color:var(--blue);font-style:italic">${esc(f.name)}</span><span class="upl-spinner" style="margin-inline-start:6px;display:inline-block;width:10px;height:10px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite"></span>`
-      : (f.url ? `<a href="${esc(f.url)}" target="_blank">${esc(f.name)}</a>` : esc(f.name));
-    return `<span class="req-file-pill">${ICON.paper}<span>${link}</span>${(r.status!=='approved' && !f._uploading) ? `<span class="x" onclick="removeFile('${r.id}','${esc(f.id||f.name||'')}')">✕</span>` : ''}</span>`;
-  }).join('');
-  return `<div class="req-item">
-    <div class="req-row-top">
-      <div class="req-text">${esc(r.text)}</div>
-      <div class="req-actions">
-        ${helpBtn}
-        <button class="req-btn" onclick="pickCamera('${r.id}')" title="צלם תמונה">${ICON.camera}</button>
-        <button class="req-btn ${(r.files||[]).length?'uploaded':''}" onclick="pickFile('${r.id}')" title="העלה קובץ">${(r.files||[]).length?ICON.check:ICON.upload}</button>
+      ${orphans.filter(p=>p.status==='rejected').map(p=>`
+        <div class="reject-reason"><strong>${esc(p.name)} נדחה.</strong>${p.rejectionReason?' סיבה: '+esc(p.rejectionReason):''}</div>
+      `).join('')}
+    </div>`:'';
+
+  // Approved files that don't match any current requirement
+  const orphanApproved=approved.filter(a=>!required.some(req=>req.id===a.reqId));
+  const orphanApprovedHtml=orphanApproved.length?`
+    <div class="req-card approved">
+      <div class="req-text">קבצים שאושרו</div>
+      <div class="file-pills">${orphanApproved.map(a=>buildFilePillApproved(a)).join('')}</div>
+    </div>`:'';
+
+  $('report-detail').innerHTML=`
+    <div class="report-detail-head">
+      <button class="back" onclick="closeReport()" title="חזרה">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <div style="flex:1">
+        <div class="ttl">דוח ${num}</div>
+        ${info.dateText?`<div class="dt">תאריך: ${esc(info.dateText)}</div>`:''}
       </div>
     </div>
-    ${statusLbl}
-    ${rejReason}
-    ${filesList ? `<div class="req-files">${filesList}</div>` : ''}
-  </div>`;
+    <div class="req-list">
+      ${cards||'<div class="empty">לא נדרשו מסמכים לדוח זה</div>'}
+      ${orphansHtml}
+      ${orphanApprovedHtml}
+    </div>`;
 }
 
-function pickFile(reqId){ _activeReqId=reqId; document.getElementById('file-input').click(); }
-function pickCamera(reqId){ _activeReqId=reqId; document.getElementById('camera-input').click(); }
+/* DOCS (CV) */
+function renderDocs(){
+  const list=$('docs-list');
+  const cards=(dataDocs||[]).map(d=>{
+    const approvedFiles=Array.isArray(d.files)?d.files:[];
+    const pending=dataPending.filter(p=>p.category==='docs'&&p.reqId===d.id);
+    return buildReqCard({
+      category:'docs',
+      reportNum:null,
+      reqId:d.id,
+      reqText:d.text||'',
+      approved:approvedFiles.map(f=>({fileId:f.id||f.fileId,name:f.name,url:f.url,reqId:d.id,reqText:d.text})),
+      pending,
+      legacyRejection: d.status==='rejected'?(d.rejectionReason||''):'',
+    });
+  }).join('');
+  list.innerHTML=cards||'<div class="empty">אין מסמכים נדרשים</div>';
 
-function fileToBase64(file){
+  const total=(dataDocs||[]).length;
+  const approvedCount=(dataDocs||[]).filter(d=>d.status==='approved').length;
+  $('docs-meta').textContent=total?`${approvedCount} מתוך ${total} אושרו`:'אין נתונים';
+
+  const pendingCount=pendingCountFor('docs', null);
+  const pEl=$('docs-pending');
+  if(pendingCount){ pEl.textContent=pendingCount+' ממתינים'; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+}
+
+/* INFO (CW) */
+function renderInfo(){
+  const list=$('info-list');
+  const cards=(dataInfo||[]).map(q=>{
+    const status=q.status||'';
+    const cls=status==='approved'?'approved':status==='rejected'?'rejected':status==='uploaded'?'pending':'';
+    const answer=q.answer||'';
+    const isApproved=status==='approved';
+    return `
+      <div class="req-card ${cls}">
+        <div class="req-text">${esc(q.text||'')}</div>
+        ${status?`<span class="req-status-pill ${status}">${
+          status==='approved'?'אושר':status==='rejected'?'נדחה':'נשלח — ממתין לאישור'
+        }</span>`:''}
+        ${status==='rejected'&&q.rejectionReason?`
+          <div class="reject-reason"><strong>סיבת הדחייה:</strong> ${esc(q.rejectionReason)}</div>`:''}
+        ${isApproved?`
+          <div class="answer-saved">${esc(answer)}</div>
+        `:`
+          <div class="answer-area">
+            <textarea data-info-textarea="${escAttr(q.id)}" placeholder="הקלד את התשובה כאן…">${esc(answer)}</textarea>
+            <div class="answer-row">
+              <button onclick="submitAnswer('${escAttr(q.id)}')">${answer?'עדכון תשובה':'שליחה'}</button>
+            </div>
+          </div>
+        `}
+      </div>`;
+  }).join('');
+  list.innerHTML=cards||'<div class="empty">אין שאלות לענות עליהן</div>';
+
+  const total=(dataInfo||[]).length;
+  const answered=(dataInfo||[]).filter(q=>q.status==='approved'||q.status==='uploaded').length;
+  $('info-meta').textContent=total?`${answered} מתוך ${total} ענו`:'אין נתונים';
+
+  const pendingCount=(dataInfo||[]).filter(q=>q.status==='uploaded').length;
+  const pEl=$('info-pending');
+  if(pendingCount){ pEl.textContent=pendingCount+' ממתינים'; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+}
+
+/* ─── REQ CARD ─── */
+function buildReqCard(opts){
+  const approved=opts.approved||[];
+  const pending =opts.pending||[];
+
+  const hasRejected = pending.some(p=>p.status==='rejected') || !!opts.legacyRejection;
+  const hasPending  = pending.some(p=>p.status==='uploaded');
+  const hasApproved = approved.length>0;
+  const cls = hasRejected ? 'rejected' :
+              hasApproved && !hasPending ? 'approved' :
+              hasPending ? 'pending' : '';
+
+  const approvedHtml=approved.map(a=>buildFilePillApproved(a)).join('');
+  const uploadedPending=pending.filter(p=>p.status==='uploaded');
+  const uploadedHtml=uploadedPending.map(p=>buildFilePillPending(p)).join('');
+
+  const rejectedFiles=pending.filter(p=>p.status==='rejected');
+  const rejectedHtml=rejectedFiles.map(p=>`
+    <div class="reject-reason">
+      <strong>${esc(p.name)} נדחה.</strong>${p.rejectionReason?' סיבה: '+esc(p.rejectionReason):''}
+    </div>`).join('');
+
+  const legacyHtml=(opts.legacyRejection && rejectedFiles.length===0) ?
+    `<div class="reject-reason"><strong>נדחה.</strong> סיבה: ${esc(opts.legacyRejection)}</div>` : '';
+
+  let pillHtml='';
+  if(hasApproved && !hasPending && !hasRejected) pillHtml='<span class="req-status-pill approved">אושר</span>';
+  else if(hasPending)  pillHtml='<span class="req-status-pill uploaded">ממתין לאישור</span>';
+  else if(hasRejected) pillHtml='<span class="req-status-pill rejected">יש לתקן ולהעלות מחדש</span>';
+
+  // Allow upload unless: approved AND nothing pending AND nothing rejected
+  const allowUpload=!(hasApproved && !hasPending && !hasRejected);
+
+  // Encode the requirement text for use inside a JS string in onclick
+  const reqTextEnc = String(opts.reqText||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const reqIdEnc   = String(opts.reqId||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  return `
+    <div class="req-card ${cls}">
+      <div class="req-text">${esc(opts.reqText)}</div>
+      ${pillHtml}
+      ${(approvedHtml||uploadedHtml)?`<div class="file-pills">${approvedHtml}${uploadedHtml}</div>`:''}
+      ${rejectedHtml}
+      ${legacyHtml}
+      ${allowUpload?`
+        <button class="upload-btn" onclick="startUpload('${esc(opts.category)}',${opts.reportNum||'null'},'${reqIdEnc}','${reqTextEnc}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          העלאת קובץ
+        </button>`:''}
+    </div>`;
+}
+function buildFilePillApproved(a){
+  return `
+    <a class="file-pill approved" href="${esc(a.url)}" target="_blank" rel="noopener">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span class="nm">${esc(a.name)}</span>
+    </a>`;
+}
+function buildFilePillPending(p){
+  return `
+    <div class="file-pill" data-file-id="${esc(p.fileId)}">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <a class="nm" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>
+      <button class="rm" onclick="removeFile('${esc(p.fileId)}')" title="הסר">✕</button>
+    </div>`;
+}
+
+/* ─── SECTIONS ─── */
+function toggleSection(name){
+  sectionState[name]=!sectionState[name];
+  applySectionState();
+  saveSectionState();
+}
+function applySectionState(){
+  $('sec-reports').classList.toggle('open', !!sectionState.reports);
+  $('sec-docs').classList.toggle('open',    !!sectionState.docs);
+  $('sec-info').classList.toggle('open',    !!sectionState.info);
+}
+
+/* ─── UPLOAD ─── */
+function startUpload(category, reportNum, reqId, reqText){
+  uploadCtx={category, reportNum: reportNum==='null'?null:Number(reportNum), reqId, reqText};
+  const inp=$('file-input');
+  inp.value='';
+  inp.click();
+}
+$('file-input').addEventListener('change', async (e)=>{
+  const f=e.target.files && e.target.files[0];
+  if(!f || !uploadCtx) return;
+  const ctx=uploadCtx;
+  uploadCtx=null;
+  try{
+    showLoading(true);
+    let blob=f;
+    let name=f.name||(ctx.reqText||'file');
+    let mime=f.type||'application/octet-stream';
+    if(mime.startsWith('image/')){
+      try{
+        const c=await compressImage(f);
+        if(c){
+          blob=c; mime='image/jpeg';
+          const baseName=(ctx.reqText||name).replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80)||'file';
+          name=baseName+'.jpg';
+        }
+      }catch(_){}
+    } else {
+      const ext=(f.name && f.name.match(/\.[^.]+$/)||[''])[0]||'';
+      const baseName=(ctx.reqText||'file').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80)||'file';
+      name=baseName+ext;
+    }
+    const dataBase64=await blobToBase64(blob);
+    await api('uploadFile',{
+      token:currentUser.token,
+      category:ctx.category,
+      reqId:ctx.reqId,
+      reqText:ctx.reqText,
+      reportNum:ctx.reportNum,
+      filename:name,
+      mimeType:mime,
+      dataBase64,
+    });
+    toast('הקובץ הועלה — ממתין לאישור', 'success');
+    await loadData(true);
+  }catch(err){
+    toast(err.message||'שגיאה בהעלאה', 'error');
+  }finally{
+    showLoading(false);
+  }
+});
+async function removeFile(fileId){
+  if(!confirm('להסיר את הקובץ?')) return;
+  try{
+    showLoading(true);
+    await api('removeFile',{token:currentUser.token, fileId});
+    toast('הקובץ הוסר', 'success');
+    await loadData(true);
+  }catch(err){
+    toast(err.message||'שגיאה', 'error');
+  }finally{
+    showLoading(false);
+  }
+}
+
+/* ─── ANSWER ─── */
+async function submitAnswer(reqId){
+  const ta=document.querySelector(`textarea[data-info-textarea="${reqId}"]`);
+  if(!ta) return;
+  const ans=ta.value.trim();
+  if(!ans){ toast('נא הקלד תשובה', 'error'); return; }
+  try{
+    showLoading(true);
+    await api('submitAnswer',{token:currentUser.token, reqId, answer:ans});
+    toast('התשובה נשלחה', 'success');
+    await loadData(true);
+  }catch(err){
+    toast(err.message||'שגיאה', 'error');
+  }finally{
+    showLoading(false);
+  }
+}
+
+/* ─── IMAGE COMPRESSION ─── */
+function compressImage(file){
   return new Promise((resolve,reject)=>{
     const r=new FileReader();
-    r.onload=()=>{
-      const result = r.result || '';
-      const idx = result.indexOf(',');
-      resolve(idx>=0 ? result.slice(idx+1) : result);
-    };
-    r.onerror=()=>reject(new Error('שגיאה בקריאת הקובץ'));
-    r.readAsDataURL(file);
-  });
-}
-
-/* Compress an image file before upload. Reduces transfer time hugely
-   (a typical 3-5 MB phone photo shrinks to ~600 KB at visually-lossless
-   quality). PDFs and other non-images are returned unchanged. Files
-   already under 500 KB are also returned as-is — not worth compressing. */
-async function compressImageIfNeeded(file){
-  if(!file) return file;
-  const isImage = /^image\//i.test(file.type || '');
-  if(!isImage) return file;             // PDFs etc — pass through
-  if(file.size < 500*1024) return file; // already small enough
-
-  const MAX_DIM = 1920;     // longest side cap (1920px is plenty for documents)
-  const QUALITY = 0.82;     // JPEG quality (0.82 ≈ visually lossless for docs)
-
-  // Decode the image
-  const dataUrl = await new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=()=>res(r.result);
-    r.onerror=()=>rej(new Error('שגיאה בקריאת התמונה'));
-    r.readAsDataURL(file);
-  });
-  const img = await new Promise((res,rej)=>{
-    const i=new Image();
-    i.onload=()=>res(i);
-    i.onerror=()=>rej(new Error('שגיאה בטעינת התמונה'));
-    i.src=dataUrl;
-  });
-
-  // Compute target dimensions (preserve aspect ratio)
-  let {width, height} = img;
-  if(width > MAX_DIM || height > MAX_DIM){
-    if(width >= height){
-      height = Math.round(height * MAX_DIM / width);
-      width = MAX_DIM;
-    } else {
-      width = Math.round(width * MAX_DIM / height);
-      height = MAX_DIM;
-    }
-  }
-
-  // Render to canvas
-  const canvas = document.createElement('canvas');
-  canvas.width = width; canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, width, height);
-
-  // Encode as JPEG (smaller than PNG for photos)
-  const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', QUALITY));
-  if(!blob) return file; // fallback if canvas-to-blob failed
-  // Wrap as a File so the rest of the code (filename, mimeType) works
-  const newName = (file.name || 'image').replace(/\.[^.]+$/,'') + '.jpg';
-  return new File([blob], newName, {type: 'image/jpeg'});
-}
-
-/* When a file is chosen (camera or upload), show the user a quick
-   confirmation modal with a pre-filled name (the requirement's text).
-   They can edit the name if needed, then tap "שלח" to actually upload. */
-let _pendingUpload = null; // {file, req}
-
-async function handleFileChosen(e){
-  const f=e.target.files && e.target.files[0];
-  e.target.value='';
-  if(!f || !_activeReqId) return;
-  const r=requests.find(x=>x.id===_activeReqId);
-  if(!r) return;
-  // Open the name-confirmation modal pre-filled with the req description.
-  // Strip dangerous chars and trim — the user can edit.
-  const cleanText = (r.text||'').replace(/[\/\\:*?"<>|]/g,' ').replace(/\s+/g,' ').trim();
-  _pendingUpload = {file:f, req:r};
-  const m = document.getElementById('name-modal');
-  document.getElementById('name-modal-text').textContent = r.text || '';
-  document.getElementById('name-modal-input').value = cleanText || f.name;
-  m.classList.add('open');
-  setTimeout(()=>document.getElementById('name-modal-input').focus(), 80);
-}
-
-function cancelNameModal(){
-  document.getElementById('name-modal').classList.remove('open');
-  _pendingUpload = null;
-}
-
-async function confirmNameAndUpload(){
-  if(!_pendingUpload) return;
-  const {file, req} = _pendingUpload;
-  let chosenName = document.getElementById('name-modal-input').value.trim();
-  if(!chosenName){ showToast('יש להזין שם לקובץ','err'); return; }
-  // Preserve the original extension if the user removed it
-  const orig = file.name || '';
-  const dot = orig.lastIndexOf('.');
-  const origExt = dot >= 0 ? orig.slice(dot) : '';
-  if(origExt && !chosenName.toLowerCase().endsWith(origExt.toLowerCase())){
-    chosenName += origExt;
-  }
-  document.getElementById('name-modal').classList.remove('open');
-  _pendingUpload = null;
-
-  if(!CONFIG.API_URL){
-    if(!req.files) req.files=[];
-    req.files.push({name:chosenName});
-    req.status='uploaded';
-    renderAll();
-    showToast('הועלה: '+chosenName,'ok');
-    return;
-  }
-
-  // Add a temporary "uploading" placeholder that the customer sees
-  // immediately. Dismisses the modal and frees them to keep working
-  // while the upload proceeds in the background.
-  if(!req.files) req.files=[];
-  const tempId = 'tmp-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  req.files.push({id: tempId, name: chosenName, _uploading: true});
-  if(req.status==='pending' || req.status==='rejected') req.status='uploaded';
-  renderAll();
-  showToast('מעלה ברקע — אפשר להמשיך','ok');
-
-  // Run the actual upload async, without blocking the UI.
-  (async ()=>{
-    try{
-      // Compress images so the round-trip is much faster. Documents
-      // (PDFs, etc.) pass through unchanged.
-      const fileToSend = await compressImageIfNeeded(file);
-      const dataBase64 = await fileToBase64(fileToSend);
-      const payload = {
-        token: currentUser.token,
-        category: req.category,
-        reqId: req.id,
-        reportNum: req.report || null,
-        filename: chosenName,
-        mimeType: fileToSend.type || 'application/octet-stream',
-        dataBase64,
+    r.onerror=()=>reject(new Error('read failed'));
+    r.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('img failed'));
+      img.onload=()=>{
+        const MAX=1920;
+        let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){
+          if(w>=h){ h=Math.round(h*MAX/w); w=MAX; }
+          else { w=Math.round(w*MAX/h); h=MAX; }
+        }
+        const c=document.createElement('canvas');
+        c.width=w; c.height=h;
+        const ctx=c.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        c.toBlob(b=>resolve(b), 'image/jpeg', 0.82);
       };
-      const data = await apiCall('uploadFile', payload);
-      // Replace the placeholder with the real file entry
-      const slot = req.files.find(f => f.id === tempId);
-      if(slot){
-        slot.id = data.fileId;
-        slot.name = data.fileName;
-        slot.url = data.fileUrl;
-        delete slot._uploading;
-      }
-      renderAll();
-      showToast('הועלה: '+chosenName,'ok');
-    }catch(err){
-      // Remove the placeholder and show an error
-      req.files = (req.files||[]).filter(f => f.id !== tempId);
-      if(!req.files.length && req.status==='uploaded') req.status='pending';
-      renderAll();
-      showToast(err.message||'שגיאה בהעלאה','err');
-    }
-  })();
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('file-input').addEventListener('change', handleFileChosen);
-  document.getElementById('camera-input').addEventListener('change', handleFileChosen);
-});
-
-async function removeFile(reqId, fileId){
-  if(!confirm('למחוק את הקובץ?')) return;
-  const r=requests.find(x=>x.id===reqId);
-  if(!r) return;
-  if(!CONFIG.API_URL){
-    r.files = (r.files||[]).filter(f=>(f.id||f.name)!==fileId);
-    if(!r.files.length && r.status==='uploaded') r.status='pending';
-    renderAll(); return;
-  }
-  showSpinner(true);
-  try{
-    await apiCall('removeFile', {token:currentUser.token, category:r.category, reqId:r.id, fileId});
-    r.files = (r.files||[]).filter(f=>f.id!==fileId);
-    if(!r.files.length && r.status==='uploaded') r.status='pending';
-    renderAll();
-    showToast('נמחק','ok');
-  }catch(e){
-    showToast(e.message||'שגיאה במחיקה','err');
-  }finally{
-    showSpinner(false);
-  }
-}
-
-async function saveAnswer(reqId){
-  const r=requests.find(x=>x.id===reqId);
-  if(!r) return;
-  const ta=document.getElementById('ans-'+reqId);
-  if(!ta) return;
-  const val=ta.value.trim();
-  if(!val){ showToast('הזן תשובה','err'); return; }
-  if(!CONFIG.API_URL){
-    r.answer=val; r.status='uploaded';
-    renderAll();
-    showToast('התשובה נשלחה','ok');
-    return;
-  }
-  showSpinner(true);
-  try{
-    await apiCall('submitAnswer', {token:currentUser.token, reqId:r.id, answer:val});
-    r.answer=val; r.status='uploaded';
-    renderAll();
-    showToast('התשובה נשלחה','ok');
-  }catch(e){
-    showToast(e.message||'שגיאה','err');
-  }finally{
-    showSpinner(false);
-  }
-}
-
-function openHelp(reqId){
-  const r=requests.find(x=>x.id===reqId);
-  if(!r) return;
-  document.getElementById('help-title').textContent=r.text||'הסבר';
-  const body=document.getElementById('help-body');
-  if((r.explanation||'').trim()){
-    body.innerHTML=`<div class="help-text">${esc(r.explanation)}</div>`;
-  } else {
-    body.innerHTML=`<div class="help-empty">לא הוסף הסבר נוסף לפריט זה.</div>`;
-  }
-  document.getElementById('help-modal').classList.add('open');
-}
-function closeHelp(){ document.getElementById('help-modal').classList.remove('open'); }
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('help-modal').addEventListener('click', e=>{
-    if(e.target.id==='help-modal') closeHelp();
+      img.src=e.target.result;
+    };
+    r.readAsDataURL(file);
   });
+}
+function blobToBase64(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('read failed'));
+    r.onload=()=>{
+      const s=String(r.result||'');
+      const i=s.indexOf(',');
+      resolve(i>=0?s.slice(i+1):s);
+    };
+    r.readAsDataURL(blob);
+  });
+}
+
+/* ─── HISTORY ─── */
+window.addEventListener('popstate', ()=>{
+  if(currentReportNum!==null){
+    currentReportNum=null;
+    renderReports();
+  }
 });
 
-let _toastTimer=null;
-function showToast(msg, kind=''){
-  const t=document.getElementById('toast');
-  t.textContent=msg;
-  t.className='toast'+(kind?(' '+kind):'')+' show';
-  if(_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer=setTimeout(()=>t.classList.remove('show'), 2400);
-}
-function showSpinner(show){ document.getElementById('spinner-overlay').classList.toggle('show', show); }
-
-document.addEventListener('DOMContentLoaded',()=>{
-  try{
-    const saved=localStorage.getItem(LS_USER);
-    if(saved){
-      currentUser=JSON.parse(saved);
-      showApp();
+/* ─── INIT ─── */
+async function init(){
+  const sess=loadSession();
+  if(sess && sess.token){
+    currentUser=sess;
+    showApp();
+    await loadData();
+  }
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+  setInterval(()=>{
+    if(document.visibilityState==='visible' && currentUser && !isLoading){
+      loadData(true);
     }
-  }catch(_){}
+  }, 60000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && currentUser && !isLoading){
+      loadData(true);
+    }
+  });
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && $('login-screen').style.display!=='none'){
+    doLogin();
+  }
 });
 
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
-}
+init();
 </script>
 </body>
 </html>
