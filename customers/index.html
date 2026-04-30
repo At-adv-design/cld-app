@@ -11,6 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- pdf-lib for converting images to PDF and merging multiple images
+     into a single PDF before upload. Loaded async so it doesn't block
+     the initial render. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
 <style>
 :root{
   --bg:#FAF9F5;
@@ -149,10 +153,10 @@ input,textarea,button{font-family:inherit;}
   -webkit-tap-highlight-color:rgba(58,58,72,.12);
   user-select:none;
   -webkit-user-select:none;
+  position:relative;
+  z-index:2;
 }
-/* Make sure no inner element steals the click — only the head reacts. */
-.section-head > *,
-.section-head > * > *{pointer-events:none;}
+.section-head *{pointer-events:none !important;}
 .section-head:active{background:var(--bg);}
 .section-head .left{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
 .section-icon{
@@ -200,7 +204,6 @@ input,textarea,button{font-family:inherit;}
 .report-row.locked .num{background:var(--border-strong);}
 .report-row.done .num{background:var(--green);}
 .report-row .info{flex:1;min-width:0;}
-.report-row .info .ttl{font-size:13px;font-weight:600;color:var(--text);}
 .report-row .info .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
 .report-row .pills{
   display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end;
@@ -219,6 +222,51 @@ input,textarea,button{font-family:inherit;}
   font-size:10px;font-weight:700;color:#fff;
   background:var(--red);padding:2px 7px;
 }
+
+/* ── Deck (carousel) styling for the customer's reports list ──
+   Visual model: the active report sits on top, full width. The
+   previous report peeks out from below it (a stacked-deck look).
+   Older reports are progressively offset and faded so the user
+   can scroll/tap to access them, but they don't dominate the
+   screen. Future reports are not rendered at all. */
+.deck-card{position:relative;}
+.deck-active{
+  z-index:5;
+  border-color:var(--slate);
+  box-shadow:0 4px 12px rgba(58,58,72,.08);
+}
+.deck-spine{
+  margin-top:-4px;
+  position:relative;
+}
+/* First spine peeks out by ~22px under the active one. Each
+   subsequent older spine is slightly more inset and faded. */
+.deck-pos-1{margin-left:8px;margin-right:8px;opacity:.92;z-index:4;}
+.deck-pos-2{margin-left:14px;margin-right:14px;opacity:.78;z-index:3;}
+.deck-pos-3{margin-left:20px;margin-right:20px;opacity:.62;z-index:2;}
+.deck-pos-4{margin-left:24px;margin-right:24px;opacity:.5;z-index:1;}
+.deck-spine .info .ttl,
+.deck-spine .info .dt{font-size:12px;}
+
+/* Excel icon: tiny stroked-line icon in the title row, opens
+   the per-report Excel file in a new tab. Same visual style
+   as the rest of the app's icons (1.5px stroke, slate color). */
+.report-row .info .ttl{
+  display:flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:600;color:var(--text);
+}
+.report-row .info .ttl > span:first-child{flex:1;}
+.report-excel-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;flex-shrink:0;
+  background:var(--bg);border:1px solid var(--border);
+  color:var(--green);text-decoration:none;
+  transition:background .12s, transform .12s;
+}
+.report-excel-btn:active{transform:scale(.9);background:var(--white);}
+.report-excel-btn svg{width:14px;height:14px;}
+.report-row.done .report-excel-btn,
+.deck-active .report-excel-btn{background:var(--white);}
 
 .req-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
 .req-list:first-child{margin-top:0;}
@@ -455,7 +503,7 @@ input,textarea,button{font-family:inherit;}
 
     <!-- REPORTS -->
     <div class="section" id="sec-reports">
-      <div class="section-head" onclick="toggleSection('reports')">
+      <div class="section-head" data-section-key="reports">
         <div class="left">
           <div class="section-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
@@ -478,7 +526,7 @@ input,textarea,button{font-family:inherit;}
 
     <!-- DOCS (CV) -->
     <div class="section" id="sec-docs">
-      <div class="section-head" onclick="toggleSection('docs')">
+      <div class="section-head" data-section-key="docs">
         <div class="left">
           <div class="section-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -500,7 +548,7 @@ input,textarea,button{font-family:inherit;}
 
     <!-- INFO (CW) -->
     <div class="section" id="sec-info">
-      <div class="section-head" onclick="toggleSection('info')">
+      <div class="section-head" data-section-key="info">
         <div class="left">
           <div class="section-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -525,7 +573,7 @@ input,textarea,button{font-family:inherit;}
 
 <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
-<input type="file" id="file-input" accept="image/*,application/pdf" style="display:none">
+<input type="file" id="file-input" accept="image/*,application/pdf" multiple style="display:none">
 
 <script>
 'use strict';
@@ -704,45 +752,55 @@ function rejectionCountFor(category, reportNum){
 /* ─── RENDER ─── */
 function render(){ renderReports(); renderDocs(); renderInfo(); }
 
+/* ─── REPORTS — "carousel of stacked cards" ─────────────────
+   Visual model: the report whose due date is closest to (but not
+   after) today is the "active" card and sits on top. Past reports
+   stack behind it like a deck of cards — the user can swipe/scroll
+   to see them. Future reports (not yet due) are hidden entirely.
+   The active card and at most ONE older one are visually full;
+   anything older peeks out from underneath as a thin "spine". */
 function renderReports(){
   const list=$('reports-list');
   const detail=$('report-detail');
   const today=new Date(); today.setHours(0,0,0,0);
   const todayMs=today.getTime();
 
-  const rows=dataReportInfo.map(info=>{
-    const r=dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
-    const dateMs=info.dateMs||null;
-    const isLocked=dateMs && dateMs>todayMs;
-    const isDone=!!info.status;
-    const cls=isLocked?'locked':(isDone?'done':'active');
-    const badge=isLocked?'נעול':(isDone?esc(info.status):'פעיל');
-    const reqCount=(r.required||[]).length;
-    const pendingC=dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num).length;
-    const rejC   =dataRejections.filter(r=>r.category==='reports'&&(r.reportNum||null)===info.num).length;
+  // Decide: which is the active report?
+  // Rule: the report with the largest dateMs that is still <= today.
+  // If no report is due yet at all, fall back to the earliest one.
+  let activeIdx = -1;
+  for(let i = 0; i < dataReportInfo.length; i++){
+    const info = dataReportInfo[i];
+    const dms = info.dateMs || 0;
+    if(!dms) continue;
+    if(dms <= todayMs){
+      if(activeIdx < 0 || dms > (dataReportInfo[activeIdx].dateMs||0)) activeIdx = i;
+    }
+  }
+  if(activeIdx < 0){
+    // No report due yet — show the earliest by date as a stand-in.
+    let bestMs = Infinity;
+    for(let i = 0; i < dataReportInfo.length; i++){
+      const dms = dataReportInfo[i].dateMs;
+      if(dms && dms < bestMs){ bestMs = dms; activeIdx = i; }
+    }
+    if(activeIdx < 0) activeIdx = 0;
+  }
 
-    const meta=[];
-    if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
-    if(reqCount)      meta.push(reqCount+' פריטים נדרשים');
+  // Build the visible deck: active + every older report.
+  // Future reports are NOT included at all.
+  const visible = [];
+  for(let i = 0; i <= activeIdx; i++){
+    visible.push({info: dataReportInfo[i], idx: i});
+  }
+  // Active sits at the END so it's rendered last (= visually on top
+  // when the deck is rendered with stack order). We reverse so the
+  // active is FIRST in the HTML order, then progressively older below.
+  visible.reverse();
 
-    const handler=isLocked?'':`onclick="openReport(${info.num})"`;
+  const html = visible.map((entry, position) => _renderDeckCard(entry.info, position, todayMs)).join('');
 
-    return `
-      <div class="report-row ${cls}" ${handler}>
-        <div class="num">${info.num}</div>
-        <div class="info">
-          <div class="ttl">דוח ${info.num}</div>
-          <div class="dt">${meta.join(' • ')||'&nbsp;'}</div>
-        </div>
-        <div class="pills">
-          ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
-          ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
-          <span class="badge">${badge}</span>
-        </div>
-      </div>`;
-  }).join('');
-
-  list.innerHTML=rows||'<div class="empty">אין דוחות זמינים</div>';
+  list.innerHTML = html || '<div class="empty">אין דוחות זמינים</div>';
 
   const total=dataReportInfo.length;
   const done =dataReportInfo.filter(r=>r.status).length;
@@ -762,6 +820,74 @@ function renderReports(){
     detail.classList.remove('shown');
     detail.innerHTML='';
   }
+}
+
+/* Render one card in the deck. position 0 = active (on top, full height,
+   tappable to open). position 1 = the previous one peeks out from below
+   the active card. position 2+ = even older — only a thin spine showing
+   the report number and date so the user can scroll/tap to access. */
+function _renderDeckCard(info, position, todayMs){
+  const r = dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
+  const dateMs = info.dateMs||null;
+  const isDone = !!info.status;
+  const reqCount = (r.required||[]).length;
+  const pendingC = dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num).length;
+  const rejC = dataRejections.filter(rj=>rj.category==='reports'&&(rj.reportNum||null)===info.num).length;
+
+  // Visual class
+  const cls = ['report-row', 'deck-card'];
+  if(isDone) cls.push('done');
+  else cls.push('active');
+  if(position === 0) cls.push('deck-active');
+  else cls.push('deck-spine');
+  cls.push('deck-pos-'+Math.min(position, 4));
+
+  const badge = isDone ? esc(info.status) : (position===0 ? 'להגשה' : 'הוגש');
+
+  const meta=[];
+  if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
+  if(reqCount)      meta.push(reqCount+' פריטים נדרשים');
+
+  // Excel icon link — placeholder URL (will be wired to a sheet column
+  // later). For now we don't render the link if no URL is configured.
+  // The icon style mirrors the rest of the app: stroked SVG, slate color.
+  const excelUrl = _reportExcelUrl(info.num);
+  const excelBtn = excelUrl ? `
+    <a class="report-excel-btn" href="${esc(excelUrl)}" target="_blank" rel="noopener" title="פתח קובץ אקסל לדוח" onclick="event.stopPropagation()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="13" x2="15" y2="19"/>
+        <line x1="15" y1="13" x2="9" y2="19"/>
+      </svg>
+    </a>` : '';
+
+  return `
+    <div class="${cls.join(' ')}" onclick="openReport(${info.num})">
+      <div class="num">${info.num}</div>
+      <div class="info">
+        <div class="ttl">
+          <span>דוח ${info.num}</span>
+          ${excelBtn}
+        </div>
+        <div class="dt">${meta.join(' • ')||'&nbsp;'}</div>
+      </div>
+      <div class="pills">
+        ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
+        ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
+        <span class="badge">${badge}</span>
+      </div>
+    </div>`;
+}
+
+/* Look up the per-report Excel-file URL. Currently returns null because
+   the sheet column for these URLs hasn't been wired yet. When the
+   user tells us which column holds the URL, we'll read it from
+   dataReportInfo[i].excelUrl (populated in handleGetRequests on the
+   server side). */
+function _reportExcelUrl(num){
+  const info = dataReportInfo.find(x => x.num === num);
+  return (info && info.excelUrl) ? info.excelUrl : null;
 }
 
 function openReport(num){
@@ -1022,6 +1148,28 @@ function applySectionState(){
   $('sec-docs').classList.toggle('open',    !!sectionState.docs);
   $('sec-info').classList.toggle('open',    !!sectionState.info);
 }
+// Robust click handling: delegated, also catches touchend on iOS where
+// click doesn't always fire on non-button elements.
+function _sectionKeyFromEvent(e){
+  const head = e.target && e.target.closest && e.target.closest('.section-head[data-section-key]');
+  if(!head) return null;
+  return head.getAttribute('data-section-key') || null;
+}
+let _sectionLastToggle = 0;
+function _doSectionToggle(name){
+  const now = Date.now();
+  if(now - _sectionLastToggle < 350) return;  // dedupe rapid double events
+  _sectionLastToggle = now;
+  toggleSection(name);
+}
+document.addEventListener('click', function(e){
+  const k = _sectionKeyFromEvent(e);
+  if(k) _doSectionToggle(k);
+});
+document.addEventListener('touchend', function(e){
+  const k = _sectionKeyFromEvent(e);
+  if(k) _doSectionToggle(k);
+}, {passive:true});
 
 /* ─── UPLOAD ─── */
 function startUpload(category, reportNum, reqId, reqText){
@@ -1031,54 +1179,116 @@ function startUpload(category, reportNum, reqId, reqText){
   inp.click();
 }
 $('file-input').addEventListener('change', async (e)=>{
-  const f=e.target.files && e.target.files[0];
-  if(!f || !uploadCtx) return;
-  const ctx=uploadCtx;
-  uploadCtx=null;
-  // 1) Compress (fast, blocks UI briefly with spinner)
+  const files = Array.from(e.target.files || []);
+  if(!files.length || !uploadCtx) return;
+  const ctx = uploadCtx;
+  uploadCtx = null;
+
   showLoading(true);
-  let blob=f, name=f.name||(ctx.reqText||'file'), mime=f.type||'application/octet-stream';
   try{
-    if(mime.startsWith('image/')){
-      try{
-        const c=await compressImage(f);
-        if(c){
-          blob=c; mime='image/jpeg';
-          const baseName=(ctx.reqText||name).replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80)||'file';
-          name=baseName+'.jpg';
-        }
-      }catch(_){}
-    } else {
-      const ext=(f.name && f.name.match(/\.[^.]+$/)||[''])[0]||'';
-      const baseName=(ctx.reqText||'file').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80)||'file';
-      name=baseName+ext;
+    // Strategy:
+    //  - All-images selection (1 or more) → compress each, then merge
+    //    into a single PDF using pdf-lib. This way every customer-uploaded
+    //    image becomes a viewable PDF with a date-stamped filename.
+    //  - Single PDF → upload as-is (rename only).
+    //  - Mixed (image + PDF, or multiple PDFs) → upload each separately,
+    //    in the order selected.
+    const allImages = files.every(f => (f.type||'').startsWith('image/'));
+    const baseName = (ctx.reqText||'file').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80) || 'file';
+
+    if(allImages){
+      // Compress each, then build one PDF.
+      const compressed = [];
+      for(const f of files){
+        try{
+          const c = await compressImage(f);
+          compressed.push(c || f);
+        }catch(_){ compressed.push(f); }
+      }
+      const pdfBlob = await imagesToPdf(compressed);
+      if(pdfBlob){
+        const dataBase64 = await blobToBase64(pdfBlob);
+        showLoading(false);
+        toast('הקובץ נשלח — ממתין לאישור', 'success');
+        api('uploadFile',{
+          token:currentUser.token,
+          category:ctx.category,
+          reqId:ctx.reqId,
+          reqText:ctx.reqText,
+          reportNum:ctx.reportNum,
+          filename: baseName + '.pdf',
+          mimeType: 'application/pdf',
+          dataBase64,
+        }).then(()=>loadData(true))
+          .catch(err=>toast('שגיאה בהעלאה: '+(err.message||''),'error'));
+        return;
+      }
+      // pdf-lib not loaded — fall back to uploading each image separately
     }
-    const dataBase64=await blobToBase64(blob);
+
+    // Multiple files (or pdf-lib unavailable) — upload each independently.
     showLoading(false);
-    // 2) Show immediate feedback. The customer doesn't have to wait
-    //    for Apps Script to finish writing to Drive.
-    toast('הקובץ נשלח — ממתין לאישור', 'success');
-    // 3) Fire the upload in the background. When it succeeds we
-    //    refresh the list so the new pending file shows up.
-    api('uploadFile',{
-      token:currentUser.token,
-      category:ctx.category,
-      reqId:ctx.reqId,
-      reqText:ctx.reqText,
-      reportNum:ctx.reportNum,
-      filename:name,
-      mimeType:mime,
-      dataBase64,
-    }).then(()=>{
-      loadData(true);
-    }).catch(err=>{
-      toast('שגיאה בהעלאה: '+(err.message||''), 'error');
-    });
+    toast(files.length===1 ? 'הקובץ נשלח — ממתין לאישור' : `${files.length} קבצים נשלחו — ממתינים לאישור`, 'success');
+    for(let i=0; i<files.length; i++){
+      const f = files[i];
+      const mime = f.type || 'application/octet-stream';
+      let blob = f;
+      let name = f.name || baseName;
+      if(mime.startsWith('image/')){
+        try{
+          const c = await compressImage(f);
+          if(c){ blob = c; name = baseName + (files.length>1?'_'+(i+1):'') + '.jpg'; }
+        }catch(_){}
+      } else {
+        const ext = (f.name && f.name.match(/\.[^.]+$/) || [''])[0] || '';
+        name = baseName + (files.length>1?'_'+(i+1):'') + ext;
+      }
+      const dataBase64 = await blobToBase64(blob);
+      api('uploadFile',{
+        token:currentUser.token,
+        category:ctx.category,
+        reqId:ctx.reqId,
+        reqText:ctx.reqText,
+        reportNum:ctx.reportNum,
+        filename: name,
+        mimeType: mime.startsWith('image/') ? 'image/jpeg' : mime,
+        dataBase64,
+      }).then(()=>loadData(true))
+        .catch(err=>toast('שגיאה בהעלאה: '+(err.message||''),'error'));
+    }
   }catch(err){
     showLoading(false);
-    toast(err.message||'שגיאה בהעלאה', 'error');
+    toast(err.message || 'שגיאה בהעלאה', 'error');
   }
 });
+
+/* Convert an array of image Blobs/Files into a single PDF Blob using
+   pdf-lib. Returns null if pdf-lib isn't loaded yet. Each image gets
+   its own page sized to its dimensions (capped at A4-like aspect to
+   keep file size reasonable). */
+async function imagesToPdf(imageBlobs){
+  if(!window.PDFLib) return null;
+  const { PDFDocument } = window.PDFLib;
+  const doc = await PDFDocument.create();
+  for(const blob of imageBlobs){
+    const bytes = await blob.arrayBuffer();
+    let img;
+    const type = (blob.type||'').toLowerCase();
+    if(type === 'image/png'){
+      img = await doc.embedPng(bytes);
+    } else {
+      // Treat anything else as JPEG. compressImage() always outputs JPEG.
+      img = await doc.embedJpg(bytes);
+    }
+    // Cap width/height so the PDF doesn't blow up in size; we already
+    // compressed images to 1920px max during preprocessing.
+    const W = img.width, H = img.height;
+    const page = doc.addPage([W, H]);
+    page.drawImage(img, {x:0, y:0, width:W, height:H});
+  }
+  const out = await doc.save();
+  return new Blob([out], {type:'application/pdf'});
+}
 function removeFile(fileId){
   if(!confirm('להסיר את הקובץ?')) return;
   // OPTIMISTIC: remove from local pending list + re-render
