@@ -6,7 +6,1221 @@
 <meta name="theme-color" content="#3a3a48">
 <title>תיק שלי — אבי טל ושות׳</title>
 <link rel="manifest" href="manifest.json"/>
+<link rel="icon" type=<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#3a3a48">
+<title>תיק שלי — אבי טל ושות׳</title>
+<link rel="manifest" href="manifest.json"/>
 <link rel="icon" type="image/png" href="../icon.png"/>
+<link rel="apple-touch-icon" href="../icon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAF9F5;
+  --white:#FFFFFF;
+  --text:#1A1A28;
+  --muted:#6B6B7A;
+  --slate:#3A3A48;
+  --border:#E5E2D8;
+  --border-strong:#C9C5B8;
+  --red:#C8362A;
+  --red-bg:#FBEEEC;
+  --red-border:#E8C4BF;
+  --green:#2F8550;
+  --green-bg:#EBF3EE;
+  --orange:#C77B1E;
+  --orange-bg:#FBF1E1;
+  --blue:#3A5BB0;
+  --blue-bg:#EDF1FA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+button,input,textarea,select,.section-head,.req-card,.report-row,.file-pill{
+  -webkit-user-select:none;user-select:none;
+}
+input,textarea{-webkit-user-select:text;user-select:text;}
+html,body{height:100%;}
+body{
+  font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;-webkit-font-smoothing:antialiased;
+  font-size:14px;line-height:1.5;
+  overscroll-behavior:none;
+}
+input,textarea,button{font-family:inherit;}
+
+#login-screen{
+  position:fixed;inset:0;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+  padding-top:calc(20px + env(safe-area-inset-top));
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  z-index:100;
+}
+.login-box{
+  width:100%;max-width:380px;
+  background:transparent;
+  border:none;
+  padding:28px 24px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.login-logo{
+  width:180px;max-width:100%;
+  height:auto;align-self:center;
+  margin-bottom:6px;object-fit:contain;
+  display:block;
+  mix-blend-mode:multiply;
+}
+.login-title{font-size:18px;font-weight:700;text-align:center;color:var(--text);}
+.login-sub{font-size:13px;color:var(--muted);text-align:center;margin-top:-6px;margin-bottom:6px;}
+.login-field{display:flex;flex-direction:column;gap:5px;}
+.login-field label{font-size:12px;font-weight:600;color:var(--slate);}
+.login-field input{
+  padding:11px 12px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:0;
+  font-size:15px;color:var(--text);
+  outline:none;
+}
+.login-field input:focus{border-color:var(--slate);}
+.login-btn{
+  margin-top:6px;padding:12px;
+  background:var(--slate);color:#fff;border:none;
+  font-size:14px;font-weight:600;cursor:pointer;
+}
+.login-btn:active{transform:scale(.98);}
+.login-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.login-error{
+  font-size:12px;color:var(--red);background:var(--red-bg);
+  border:1px solid var(--red-border);padding:8px 10px;
+  display:none;
+}
+.login-error.show{display:block;}
+
+#app{display:none;flex-direction:column;min-height:100vh;}
+#app.shown{display:flex;}
+/* HEADER — matches insolvency app exactly */
+.header{
+  background:var(--white);height:96px;padding:0 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  border-bottom:1px solid var(--border);
+  padding-top:env(safe-area-inset-top);
+  height:calc(96px + env(safe-area-inset-top));
+}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-name{
+  font-size:13px;color:var(--text);font-weight:600;
+  background:var(--bg);border:1px solid var(--border);
+  padding:0 12px;height:32px;display:inline-flex;align-items:center;
+  flex-shrink:0;max-width:46vw;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hdr-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.hdr-btn:active{background:var(--border);}
+.avatar{
+  width:32px;height:32px;border-radius:4px;
+  background:var(--slate);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;color:#fff;cursor:pointer;
+  overflow:hidden;flex-shrink:0;
+}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+.header-logo{
+  height:80px;object-fit:contain;
+  pointer-events:none;
+}
+
+.content{flex:1;padding:14px;padding-bottom:calc(40px + env(safe-area-inset-bottom));}
+
+.section{
+  background:var(--white);
+  border:1px solid var(--border);
+  margin-bottom:12px;
+}
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:13px 14px;cursor:pointer;
+  background:var(--white);
+  transition:background .12s;
+  -webkit-tap-highlight-color:rgba(58,58,72,.12);
+  user-select:none;
+  -webkit-user-select:none;
+}
+/* Make sure no inner element steals the click — only the head reacts. */
+.section-head > *,
+.section-head > * > *{pointer-events:none;}
+.section-head:active{background:var(--bg);}
+.section-head .left{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
+.section-icon{
+  width:28px;height:28px;flex-shrink:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--slate);
+}
+.section-icon svg{width:16px;height:16px;}
+.section-title{font-size:14px;font-weight:700;color:var(--text);}
+.section-meta{font-size:11px;color:var(--muted);font-weight:500;}
+.section-chev{
+  width:18px;height:18px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.section.open .section-chev{transform:rotate(180deg);}
+.section-body{display:none;border-top:1px solid var(--border);padding:12px 14px;}
+.section.open .section-body{display:block;}
+.section-pending{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--orange);padding:2px 7px;
+}
+
+.reports-list{display:flex;flex-direction:column;gap:8px;}
+.report-row{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 12px;
+  background:var(--white);
+  border:1px solid var(--border);
+  cursor:pointer;
+}
+.report-row:active{background:var(--bg);}
+.report-row.locked{
+  background:var(--bg);opacity:.7;cursor:not-allowed;
+}
+.report-row.done{
+  background:var(--green-bg);border-color:#C9DFD0;
+}
+.report-row .num{
+  width:28px;height:28px;flex-shrink:0;
+  background:var(--slate);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;
+}
+.report-row.locked .num{background:var(--border-strong);}
+.report-row.done .num{background:var(--green);}
+.report-row .info{flex:1;min-width:0;}
+.report-row .info .ttl{font-size:13px;font-weight:600;color:var(--text);}
+.report-row .info .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+.report-row .pills{
+  display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end;
+}
+.report-row .badge{
+  font-size:10px;font-weight:700;padding:3px 8px;white-space:nowrap;
+}
+.report-row.locked .badge{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.report-row.done .badge{background:var(--green);color:#fff;}
+.report-row.active .badge{background:var(--slate);color:#fff;}
+.report-pending-pill{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--orange);padding:2px 7px;
+}
+.report-rejected-pill{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--red);padding:2px 7px;
+}
+
+.req-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.req-list:first-child{margin-top:0;}
+.req-card{
+  background:var(--white);
+  border:1px solid var(--border);
+  padding:12px;
+}
+.req-card.approved{background:var(--green-bg);border-color:#C9DFD0;}
+.req-card.pending{background:var(--orange-bg);border-color:#E8D8B5;}
+.req-card.rejected{background:var(--red-bg);border-color:var(--red-border);}
+.req-text{font-size:13px;font-weight:600;color:var(--text);line-height:1.45;word-break:break-word;}
+.req-status-pill{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 8px;margin-top:6px;color:#fff;
+}
+.req-status-pill.uploaded{background:var(--orange);}
+.req-status-pill.approved{background:var(--green);}
+.req-status-pill.rejected{background:var(--red);}
+.reject-reason{
+  margin-top:8px;padding:8px 10px;
+  background:#fff;border:1px solid var(--red-border);
+  font-size:12px;color:#5C2520;line-height:1.4;word-break:break-word;
+}
+.reject-reason strong{color:var(--red);}
+
+.file-pills{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.file-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 9px;
+  background:var(--white);
+  border:1px solid var(--border);
+  font-size:12px;color:var(--text);
+  text-decoration:none;
+}
+.file-pill .ico{width:16px;height:16px;color:var(--slate);flex-shrink:0;}
+.file-pill .nm{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none;}
+.file-pill .rm{
+  background:transparent;border:none;cursor:pointer;
+  padding:2px 6px;font-size:13px;color:var(--muted);
+}
+.file-pill .rm:active{color:var(--red);}
+.file-pill.approved{background:var(--green-bg);border-color:#C9DFD0;}
+
+/* Approved file — name on its own line, URL clickable on the next line */
+.approved-row{
+  padding:7px 9px;
+  background:var(--green-bg);border:1px solid #C9DFD0;
+  display:flex;flex-direction:column;gap:3px;
+}
+.ar-name{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:var(--text);
+}
+.ar-name svg.ar-ico{width:14px;height:14px;color:var(--green);flex-shrink:0;}
+.ar-name span{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ar-url{
+  font-size:10px;color:var(--blue);text-decoration:underline;
+  word-break:break-all;line-height:1.3;
+}
+
+.upload-btn{
+  margin-top:10px;width:100%;
+  padding:10px 12px;
+  background:var(--white);color:var(--slate);
+  border:1px dashed var(--slate);
+  font-size:13px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.upload-btn:active{background:var(--bg);}
+.upload-btn svg{width:15px;height:15px;}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.answer-area{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+.answer-area textarea{
+  width:100%;min-height:70px;padding:9px 10px;
+  background:var(--bg);border:1px solid var(--border);border-radius:0;
+  font-size:13px;color:var(--text);resize:vertical;outline:none;
+}
+.answer-area textarea:focus{border-color:var(--slate);}
+.answer-saved{
+  font-size:12px;color:var(--text);background:var(--white);
+  border:1px solid var(--border);padding:8px 10px;
+  white-space:pre-wrap;word-break:break-word;line-height:1.45;
+  margin-top:8px;
+}
+.answer-row{display:flex;gap:8px;}
+.answer-row button{
+  padding:8px 14px;background:var(--slate);color:#fff;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;
+}
+.answer-row button:active{transform:scale(.97);}
+.answer-row button:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── Q&A cards (CW info questions) ──────────────────────────
+   Each question is a card with a chevron. Closed = question +
+   status pill on the side. Open = textarea + save button.
+   Visual mirrors the original `req-card` look (which the user
+   preferred). */
+.qa-card{
+  background:var(--white);
+  border:1px solid var(--border);
+  padding:12px;
+  margin-bottom:10px;
+}
+.qa-card.has-answer{background:var(--green-bg);border-color:#C9DFD0;}
+.qa-head{
+  display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+  /* No padding here — the .qa-card already has padding. */
+}
+.qa-q{
+  flex:1;min-width:0;
+  font-size:13px;font-weight:600;color:var(--text);
+  line-height:1.45;word-break:break-word;
+}
+.qa-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;
+  margin-top:1px;
+}
+.qa-status-pill{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 8px;color:#fff;white-space:nowrap;
+}
+.qa-status-pill.answered{background:var(--green);}
+.qa-status-pill.empty{background:var(--orange);}
+.qa-chev{
+  width:16px;height:16px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.qa-card.open .qa-chev{transform:rotate(180deg);}
+.qa-body{
+  display:none;
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.qa-card.has-answer .qa-body{border-top-color:#C9DFD0;}
+.qa-card.open .qa-body{display:flex;flex-direction:column;gap:8px;}
+.qa-body textarea{
+  width:100%;min-height:80px;padding:9px 10px;
+  background:var(--white);border:1px solid var(--border);border-radius:0;
+  font-size:13px;color:var(--text);resize:vertical;outline:none;
+  font-family:inherit;
+}
+.qa-card.has-answer .qa-body textarea{border-color:#C9DFD0;}
+.qa-body textarea:focus{border-color:var(--slate);}
+.qa-actions{display:flex;justify-content:flex-end;}
+.qa-actions button{
+  padding:8px 16px;background:var(--slate);color:#fff;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.qa-actions button:active{transform:scale(.97);}
+.qa-actions button:disabled{opacity:.5;cursor:not-allowed;}
+
+.empty{padding:18px 12px;text-align:center;color:var(--muted);font-size:12px;}
+
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(255,255,255,.7);
+  display:none;align-items:center;justify-content:center;
+  z-index:200;
+}
+.loading-overlay.shown{display:flex;}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--border);
+  border-top-color:var(--slate);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--slate);color:#fff;
+  padding:10px 16px;font-size:13px;font-weight:500;
+  z-index:300;opacity:0;transition:opacity .2s, transform .2s;
+  pointer-events:none;max-width:90vw;text-align:center;
+}
+.toast.shown{opacity:1;transform:translateX(-50%) translateY(-4px);}
+.toast.error{background:var(--red);}
+.toast.success{background:var(--green);}
+
+.report-detail{display:none;flex-direction:column;}
+.report-detail.shown{display:flex;}
+.report-detail-head{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--bg);
+  border:1px solid var(--border);margin-bottom:10px;
+}
+.report-detail-head .back{
+  background:var(--white);border:1px solid var(--border);
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--slate);
+}
+.report-detail-head .back:active{background:var(--border);}
+.report-detail-head .back svg{width:16px;height:16px;}
+.report-detail-head .ttl{font-size:14px;font-weight:700;}
+.report-detail-head .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <img src="../logo.png?v=3" alt="אבי טל ושות׳" class="login-logo">
+    <div class="login-title">תיק שלי</div>
+    <div class="login-sub">אבי טל ושות׳ — משרד עורכי דין</div>
+    <div id="login-error" class="login-error"></div>
+    <div class="login-field">
+      <label for="username">תעודת זהות</label>
+      <input type="tel" id="username" inputmode="numeric" pattern="[0-9]*" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label for="password">סיסמה</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">כניסה</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="hdr-right">
+      <span class="hdr-name" id="topbar-name"></span>
+      <button class="hdr-btn" onclick="loadData()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="doLogout()" title="יציאה"></div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" class="header-logo" onerror="this.style.display='none'">
+  </div>
+  <div class="content">
+
+    <!-- REPORTS -->
+    <div class="section" id="sec-reports">
+      <div class="section-head" onclick="toggleSection('reports')">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+          </div>
+          <div>
+            <div class="section-title">דוחות</div>
+            <div class="section-meta" id="reports-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="reports-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="reports-list" id="reports-list"></div>
+        <div class="report-detail" id="report-detail"></div>
+      </div>
+    </div>
+
+    <!-- DOCS (CV) -->
+    <div class="section" id="sec-docs">
+      <div class="section-head" onclick="toggleSection('docs')">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">השלמת מסמכים</div>
+            <div class="section-meta" id="docs-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="docs-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="docs-list"></div>
+      </div>
+    </div>
+
+    <!-- INFO (CW) -->
+    <div class="section" id="sec-info">
+      <div class="section-head" onclick="toggleSection('info')">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">השלמת פרטים</div>
+            <div class="section-meta" id="info-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="info-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="info-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" accept="image/*,application/pdf" style="display:none">
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════
+   CONFIG — paste your deployed Apps Script Web App URL here.
+   ═══════════════════════════════════════════════════════════ */
+const CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbyw2h2n6TNprU2JCNtX8VOLB01eSoFbc8v3KfUbTWAZ3J4r4APnWy3uQ0yWjq6vlXjXaA/exec'
+};
+
+const STORAGE_KEY      = 'at_customer_session_v1';
+const SECTION_STATE_KEY= 'at_customer_sections_v1';
+
+/* STATE */
+let currentUser   = null;   // {rowNum, name, username, token}
+let dataReports   = [];     // [{num, required:[{id,text}], approved:[{name,url,fileId,reqId,reqText}]}]
+let dataReportInfo= [];     // [{num, dateMs, dateText, status}]
+let dataDocsRequired = [];  // DJ — [{id, text, report:0}] for supplemental docs
+let dataDocsApproved = [];  // DK — [{fileId, name, url, reqId, reqText, approvedAt}]
+let dataInfo      = [];     // CW — [{id, text, status?, answer?, rejectionReason?}]
+let dataPending   = [];     // every uploaded-but-not-yet-approved file across all categories
+let dataRejections= [];     // DL — [{reqId, reqText, reason, ts, category, reportNum}]
+let currentReportNum = null;
+let sectionState  = {reports:false, docs:false, info:false};
+let uploadCtx     = null;
+let isLoading     = false;
+
+/* ─── API ─── */
+async function api(action, payload){
+  if(!CONFIG.API_URL) throw new Error('האפליקציה לא מוגדרת — צור קשר עם המשרד');
+  const body = Object.assign({action}, payload || {});
+  let res;
+  try{
+    res = await fetch(CONFIG.API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(body),
+      redirect:'follow'
+    });
+  }catch(_){ throw new Error('אין חיבור לאינטרנט — נסה שוב'); }
+  let json;
+  try{ json = await res.json(); }
+  catch(_){ throw new Error('תגובה לא תקינה מהשרת'); }
+  if(!json.ok) throw new Error(json.error || 'שגיאה לא ידועה');
+  return json;
+}
+
+/* ─── SESSION ─── */
+function saveSession(u){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); }catch(_){} }
+function loadSession(){ try{ const r=localStorage.getItem(STORAGE_KEY); return r?JSON.parse(r):null; }catch(_){ return null; } }
+function clearSession(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(_){} }
+function loadSectionState(){ try{ const r=localStorage.getItem(SECTION_STATE_KEY); if(r) sectionState=Object.assign(sectionState,JSON.parse(r)); }catch(_){} }
+function saveSectionState(){ try{ localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(sectionState)); }catch(_){} }
+
+/* ─── HELPERS ─── */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(s){ return esc(s).replace(/`/g,'&#96;'); }
+function showLoading(on){ isLoading=!!on; $('loading').classList.toggle('shown', !!on); }
+let _toastTimer=null;
+function toast(msg, type){
+  const el=$('toast');
+  el.textContent=msg;
+  el.classList.remove('error','success');
+  if(type) el.classList.add(type);
+  el.classList.add('shown');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('shown'), 2400);
+}
+
+/* ─── LOGIN ─── */
+async function doLogin(){
+  const u=$('username').value.trim();
+  const p=$('password').value.trim();
+  const err=$('login-error');
+  err.classList.remove('show');
+  if(!u||!p){ err.textContent='הזן תעודת זהות וסיסמה'; err.classList.add('show'); return; }
+  $('login-btn').disabled=true;
+  showLoading(true);
+  try{
+    const res=await api('login',{username:u,password:p});
+    currentUser=res.user;
+    saveSession(currentUser);
+    showApp();
+    await loadData();
+  }catch(e){
+    err.textContent=e.message||'שגיאה';
+    err.classList.add('show');
+  }finally{
+    $('login-btn').disabled=false;
+    showLoading(false);
+  }
+}
+function doLogout(){
+  if(!confirm('להתנתק?')) return;
+  clearSession();
+  currentUser=null;
+  dataReports=[]; dataReportInfo=[]; dataDocsRequired=[]; dataDocsApproved=[]; dataInfo=[]; dataPending=[]; dataRejections=[];
+  currentReportNum=null;
+  $('app').classList.remove('shown');
+  $('login-screen').style.display='flex';
+  $('username').value=''; $('password').value='';
+}
+function showApp(){
+  $('login-screen').style.display='none';
+  $('app').classList.add('shown');
+  updateHeaderUser();
+  loadSectionState();
+  applySectionState();
+}
+function updateHeaderUser(){
+  const name = (currentUser && currentUser.name) || '';
+  $('topbar-name').textContent = name;
+  // Compute avatar initials (up to 2 chars from the first words)
+  const av = $('user-avatar');
+  if(av){
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    const initials = parts.length === 0 ? '?' :
+                     parts.length === 1 ? parts[0].slice(0,2) :
+                     parts[0].charAt(0) + parts[parts.length-1].charAt(0);
+    av.textContent = initials;
+  }
+}
+
+/* ─── DATA LOAD ─── */
+async function loadData(silent){
+  if(!currentUser) return;
+  if(!silent) showLoading(true);
+  try{
+    const res=await api('getRequests',{token:currentUser.token});
+    dataReports       = Array.isArray(res.reports)       ? res.reports       : [];
+    dataReportInfo    = Array.isArray(res.reportInfo)    ? res.reportInfo    : [];
+    dataDocsRequired  = Array.isArray(res.docsRequired)  ? res.docsRequired  : [];
+    dataDocsApproved  = Array.isArray(res.docsApproved)  ? res.docsApproved  : [];
+    dataInfo          = Array.isArray(res.info)          ? res.info          : [];
+    dataPending       = Array.isArray(res.pending)       ? res.pending       : [];
+    dataRejections    = Array.isArray(res.rejections)    ? res.rejections    : [];
+    if(res.name){
+      currentUser.name=res.name;
+      $('topbar-name').textContent=res.name;
+      saveSession(currentUser);
+    }
+    render();
+  }catch(e){
+    if(/פג תוקף/.test(e.message)){
+      doLogout();
+      toast('פג תוקף הכניסה — התחבר מחדש', 'error');
+      return;
+    }
+    if(!silent) toast(e.message||'שגיאה בטעינה', 'error');
+  }finally{
+    if(!silent) showLoading(false);
+  }
+}
+
+/* ─── PENDING LOOKUPS ─── */
+function pendingCountFor(category, reportNum){
+  return dataPending.filter(p =>
+    p.category===category && p.status==='uploaded' &&
+    (reportNum==null || (p.reportNum||null)===reportNum)
+  ).length;
+}
+/* Look up the rejection record for a given reqId, if any. */
+function rejectionFor(reqId){
+  if(!reqId) return null;
+  return dataRejections.find(r => r.reqId === reqId) || null;
+}
+function rejectionCountFor(category, reportNum){
+  return dataRejections.filter(r =>
+    r.category===category &&
+    (reportNum==null || (r.reportNum||null)===reportNum)
+  ).length;
+}
+
+/* ─── RENDER ─── */
+function render(){ renderReports(); renderDocs(); renderInfo(); }
+
+function renderReports(){
+  const list=$('reports-list');
+  const detail=$('report-detail');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const todayMs=today.getTime();
+
+  const rows=dataReportInfo.map(info=>{
+    const r=dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
+    const dateMs=info.dateMs||null;
+    const isLocked=dateMs && dateMs>todayMs;
+    const isDone=!!info.status;
+    const cls=isLocked?'locked':(isDone?'done':'active');
+    const badge=isLocked?'נעול':(isDone?esc(info.status):'פעיל');
+    const reqCount=(r.required||[]).length;
+    const pendingC=dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num).length;
+    const rejC   =dataRejections.filter(r=>r.category==='reports'&&(r.reportNum||null)===info.num).length;
+
+    const meta=[];
+    if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
+    if(reqCount)      meta.push(reqCount+' פריטים נדרשים');
+
+    const handler=isLocked?'':`onclick="openReport(${info.num})"`;
+
+    return `
+      <div class="report-row ${cls}" ${handler}>
+        <div class="num">${info.num}</div>
+        <div class="info">
+          <div class="ttl">דוח ${info.num}</div>
+          <div class="dt">${meta.join(' • ')||'&nbsp;'}</div>
+        </div>
+        <div class="pills">
+          ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
+          ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
+          <span class="badge">${badge}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  list.innerHTML=rows||'<div class="empty">אין דוחות זמינים</div>';
+
+  const total=dataReportInfo.length;
+  const done =dataReportInfo.filter(r=>r.status).length;
+  $('reports-meta').textContent=total?`${done} מתוך ${total} בוצעו`:'אין נתונים';
+
+  const totalPending=pendingCountFor('reports', null);
+  const pEl=$('reports-pending');
+  if(totalPending){ pEl.textContent=totalPending+' ממתינים'; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+
+  if(currentReportNum!==null){
+    list.style.display='none';
+    detail.classList.add('shown');
+    renderReportDetail();
+  } else {
+    list.style.display='flex';
+    detail.classList.remove('shown');
+    detail.innerHTML='';
+  }
+}
+
+function openReport(num){
+  currentReportNum=num;
+  history.pushState({page:'report',num},'');
+  renderReports();
+  setTimeout(()=>$('sec-reports').scrollIntoView({behavior:'smooth',block:'start'}), 30);
+}
+function closeReport(){
+  currentReportNum=null;
+  renderReports();
+}
+
+function renderReportDetail(){
+  const num=currentReportNum;
+  const info=dataReportInfo.find(x=>x.num===num)||{};
+  const r=dataReports.find(x=>x.num===num)||{required:[],approved:[]};
+  const required=r.required||[];
+  const approved=r.approved||[];
+  const pendingHere=dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===num);
+
+  const cards=required.map(req=>buildReqCard({
+    category:'reports',
+    reportNum:num,
+    reqId:req.id,
+    reqText:req.text,
+    approved:approved.filter(a=>a.reqId===req.id),
+    pending:pendingHere.filter(p=>p.reqId===req.id),
+    rejection: rejectionFor(req.id),
+  })).join('');
+
+  // Orphan pending uploads (uploaded against an old/removed requirement)
+  const orphans=pendingHere.filter(p=>!required.some(req=>req.id===p.reqId));
+  const orphansHtml=orphans.length?`
+    <div class="req-card pending">
+      <div class="req-text">קבצים נוספים שהעלית</div>
+      <div class="file-pills">
+        ${orphans.map(p=>buildFilePillPending(p)).join('')}
+      </div>
+    </div>`:'';
+
+  // Approved files that don't match any current requirement
+  const orphanApproved=approved.filter(a=>!required.some(req=>req.id===a.reqId));
+  const orphanApprovedHtml=orphanApproved.length?`
+    <div class="req-card approved">
+      <div class="req-text">קבצים שאושרו</div>
+      <div class="file-pills">${orphanApproved.map(a=>buildFilePillApproved(a)).join('')}</div>
+    </div>`:'';
+
+  $('report-detail').innerHTML=`
+    <div class="report-detail-head">
+      <button class="back" onclick="closeReport()" title="חזרה">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <div style="flex:1">
+        <div class="ttl">דוח ${num}</div>
+        ${info.dateText?`<div class="dt">תאריך: ${esc(info.dateText)}</div>`:''}
+      </div>
+    </div>
+    <div class="req-list">
+      ${cards||'<div class="empty">לא נדרשו מסמכים לדוח זה</div>'}
+      ${orphansHtml}
+      ${orphanApprovedHtml}
+    </div>`;
+}
+
+/* DOCS — supplemental documents
+   Required list comes from DJ (one line per requirement).
+   Approved files come from DK.
+   Pending uploads come from dataPending (category='docs').
+*/
+function renderDocs(){
+  const list=$('docs-list');
+  const required = dataDocsRequired || [];
+  const approved = dataDocsApproved || [];
+
+  const cards = required.map(req => {
+    return buildReqCard({
+      category:'docs',
+      reportNum:null,
+      reqId:req.id,
+      reqText:req.text,
+      approved: approved.filter(a => a.reqId === req.id),
+      pending : dataPending.filter(p => p.category==='docs' && p.reqId === req.id),
+      rejection: rejectionFor(req.id),
+    });
+  }).join('');
+
+  // Orphan approved (approved files for requirements that no longer exist)
+  const orphanApproved = approved.filter(a => !required.some(req => req.id === a.reqId));
+  const orphanApprovedHtml = orphanApproved.length ? `
+    <div class="req-card approved">
+      <div class="req-text">קבצים שאושרו</div>
+      <div class="file-pills">${orphanApproved.map(a => buildFilePillApproved(a)).join('')}</div>
+    </div>` : '';
+
+  // Orphan pending
+  const orphanPending = dataPending.filter(p =>
+    p.category==='docs' && !required.some(req => req.id === p.reqId)
+  );
+  const orphanPendingHtml = orphanPending.length ? `
+    <div class="req-card pending">
+      <div class="req-text">קבצים נוספים שהעלית</div>
+      <div class="file-pills">${orphanPending.map(p => buildFilePillPending(p)).join('')}</div>
+    </div>` : '';
+
+  list.innerHTML = (cards + orphanPendingHtml + orphanApprovedHtml) ||
+    '<div class="empty">אין מסמכים נדרשים</div>';
+
+  const totalReq = required.length;
+  const approvedReqs = required.filter(req => approved.some(a => a.reqId === req.id)).length;
+  $('docs-meta').textContent = totalReq ? `${approvedReqs} מתוך ${totalReq} אושרו` : 'אין נתונים';
+
+  const pendingCount = pendingCountFor('docs', null);
+  const pEl = $('docs-pending');
+  if(pendingCount){ pEl.textContent = pendingCount+' ממתינים'; pEl.style.display = 'inline-block'; }
+  else pEl.style.display = 'none';
+}
+
+/* INFO (CW) */
+/* INFO (CW) — Q&A pairs.
+   Each question is rendered as a collapsible card. The chevron toggles
+   open/closed; opening reveals the answer textarea + a save button.
+   Both customer and lawyer can update answers anytime — no
+   approve/reject status here. */
+function renderInfo(){
+  const list=$('info-list');
+  const cards=(dataInfo||[]).map(q=>{
+    const id = q.id || '';
+    const text = q.question || q.text || '';   // tolerate both fields
+    const answer = q.answer || '';
+    const isOpen = !!_infoOpen[id];
+    const hasAnswer = !!answer.trim();
+    return `
+      <div class="qa-card ${isOpen?'open':''} ${hasAnswer?'has-answer':''}">
+        <div class="qa-head" onclick="toggleInfo('${escAttr(id)}')">
+          <div class="qa-q">${esc(text)}</div>
+          <div class="qa-meta">
+            ${hasAnswer
+              ? '<span class="qa-status-pill answered">ענית</span>'
+              : '<span class="qa-status-pill empty">ממתין לתשובה</span>'}
+            <svg class="qa-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="qa-body">
+          <textarea data-info-textarea="${escAttr(id)}" placeholder="כתוב כאן את התשובה…">${esc(answer)}</textarea>
+          <div class="qa-actions">
+            <button onclick="submitAnswer('${escAttr(id)}')">${hasAnswer?'עדכן תשובה':'שלח תשובה'}</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  list.innerHTML=cards||'<div class="empty">אין שאלות לענות עליהן</div>';
+
+  const total=(dataInfo||[]).length;
+  const answered=(dataInfo||[]).filter(q=>(q.answer||'').trim()).length;
+  $('info-meta').textContent=total?`${answered} מתוך ${total} ענו`:'אין נתונים';
+
+  const unanswered = total - answered;
+  const pEl=$('info-pending');
+  if(unanswered){ pEl.textContent='נותרו '+unanswered; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+}
+/* Per-question open state. Persist across re-renders, not across reloads. */
+const _infoOpen = {};
+function toggleInfo(id){
+  _infoOpen[id] = !_infoOpen[id];
+  // Toggle just this card without a full re-render so the textarea
+  // doesn't lose any in-progress text.
+  const cards = document.querySelectorAll('.qa-card');
+  cards.forEach(c => {
+    const ta = c.querySelector('textarea[data-info-textarea]');
+    if(ta && ta.getAttribute('data-info-textarea') === id){
+      c.classList.toggle('open', !!_infoOpen[id]);
+      if(_infoOpen[id]){
+        // Auto-focus when opening (without scroll-jump)
+        try{ ta.focus({preventScroll:true}); }catch(_){ ta.focus(); }
+      }
+    }
+  });
+}
+
+/* ─── REQ CARD ─── */
+function buildReqCard(opts){
+  const approved=opts.approved||[];
+  const pending =opts.pending||[];
+  const rejection = opts.rejection || null;
+
+  const hasRejected = !!rejection;
+  const hasPending  = pending.length > 0;
+  const hasApproved = approved.length > 0;
+  const cls = hasPending ? 'pending' :
+              hasRejected ? 'rejected' :
+              hasApproved ? 'approved' : '';
+
+  const approvedHtml=approved.map(a=>buildFilePillApproved(a)).join('');
+  const uploadedHtml=pending.map(p=>buildFilePillPending(p)).join('');
+
+  // Rejection block — file was deleted, but we tell the customer why
+  const rejectionHtml = rejection ? `
+    <div class="reject-reason">
+      <strong>הקובץ נדחה על ידי המשרד.</strong>
+      ${rejection.reason ? '<br>סיבה: ' + esc(rejection.reason) : ''}
+      <br>נא להעלות קובץ מתוקן.
+    </div>` : '';
+
+  let pillHtml='';
+  if(hasPending)       pillHtml='<span class="req-status-pill uploaded">ממתין לאישור</span>';
+  else if(hasApproved) pillHtml='<span class="req-status-pill approved">אושר</span>';
+  else if(hasRejected) pillHtml='<span class="req-status-pill rejected">יש להעלות מחדש</span>';
+
+  // Allow upload unless approved (with no pending and no rejection)
+  const allowUpload=!(hasApproved && !hasPending && !hasRejected);
+
+  const reqTextEnc = String(opts.reqText||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const reqIdEnc   = String(opts.reqId||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  return `
+    <div class="req-card ${cls}">
+      <div class="req-text">${esc(opts.reqText)}</div>
+      ${pillHtml}
+      ${(approvedHtml||uploadedHtml)?`<div class="file-pills">${approvedHtml}${uploadedHtml}</div>`:''}
+      ${rejectionHtml}
+      ${allowUpload?`
+        <button class="upload-btn" onclick="startUpload('${esc(opts.category)}',${opts.reportNum||'null'},'${reqIdEnc}','${reqTextEnc}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          העלאת קובץ
+        </button>`:''}
+    </div>`;
+}
+function buildFilePillApproved(a){
+  return `
+    <div class="approved-row">
+      <div class="ar-name">
+        <svg class="ar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>${esc(a.name||'')}</span>
+      </div>
+      ${a.url?`<a class="ar-url" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a>`:''}
+    </div>`;
+}
+function buildFilePillPending(p){
+  return `
+    <div class="file-pill" data-file-id="${esc(p.fileId)}">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <a class="nm" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>
+      <button class="rm" onclick="removeFile('${esc(p.fileId)}')" title="הסר">✕</button>
+    </div>`;
+}
+
+/* ─── SECTIONS ─── */
+function toggleSection(name){
+  sectionState[name]=!sectionState[name];
+  applySectionState();
+  saveSectionState();
+}
+function applySectionState(){
+  $('sec-reports').classList.toggle('open', !!sectionState.reports);
+  $('sec-docs').classList.toggle('open',    !!sectionState.docs);
+  $('sec-info').classList.toggle('open',    !!sectionState.info);
+}
+
+/* ─── UPLOAD ─── */
+function startUpload(category, reportNum, reqId, reqText){
+  uploadCtx={category, reportNum: reportNum==='null'?null:Number(reportNum), reqId, reqText};
+  const inp=$('file-input');
+  inp.value='';
+  inp.click();
+}
+$('file-input').addEventListener('change', async (e)=>{
+  const f=e.target.files && e.target.files[0];
+  if(!f || !uploadCtx) return;
+  const ctx=uploadCtx;
+  uploadCtx=null;
+  // 1) Compress (fast, blocks UI briefly with spinner)
+  showLoading(true);
+  let blob=f, name=f.name||(ctx.reqText||'file'), mime=f.type||'application/octet-stream';
+  try{
+    if(mime.startsWith('image/')){
+      try{
+        const c=await compressImage(f);
+        if(c){
+          blob=c; mime='image/jpeg';
+          const baseName=(ctx.reqText||name).replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80)||'file';
+          name=baseName+'.jpg';
+        }
+      }catch(_){}
+    } else {
+      const ext=(f.name && f.name.match(/\.[^.]+$/)||[''])[0]||'';
+      const baseName=(ctx.reqText||'file').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80)||'file';
+      name=baseName+ext;
+    }
+    const dataBase64=await blobToBase64(blob);
+    showLoading(false);
+    // 2) Show immediate feedback. The customer doesn't have to wait
+    //    for Apps Script to finish writing to Drive.
+    toast('הקובץ נשלח — ממתין לאישור', 'success');
+    // 3) Fire the upload in the background. When it succeeds we
+    //    refresh the list so the new pending file shows up.
+    api('uploadFile',{
+      token:currentUser.token,
+      category:ctx.category,
+      reqId:ctx.reqId,
+      reqText:ctx.reqText,
+      reportNum:ctx.reportNum,
+      filename:name,
+      mimeType:mime,
+      dataBase64,
+    }).then(()=>{
+      loadData(true);
+    }).catch(err=>{
+      toast('שגיאה בהעלאה: '+(err.message||''), 'error');
+    });
+  }catch(err){
+    showLoading(false);
+    toast(err.message||'שגיאה בהעלאה', 'error');
+  }
+});
+function removeFile(fileId){
+  if(!confirm('להסיר את הקובץ?')) return;
+  // OPTIMISTIC: remove from local pending list + re-render
+  dataPending = (dataPending||[]).filter(p => p.fileId !== fileId);
+  render();
+  toast('הקובץ הוסר', 'success');
+  api('removeFile',{token:currentUser.token, fileId})
+    .catch(err => toast('שגיאה בהסרה: '+(err.message||''), 'error'));
+}
+
+/* ─── ANSWER ─── */
+function submitAnswer(reqId){
+  const ta=document.querySelector(`textarea[data-info-textarea="${reqId}"]`);
+  if(!ta) return;
+  const ans=ta.value.trim();
+  if(!ans){ toast('נא הקלד תשובה', 'error'); return; }
+  // OPTIMISTIC: update local state + UI immediately. Don't show a
+  // spinner. Don't wait for Apps Script. The user already sees their
+  // answer saved instantly and can continue working.
+  const q = (dataInfo||[]).find(x => x.id === reqId);
+  if(q){ q.answer = ans; renderInfo(); }
+  toast('נשמר', 'success');
+  // Fire the API call in the background. Errors surface via toast
+  // but don't block the UI.
+  api('submitAnswer',{token:currentUser.token, reqId, answer:ans})
+    .catch(err => toast('שגיאה בשמירה: '+(err.message||''), 'error'));
+}
+
+/* ─── IMAGE COMPRESSION ─── */
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('read failed'));
+    r.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('img failed'));
+      img.onload=()=>{
+        const MAX=1920;
+        let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){
+          if(w>=h){ h=Math.round(h*MAX/w); w=MAX; }
+          else { w=Math.round(w*MAX/h); h=MAX; }
+        }
+        const c=document.createElement('canvas');
+        c.width=w; c.height=h;
+        const ctx=c.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        c.toBlob(b=>resolve(b), 'image/jpeg', 0.82);
+      };
+      img.src=e.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+function blobToBase64(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('read failed'));
+    r.onload=()=>{
+      const s=String(r.result||'');
+      const i=s.indexOf(',');
+      resolve(i>=0?s.slice(i+1):s);
+    };
+    r.readAsDataURL(blob);
+  });
+}
+
+/* ─── HISTORY ─── */
+window.addEventListener('popstate', ()=>{
+  if(currentReportNum!==null){
+    currentReportNum=null;
+    renderReports();
+  }
+});
+
+/* ─── INIT ─── */
+async function init(){
+  const sess=loadSession();
+  if(sess && sess.token){
+    currentUser=sess;
+    showApp();
+    await loadData();
+  }
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+  setInterval(()=>{
+    if(document.visibilityState==='visible' && currentUser && !isLoading){
+      loadData(true);
+    }
+  }, 60000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && currentUser && !isLoading){
+      loadData(true);
+    }
+  });
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && $('login-screen').style.display!=='none'){
+    doLogin();
+  }
+});
+
+init();
+
+/* Keyboard-aware focus: scroll the focused input/textarea into view so
+   it isn't hidden by the on-screen keyboard. */
+(function attachKeyboardScroll(){
+  let scrollTimer = null;
+  function handleFocus(e){
+    const t = e.target;
+    if(!t) return;
+    const tag = t.tagName;
+    if(tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    if(tag === 'INPUT'){
+      const type = (t.type||'').toLowerCase();
+      if(type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit') return;
+    }
+    if(scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(()=>{
+      try{
+        t.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'});
+      }catch(_){
+        try{ t.scrollIntoView(false); }catch(__){}
+      }
+    }, 280);
+  }
+  document.addEventListener('focusin', handleFocus, true);
+})();
+</script>
+</body>
+</html>
+/png" href="../icon.png"/>
 <link rel="apple-touch-icon" href="../icon.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
