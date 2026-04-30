@@ -85,7 +85,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:11px 13px;cursor:pointer;
   transition:background .12s;
+  /* Make sure children don't intercept the click — the head itself
+     handles toggling via onclick. */
+  -webkit-tap-highlight-color:rgba(58,58,72,.12);
 }
+.cust-section-head > *{pointer-events:none;}
 .cust-section-head:active{background:var(--bg);}
 .cust-section-head-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
 .cust-section-title-text{font-size:13px;font-weight:700;color:var(--slate);}
@@ -570,6 +574,56 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .log-btn-row{display:flex;gap:8px;}
 .log-btn-primary{flex:1;padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;background:var(--slate);color:#fff;font-family:inherit;}
 .log-btn-secondary{flex:1;padding:12px;border:1px solid var(--border);border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--muted);font-family:inherit;}
+
+/* ── Q&A cards in the lawyer's customer area (CW info questions) ── */
+.qa-card-l{
+  background:var(--white);
+  border:1px solid var(--border);
+  margin-bottom:7px;
+}
+.qa-card-l.has-answer{background:var(--green-bg, #EBF3EE);border-color:#C9DFD0;}
+.qa-head-l{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 8px;cursor:pointer;
+}
+.qa-q-input{
+  flex:1;min-width:0;
+  background:transparent;border:none;
+  padding:5px 6px;
+  font-family:inherit;font-size:13px;font-weight:600;color:var(--text);
+  outline:none;
+  text-align:right;direction:rtl;
+}
+.qa-q-input:focus{
+  background:var(--white);
+  box-shadow:inset 0 0 0 1px var(--slate);
+}
+.qa-del{
+  background:transparent;border:none;cursor:pointer;
+  padding:4px 6px;color:var(--muted);flex-shrink:0;
+}
+.qa-del:hover{color:var(--red);}
+.qa-del svg{width:14px;height:14px;}
+.qa-chev-l{
+  width:14px;height:14px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.qa-card-l.open .qa-chev-l{transform:rotate(180deg);}
+.qa-body-l{
+  display:none;border-top:1px solid var(--border);
+  padding:8px;
+  background:var(--white);
+}
+.qa-card-l.open .qa-body-l{display:block;}
+.qa-a-input{
+  width:100%;min-height:60px;padding:8px 9px;
+  background:var(--bg);border:1px solid var(--border);border-radius:0;
+  font-family:inherit;font-size:12px;color:var(--text);
+  resize:vertical;outline:none;
+  text-align:right;direction:rtl;line-height:1.45;
+}
+.qa-a-input:focus{border-color:var(--slate);}
+
 </style>
 </head>
 <body>
@@ -848,7 +902,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </div>
     </div>
     <!-- Scrollable body -->
-    <div id="customer-area-body" style="flex:1;overflow-y:auto;padding:0 2px;display:flex;flex-direction:column;gap:14px"></div>
+    <div id="customer-area-body" data-modal-scroll style="flex:1;overflow-y:auto;padding:0 2px;display:flex;flex-direction:column;gap:14px"></div>
   </div>
 </div>
 
@@ -1415,11 +1469,11 @@ async function apiFetch(url,opts={},attempt=0){
   }
   const headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+tok});
   const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(),20000);
+  const t=setTimeout(()=>ctrl.abort(),30000);
   try{
     const res=await fetch(url,Object.assign({},opts,{headers,signal:ctrl.signal}));
     clearTimeout(t);
-    if(res.status===401 && attempt===0){
+    if(res.status===401 && attempt<2){
       localStorage.setItem('ite','0');
       return apiFetch(url,opts,attempt+1);
     }
@@ -1428,9 +1482,13 @@ async function apiFetch(url,opts={},attempt=0){
     if(!res.ok){
       const msg=(data&&data.error&&data.error.message)||('HTTP '+res.status);
       const err=new Error(msg);
-      // Auth-scope failures (e.g. token issued without spreadsheets scope)
-      // can't be fixed by silent retry — bounce the user back to login.
       if(isAuthError(err)){ handleAuthError(); }
+      // Retry on transient server errors (5xx) up to 3 times
+      if((res.status>=500 || res.status===429) && attempt<3){
+        setOnlineBadge('retrying','שולח שוב...');
+        await new Promise(r=>setTimeout(r, 800*(attempt+1)));
+        return apiFetch(url,opts,attempt+1);
+      }
       throw err;
     }
     setOnlineBadge('online');
@@ -1438,7 +1496,7 @@ async function apiFetch(url,opts={},attempt=0){
   }catch(e){
     clearTimeout(t);
     const isNetwork=(e.name==='AbortError'||e.name==='TypeError'||/network/i.test(e.message||''));
-    if(isNetwork && attempt<3){
+    if(isNetwork && attempt<5){
       setOnlineBadge('retrying','מחבר מחדש...');
       await new Promise(r=>setTimeout(r, 600*(attempt+1)));
       return apiFetch(url,opts,attempt+1);
@@ -1520,6 +1578,19 @@ setInterval(()=>{
 
 // Try flushing queue every 30s
 setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
+
+// Proactive token refresh: every 5 minutes, check whether the token
+// is going to expire in the next 10 minutes. If so, refresh it now
+// while the app is idle. This way the user never sees a "session
+// expired" error mid-action.
+setInterval(()=>{
+  if(!navigator.onLine || !accessToken) return;
+  const exp = parseInt(localStorage.getItem('ite')||'0');
+  const tenMinutes = 10 * 60 * 1000;
+  if(exp && (exp - Date.now()) < tenMinutes){
+    silentReauth().catch(()=>{});
+  }
+},5*60*1000);
 
 // Auto-refresh client data every 2 minutes so pending approvals
 // from the customer app appear automatically without manual refresh.
@@ -3019,9 +3090,14 @@ function closeCustomerArea(){
 function _loadCustSectionState(rowNum){
   try{
     const raw = localStorage.getItem('at_cust_sections_'+rowNum);
-    if(raw) return JSON.parse(raw) || {};
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && typeof parsed === 'object') return parsed;
+    }
   }catch(_){}
-  return {};
+  // First time the lawyer opens this client — open the most useful
+  // sections by default so they see something instead of an empty list.
+  return {reports: true, docs: true, info: true};
 }
 function _saveCustSectionState(){
   if(!_custState) return;
