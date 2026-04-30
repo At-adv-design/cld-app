@@ -1,118 +1,3274 @@
-// Service worker for the LEADS app
-// IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v58';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  '../logo.png',
-  '../icon.png'
-];
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>אבי טל ושות׳ | לידים</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      )
-    )
-  );
-  self.clients.claim();
-});
-
-// When the user taps a reminder notification we open (or focus) the app.
-// "התקשר" action: open tel: DIRECTLY via clients.openWindow — this is what
-// reliably triggers the Android dialer from a notification. After the dialer
-// hand-off, we also send a postMessage so when the user returns to the app
-// after the call, the call-summary modal is already open with the action
-// buttons (continue/meeting/reminder/remove).
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const data = event.notification.data || {};
-  const leadIdx = data.leadIdx;
-  const phone = (data.phone || '').replace(/[^0-9+]/g, '');
-
-  if (event.action === 'call' && phone) {
-    event.waitUntil((async () => {
-      // Tell the app to pre-open the call-summary modal so it's ready when
-      // the user finishes the call. Do this BEFORE the tel: hand-off.
-      try {
-        const wins = await clients.matchAll({type:'window', includeUncontrolled:true});
-        for (const c of wins) {
-          if ('focus' in c) {
-            try { c.postMessage({kind:'open-lead', leadIdx}); } catch(_){}
-            break;
-          }
-        }
-      } catch(_){}
-      // Now launch the dialer. clients.openWindow with a tel: URL is the only
-      // reliable path from a service worker notificationclick on Android.
-      try { await clients.openWindow('tel:' + phone); } catch(_){}
-    })());
-    return;
-  }
-  // Default click (or "open" action) → focus / open the app on this lead
-  event.waitUntil(
-    clients.matchAll({type:'window', includeUncontrolled:true}).then((wins) => {
-      for (const client of wins) {
-        if ('focus' in client) {
-          if (leadIdx) client.postMessage({kind:'open-lead', leadIdx});
-          return client.focus();
-        }
-      }
-      const url = leadIdx ? `./#lead=${leadIdx}` : './';
-      return clients.openWindow(url);
-    })
-  );
-});
-
-// Hosts whose responses must NEVER be cached — always fetch fresh from the network.
-function isLiveDataHost(url) {
-  return (
-    url.includes('googleapis.com') ||
-    url.includes('google.com/oauth') ||
-    url.includes('accounts.google.com') ||
-    url.includes('googleusercontent.com')
-  );
+/* sharp-corner reset (override default rounded buttons / inputs / cards) */
+button,input,textarea,select,.lead-card,.swipe-wrap,.note-box,.modal-sheet,
+.search-box,.confirm-card,.login-card,.hdr-btn,.hdr-count,.call-btn,.note-btn,
+.wa-btn,.cal-btn,.restore-btn,.tab,.lead-badge,.removed-lbl,.continue-lbl,.btn,
+.mic-btn,.show-all-btn,.note-user,.confirm-btn,.google-btn{
+  border-radius:0 !important;
 }
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  const url = req.url;
+/* dark-mode tweaks for the brand logo (it's a light PNG) */
+[data-theme="dark"] img[alt*="טל"]{
+  filter:invert(.94) hue-rotate(180deg) brightness(.95);
+}
 
-  // 1) Live data — bypass cache entirely. Always go to the network.
-  if (isLiveDataHost(url)) {
-    event.respondWith(fetch(req));
-    return;
+/* theme toggle */
+.theme-toggle{
+  background:var(--bg);border:1px solid var(--border);
+  width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text);transition:background .15s;
+}
+.theme-toggle:active{background:var(--surface-2);}
+.theme-toggle svg{width:16px;height:16px;}
+:root{
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;
+  --bg:#FAF9F5;            /* Claude-input cream */
+  --white:#FFFFFF;
+  --surface-2:#F2F1EA;
+  --border:#D9D6CA;
+  --border-soft:#E6E3D8;
+  --muted:#6B6A65;
+  --text:#1F1E1B;
+  --green:#1a7a45;
+  --green-soft:#E8F2EB;
+  --blue:#1a5f9e;
+  --red-soft:#FDECEC;
+  --shadow:0 1px 2px rgba(31,30,27,0.04),0 4px 16px rgba(31,30,27,0.05);
+}
+[data-theme="dark"]{
+  --slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;
+  --bg:#1F1E1C;
+  --white:#2A2A28;          /* "white" surface in dark = dark surface */
+  --surface-2:#34332F;
+  --border:#3A3A36;
+  --border-soft:#33332F;
+  --muted:#A8A6A0;
+  --text:#F5F4EE;
+  --green:#48C77A;
+  --green-soft:#1F3A2A;
+  --blue:#6FA8E5;
+  --red-soft:#3A2222;
+  --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
+}
+html,body{height:100%;}
+body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* LOGO COMPONENT */
+.logo-mark{display:flex;align-items:stretch;gap:2px;height:36px;}
+.lm-b{display:flex;flex-direction:column;justify-content:center;padding:0 10px;}
+.lm-b1{background:var(--slate);}
+.lm-b2{background:var(--slate2);}
+.lm-he{font-size:11px;font-weight:700;color:#fff;line-height:1.25;letter-spacing:0.1px;}
+.lm-en{font-size:8px;font-weight:400;color:rgba(255,255,255,0.6);line-height:1.25;}
+.lm-red{color:var(--red);}
+
+/* HEADER */
+.header{background:var(--white);height:96px;padding:0 16px 0 40px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:4px;align-items:center;}
+.hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;font-weight:600;padding:0 5px;font-family:inherit;display:inline-flex;align-items:center;height:26px;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:26px;height:26px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hdr-btn:active{background:var(--border);}
+.avatar{width:28px;height:28px;border-radius:4px;background:var(--slate);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+
+/* TABS */
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;position:sticky;top:96px;z-index:99;}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.tab.active{color:var(--slate);border-bottom-color:var(--slate);font-weight:600;}
+/* Sub-tab pills inside the "המשך" section — switch between regular
+   continue leads and the "לא נענו" leads. Same look as the main tabs
+   but smaller and bordered like the chip buttons. */
+.subtab{
+  background:var(--white);border:1px solid var(--border);
+  color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;
+  padding:6px 14px;cursor:pointer;
+}
+.subtab.active{background:var(--slate);color:#fff;border-color:var(--slate);}
+
+/* SEARCH */
+.search-wrap{background:var(--white);padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:137px;z-index:98;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0 12px;}
+.search-box:focus-within{border-color:var(--slate);}
+.search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
+.search-box input::placeholder{color:var(--muted);}
+
+/* STATS */
+.stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:18px;font-size:11px;font-weight:500;color:var(--muted);}
+.stat{display:flex;align-items:center;gap:5px;}
+.sdot{width:6px;height:6px;border-radius:2px;}
+
+/* LEADS */
+#leads-list,#removed-list,#continue-list{padding:10px 14px;display:flex;flex-direction:column;gap:6px;}
+
+.lead-card{background:var(--white);border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s;position:relative;}
+.lead-card.has-note{border-right:2px solid var(--green);}
+.lead-card.expanded{box-shadow:0 2px 14px rgba(0,0,0,0.09);}
+
+/* SWIPE */
+.swipe-wrap{position:relative;overflow:hidden;}
+.swipe-bg{position:absolute;inset:0;display:flex;align-items:center;padding:0 20px;font-size:13px;font-weight:600;color:#fff;opacity:0;transition:opacity .15s;}
+.swipe-bg.left{background:var(--red);justify-content:flex-end;}
+.swipe-bg.right{background:var(--blue);justify-content:flex-start;}
+.swipe-content{position:relative;transition:transform .2s cubic-bezier(.25,.1,.25,1);}
+
+.lead-row{padding:20px 14px 13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;position:relative;}
+/* Small "joined on" date badge in the top-right corner of each lead row.
+   Pushed to top:2px so it sits above the lead name; row gets extra top
+   padding to prevent overlap. */
+.lead-entry-date{position:absolute;top:2px;right:8px;font-size:9px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:2px;font-weight:600;line-height:1.4;pointer-events:none;z-index:3;}
+/* Call-count dot indicator — sits above the lead row, spanning its full width.
+   Each dot = one call attempt. Grey = empty slot, red = call made.
+   direction:ltr so the dots fill left→right consistently regardless of RTL parent. */
+.call-dots{display:flex;align-items:center;gap:4px;padding:6px 14px 0;direction:ltr;justify-content:flex-start;flex-wrap:wrap;}
+.last-call-ts{
+  font-size:9px;font-weight:600;color:var(--muted);
+  width:100%;direction:rtl;text-align:left;letter-spacing:.3px;
+  margin-top:2px;padding-inline-start:0;
+}
+.call-dot{display:inline-block;width:6px;height:6px;background:#d0d0d0;flex-shrink:0;}
+.call-dot.filled{background:var(--red);}
+.call-dot-extra{font-size:9px;font-weight:700;color:var(--red);margin-inline-start:2px;}
+.lead-info{flex:1;min-width:0;}
+.lead-name{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
+.lead-phone{font-size:13px;color:var(--muted);margin-top:2px;direction:ltr;text-align:right;font-weight:400;}
+/* Three badges sit side-by-side under a lead row: "calls", "continue",
+   "removed". They share the same size and padding so they line up nicely. */
+.lead-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);background:rgba(26,122,69,0.07);border:1px solid rgba(26,122,69,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;}
+.lead-preview{font-size:12px;color:#555;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
+
+/* CALL BUTTON */
+.call-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.call-btn:active{transform:scale(.92);background:var(--bg);}
+.call-btn.done{background:var(--green);border-color:var(--green);color:#fff;}
+.note-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.cal-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+/* Anonymous-call button — smaller, with a tiny "31" badge to indicate
+   anonymous mode. Triggers callLeadAnonymous which prefixes #31#. */
+.anon-btn{position:relative;width:32px;height:32px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 2px rgba(0,0,0,0.06);padding:0;}
+.anon-btn svg{width:14px !important;height:14px !important;}
+.anon-btn:active{transform:scale(.92);background:var(--bg);}
+.anon-badge{position:absolute;top:-4px;left:-4px;background:#3a3a48;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:8px;line-height:1;font-family:inherit;}
+/* Custom date/time picker stepper buttons — large tap targets for hands-busy use */
+.picker-btn{width:100%;min-height:44px;background:var(--white);border:1px solid var(--border);font-size:18px;font-weight:700;color:var(--slate);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.picker-btn:active{background:var(--slate);color:#fff;transform:scale(.96);}
+/* Visual calendar grid in meeting dialog — Sunday-first */
+.cal-dow{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:6px 0;}
+.cal-day{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;}
+.cal-day:active{transform:scale(.94);}
+.cal-day.empty{visibility:hidden;}
+.cal-day.today{border-color:var(--slate);}
+.cal-day.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
+.cal-day.past{color:var(--muted);background:#f5f5f5;}
+/* Time slot grid (half-hour buttons 08:00–20:00) */
+.time-slot{height:32px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;padding:0;direction:ltr;}
+.time-slot:active{transform:scale(.94);}
+.time-slot.selected{background:var(--slate);color:#fff;border-color:var(--slate);}
+.cal-btn:active{transform:scale(.92);background:var(--bg);}
+.note-btn:active{transform:scale(.92);background:var(--bg);}
+
+/* RESTORE BUTTON */
+.restore-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--green);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;color:var(--green);}
+.wa-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+.wa-btn:active{transform:scale(.92);background:var(--bg);}
+.restore-btn:active{transform:scale(.92);}
+
+/* NOTES */
+.note-box{background:#f8fbf9;border-top:1px solid rgba(26,122,69,0.1);padding:12px 14px;}
+.note-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.note-hdr-label{font-size:10px;font-weight:700;letter-spacing:0.8px;color:var(--green);text-transform:uppercase;}
+.show-all-btn{font-size:11px;font-weight:600;color:var(--slate);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:3px 8px;cursor:pointer;font-family:inherit;}
+.show-all-btn:active{background:var(--border);}
+.note-entry{margin-bottom:10px;}
+/* Collapsible entry — defaults to a 5-line clamp; "expanded" class removes it */
+.entry-card{position:relative;padding:10px 12px;border:1px solid var(--border);background:var(--bg);margin-bottom:10px;cursor:pointer;transition:background .12s;}
+.entry-card:active{background:var(--border);}
+.entry-card .entry-body{font-size:13px;color:#444;line-height:1.55;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;padding-left:36px;}
+.entry-card.expanded .entry-body{display:block;-webkit-line-clamp:unset;overflow:visible;}
+.entry-card .entry-ts{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;display:flex;gap:6px;align-items:center;padding-left:36px;}
+.entry-card .entry-user{background:var(--white);border:1px solid var(--border);padding:1px 5px;font-size:10px;font-weight:600;color:var(--slate);letter-spacing:0.2px;}
+/* Expand-all global toggle button */
+.expand-all-btn{display:inline-flex;align-items:center;gap:5px;background:var(--white);border:1px solid var(--border);color:var(--slate);padding:5px 10px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
+.expand-all-btn:active{background:var(--bg);}
+.note-ts{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:3px;display:flex;gap:6px;align-items:center;}
+.note-entry-edit{position:absolute;left:0;top:0;width:28px;height:28px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);}
+.note-entry-edit:active{background:var(--border);}
+.note-user{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;font-size:10px;font-weight:600;color:var(--slate);letter-spacing:0.2px;}
+.note-body{font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-weight:400;}
+.note-sep{border:none;border-top:1px solid rgba(26,122,69,0.1);margin:10px 0;}
+
+/* LOADING */
+#loading{display:flex;flex-direction:column;align-items:center;padding:60px 20px;gap:12px;}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;gap:28px;text-align:center;background:var(--white);}
+.login-card{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px;width:100%;max-width:320px;}
+.login-logo-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.login-logo-blocks{display:flex;gap:2px;height:48px;}
+.llb{display:flex;flex-direction:column;justify-content:center;padding:0 14px;}
+.llb1{background:var(--slate);}
+.llb2{background:var(--slate2);}
+.llb-he{font-size:14px;font-weight:700;color:#fff;line-height:1.3;}
+.llb-en{font-size:10px;font-weight:400;color:rgba(255,255,255,0.65);line-height:1.3;}
+.llb-url{font-size:11px;color:var(--red);font-weight:600;letter-spacing:1px;}
+.login-title{font-size:15px;font-weight:600;color:var(--text);}
+.login-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.google-btn{background:var(--white);color:var(--text);border:1px solid var(--border);padding:13px 20px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,0.07);width:100%;justify-content:center;font-family:inherit;transition:box-shadow .15s;}
+.google-btn:active{box-shadow:none;transform:scale(.98);}
+
+/* MODAL — uses dynamic viewport units (dvh) so the keyboard pushes content up */
+#note-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);}
+#note-modal.open{display:flex;}
+
+/* Fullscreen log viewer + editor (matches the insolvency app) */
+#log-view-modal,#log-edit-modal{display:none;position:fixed;inset:0;background:var(--white);z-index:310;}
+#log-view-modal.open,#log-edit-modal.open{display:flex;flex-direction:column;}
+#log-edit-modal{z-index:320;}
+.log-fullscreen-sheet{
+  background:var(--white);border:none;
+  padding:14px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  padding-top:calc(14px + env(safe-area-inset-top));
+  width:100%;height:100%;max-height:100dvh;
+  display:flex;flex-direction:column;gap:10px;overflow-y:auto;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+}
+.log-action-row{display:flex;gap:8px;}
+.log-action-btn{flex:1;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);border-radius:0;}
+.log-action-add{background:var(--slate);color:#fff;border-color:var(--slate);}
+.log-action-edit{background:var(--bg);color:var(--text);}
+.log-content-area{flex:1;overflow-y:auto;min-height:0;padding:10px 0;}
+.log-content-area .log-entry{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.log-content-area .log-entry:last-child{border-bottom:none;}
+.log-entry-head{font-size:11px;font-weight:700;color:var(--slate);margin-bottom:5px;}
+.log-entry-body{font-size:14px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;}
+
+.modal-sheet{
+  background:var(--white);border-radius:0;border-top:2px solid var(--slate);
+  padding:14px 16px 20px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  width:100%;
+  display:flex;flex-direction:column;gap:10px;
+  animation:slideUp .25s cubic-bezier(.32,.72,0,1);
+  box-shadow:0 -4px 28px rgba(0,0,0,0.1);
+  max-height:100dvh;overflow-y:auto;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhandle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 6px;}
+.mtitle{font-size:16px;font-weight:700;color:var(--text);}
+.msub{font-size:13px;color:var(--red);font-weight:500;margin-top:-4px;}
+#note-input{width:100%;min-height:90px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:15px;resize:none;direction:rtl;font-family:inherit;transition:border-color .2s;}
+#note-input:focus{outline:none;border-color:var(--slate);background:var(--white);}
+/* Top action row of the call-summary modal — 4 equal-width buttons,
+   matching the look and size of the original corner buttons (slate background,
+   white text, ~13px font with icon+label). All share the same slate color. */
+.modal-top-actions{display:flex;gap:6px;margin-bottom:8px;}
+.top-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 8px;font-size:13px;font-weight:700;font-family:inherit;border:none;cursor:pointer;color:#fff;background:var(--slate);}
+.top-btn:active{transform:scale(.96);}
+#note-input::placeholder{color:#c0c0cc;}
+.btn{padding:12px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;transition:all .12s;}
+.btn:active{transform:scale(.97);}
+.btn-save{background:var(--slate);color:#fff;}
+.btn-skip{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.mic-btn{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:11px 14px;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:inherit;}
+.mic-btn.recording{background:#fff2f2;border-color:#e08080;color:var(--red);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.75}}
+
+.saving-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.92);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;backdrop-filter:blur(3px);}
+.saving-overlay.show{display:flex;}
+.saving-overlay p{font-size:14px;font-weight:500;color:var(--muted);}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;box-shadow:0 4px 16px rgba(58,58,72,0.22);}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+.removed-lbl{font-size:11px;font-weight:700;color:var(--red);background:rgba(176,16,16,0.07);border:1px solid rgba(176,16,16,0.15);border-radius:3px;padding:2px 6px;margin-top:4px;display:inline-flex;align-items:center;gap:4px;}
+.continue-lbl{font-size:11px;font-weight:700;color:var(--blue);background:rgba(26,95,158,0.07);border:1px solid rgba(26,95,158,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;display:inline-flex;align-items:center;gap:4px;}
+
+/* CONFIRM DIALOG */
+#confirm-dialog{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:600;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+#confirm-dialog.open{display:flex;}
+.confirm-card{background:var(--white);border-radius:8px;padding:22px 20px;width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);}
+.confirm-title{font-size:16px;font-weight:700;color:var(--text);}
+.confirm-msg{font-size:14px;color:var(--muted);line-height:1.5;}
+.confirm-actions{display:flex;gap:8px;}
+.confirm-btn{flex:1;padding:11px;border:none;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+.confirm-btn-yes{background:var(--red);color:#fff;}
+.confirm-btn-no{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex">
+  <div class="login-card">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;">
+    <div>
+      <div class="login-title">מערכת ניהול לידים</div>
+      <div class="login-sub">התחבר עם חשבון Google</div>
+    </div>
+    <button class="google-btn" onclick="doLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+      כניסה עם Google
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="hdr-right">
+      <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
+      <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
+      <span class="hdr-count" id="lead-count">טוען...</span>
+      <button class="hdr-btn" onclick="loadLeads()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+      </button>
+      <!-- Reminders list — opens a fullscreen list of pending local reminders -->
+      <button class="hdr-btn" onclick="openRemindersList()" title="תזכורות" style="position:relative">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="reminders-badge" style="display:none;position:absolute;top:-4px;left:-4px;min-width:14px;height:14px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:7px;padding:0 3px;line-height:14px;text-align:center;font-family:inherit"></span>
+      </button>
+      <button class="theme-toggle hdr-btn" onclick="toggleTheme()" title="החלף מצב">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="confirmSignOut()"></div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:80px;object-fit:contain;">
+  </div>
+
+  <!-- Tab order in RTL: visually right=המשך, middle=לידים, left=הוסרו -->
+  <div class="tabs">
+    <div class="tab" id="tab-continue" onclick="switchTab('continue')">המשך</div>
+    <div class="tab active" id="tab-active" onclick="switchTab('active')">לידים</div>
+    <div class="tab" id="tab-removed" onclick="switchTab('removed')">הוסרו</div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <span style="color:var(--muted);display:inline-flex">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="search" id="search" placeholder="חיפוש שם או טלפון..." oninput="filterLeads()"/>
+    </div>
+  </div>
+
+  <div id="active-section">
+    <div class="stats-bar">
+      <div class="stat"><div class="sdot" style="background:var(--green)"></div><span id="sn">0 עם הערות</span></div>
+      <div class="stat"><div class="sdot" style="background:var(--slate)"></div><span id="st">0 לידים</span></div>
+    </div>
+    <div id="loading"><div class="spinner"></div><div style="color:var(--muted);font-size:13px;font-weight:500">טוען...</div></div>
+    <div id="leads-list"></div>
+  </div>
+
+  <div id="continue-section" style="display:none">
+    <!-- Sub-tab toggle row inside the "המשך" section. Each pill filters
+         the list below to a different category, decided by which event
+         is most recent on the lead (meeting / reminder / no-answer set
+         from the call-summary modal). -->
+    <div id="cont-subtabs" style="display:flex;gap:6px;padding:8px 14px 0;flex-wrap:wrap">
+      <button id="subtab-continue" class="subtab active" onclick="setContinueSubtab('continue')">המשך <span id="subtab-continue-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-meeting"  class="subtab"        onclick="setContinueSubtab('meeting')">פגישה <span id="subtab-meeting-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-reminder" class="subtab"        onclick="setContinueSubtab('reminder')">תזכורת <span id="subtab-reminder-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-noanswer" class="subtab"        onclick="setContinueSubtab('noanswer')">לא נענו <span id="subtab-noanswer-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+    </div>
+    <div id="continue-list"></div>
+    <div id="meeting-list"  style="display:none;padding:10px 14px"></div>
+    <div id="reminder-list" style="display:none;padding:10px 14px"></div>
+    <div id="noanswer-list" style="display:none;padding:10px 14px"></div>
+    <div id="meeting-list"  style="display:none;padding:10px 14px"></div>
+    <div id="reminder-list" style="display:none;padding:10px 14px"></div>
+  </div>
+
+  <div id="removed-section" style="display:none">
+    <div id="removed-list"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="note-modal">
+  <div class="modal-sheet" style="position:relative">
+    <div class="mhandle"></div>
+    <!-- Top action row — 4 equal-sized buttons, all in slate.
+         RTL order (right→left visually): המשך · פגישה · תזכורת · הסר.
+         The "close" button is gone — drag the sheet down to close-without-save. -->
+    <div class="modal-top-actions">
+      <button class="top-btn" onclick="saveAndMove('continue')" title="שמור והעבר להמשך">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>המשך</span>
+      </button>
+      <button class="top-btn" onclick="openMeetingFromSummary()" title="קבע פגישה">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>פגישה</span>
+      </button>
+      <button class="top-btn" onclick="openReminderDialog()" title="קבע תזכורת">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span>תזכורת</span>
+      </button>
+      <button class="top-btn" onclick="saveAndMove('removed')" title="שמור והעבר להוסרו">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>הסר</span>
+      </button>
+    </div>
+    <!-- Lead name + a one-tap phone button. The phone button initiates a
+         call to currentLead — this is what the "התקשר" notification action
+         visually leads users toward (notification opens this modal, then a
+         single tap on the phone icon dials). -->
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <div class="msub" id="modal-name" style="flex:1;min-width:0;margin:0"></div>
+      <!-- "לא נענו" — marks AE=TRUE so the lead moves to the no-answer
+           sub-tab. Same dark style as the call button; phone icon with
+           a slash through it to convey "no answer". -->
+      <button onclick="markCurrentLeadNoAnswer()" title="סמן: לא נענו" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+      </button>
+      <button onclick="openWA(currentLead && currentLead.phone || '')" title="שלח WhatsApp" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>
+      </button>
+      <button onclick="callCurrentLead()" title="התקשר" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </button>
+    </div>
+    <textarea id="note-input" placeholder="מה היה בשיחה?"></textarea>
+    <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      <span>הכתב (מיקרופון)</span>
+    </button>
+    <button class="btn btn-save" onclick="saveNote()">שמור ב-Google Sheets</button>
+  </div>
+</div>
+
+<!-- LOG VIEWER (fullscreen) — opens when tapping the log icon on a card -->
+<div id="log-view-modal">
+  <div class="log-fullscreen-sheet">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeLogView()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="mtitle" style="font-size:15px">סיכומי שיחות</div>
+        <div class="msub" id="log-view-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div class="log-content-area" id="log-view-content"></div>
+    <div class="log-action-row">
+      <button class="log-action-btn log-action-add" onclick="openAddFromLogView()">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>הוסף סיכום שיחה</span>
+        </span>
+      </button>
+      <button class="log-action-btn log-action-edit" onclick="openEditFromLogView()">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>
+          <span>ערוך</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG EDIT (fullscreen) -->
+<div id="log-edit-modal">
+  <div class="log-fullscreen-sheet">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeLogEdit()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="mtitle" style="font-size:15px">עריכת סיכומי שיחות</div>
+        <div class="msub" id="log-edit-name" style="margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">זהירות: עריכה ידנית של כל הלוג</div>
+    <textarea id="log-edit-textarea" style="flex:1;min-height:0;width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.5"></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-save" style="flex:1" onclick="saveLogEdit()">שמור</button>
+      <button class="btn btn-skip" style="flex:1" onclick="closeLogEdit()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT ONE NOTE ENTRY (bottom sheet) -->
+<div id="entry-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:330;align-items:flex-end;backdrop-filter:blur(4px);">
+  <div class="modal-sheet">
+    <div class="mhandle"></div>
+    <div class="mtitle">עריכת סיכום שיחה</div>
+    <div class="msub" id="entry-edit-head" style="font-size:11px;color:var(--muted);font-weight:600"></div>
+    <textarea id="entry-edit-text" style="width:100%;min-height:140px;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.5"></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-save" style="flex:1" onclick="saveEditEntry()">שמור</button>
+      <button class="btn btn-skip" style="flex:1;background:#fff5f5;color:var(--red);border-color:#f5c0c0" onclick="deleteEntry()">מחק</button>
+      <button class="btn btn-skip" style="flex:1" onclick="closeEditEntry()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEETING DIALOG — schedule a 1-hour meeting; writes to columns X, Y, Z -->
+<!-- MEETING DIALOG — larger fields and buttons for quick interaction (e.g. while driving) -->
+<!-- REMINDERS LIST — fullscreen list of all pending local reminders -->
+<div id="reminders-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:325;flex-direction:column;">
+  <div style="padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(20px + env(safe-area-inset-bottom));width:100%;height:100%;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:10px">
+      <button onclick="closeRemindersList()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <span>חזרה</span>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700">תזכורות</div>
+        <div id="reminders-sub" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+      </div>
+    </div>
+    <div id="reminders-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
+  <div class="modal-sheet" style="padding:10px 12px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-height:100dvh;overflow:hidden;">
+    <div class="mhandle"></div>
+    <!-- Title row + save button. Save lives at the top so the user can hit
+         it without scrolling past the calendar/time grids. The label updates
+         to "שמור תזכורת" when in reminder mode (see openReminderDialog). -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:700">קביעת פגישה</div>
+        <div id="meeting-name" style="font-size:12px;color:var(--slate);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <!-- Optional short note for reminders. Shown only in reminder mode
+           (toggled by openReminderDialog). The text is saved with the
+           reminder and appears in the reminders list AND in the system
+           notification body so the user sees it at a glance. -->
+      <input type="text" id="reminder-note" placeholder="הערה (אופציונלי)" maxlength="80" style="display:none;flex:1;min-width:0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-family:inherit;color:var(--text);text-align:right"/>
+      <button class="btn btn-save" style="padding:9px 18px;font-size:14px;font-weight:700;width:auto;flex-shrink:0" onclick="saveMeeting()">שמור פגישה</button>
+    </div>
+
+    <!-- Section: VISUAL CALENDAR (compact) -->
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <button type="button" onclick="navMonth(-1)" class="picker-btn" style="width:36px;min-height:30px;font-size:18px">‹</button>
+      <div id="cal-title" style="flex:1;text-align:center;font-size:14px;font-weight:700;color:var(--slate)">—</div>
+      <button type="button" onclick="navMonth(1)" class="picker-btn" style="width:36px;min-height:30px;font-size:18px">›</button>
+    </div>
+    <!-- Day-of-week header — Sunday first -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">א'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ב'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ג'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ד'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ה'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ו'</div>
+      <div class="cal-dow" style="font-size:10px;padding:2px 0">ש'</div>
+    </div>
+    <!-- Calendar days grid — compact 32px rows -->
+    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
+
+    <!-- Section: TIME SLOTS — half-hours, compact 6 columns -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <label style="font-size:12px;font-weight:700;color:var(--slate)">שעת התחלה</label>
+      <div style="font-size:14px;font-weight:700;color:var(--slate);background:var(--bg);border:1px solid var(--border);padding:2px 8px" id="time-current">--:--</div>
+    </div>
+    <div id="time-slots" style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:6px"></div>
+
+    <!-- Manual entry — single tight row -->
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:var(--bg);border:1px solid var(--border);padding:6px 8px;direction:ltr">
+      <span style="font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0">ידני:</span>
+      <input type="number" id="manual-hour" min="0" max="23" placeholder="HH" style="width:50px;padding:4px;background:var(--white);border:1px solid var(--border);font-size:14px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
+      <span style="font-size:14px;font-weight:700;color:var(--slate)">:</span>
+      <input type="number" id="manual-minute" min="0" max="59" placeholder="MM" style="width:50px;padding:4px;background:var(--white);border:1px solid var(--border);font-size:14px;font-weight:700;font-family:inherit;color:var(--text);text-align:center" oninput="onManualTimeChange()"/>
+      <span style="margin-inline-start:auto;font-size:11px;color:var(--muted);font-weight:600">סיום: <span id="meeting-end-preview" style="color:var(--slate);font-weight:700">—</span></span>
+    </div>
+
+    <!-- hidden inputs the saveMeeting code reads -->
+    <input type="hidden" id="meeting-date"/>
+    <input type="hidden" id="meeting-start"/>
+  </div>
+</div>
+</div>
+
+<div class="saving-overlay" id="saving-overlay">
+  <div class="spinner"></div><p>שומר...</p>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirm-dialog">
+  <div class="confirm-card">
+    <div class="confirm-title" id="confirm-title">אישור</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-btn-no" onclick="confirmCancel()">ביטול</button>
+      <button class="confirm-btn confirm-btn-yes" id="confirm-yes-btn" onclick="confirmYes()">אישור</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Lucide-style SVG icons (consistent with the rest of the UI)
+// Lucide-style icon set (stroke 1.5, no fill) — matches the Claude UI vibe.
+// Helper: produce an svg with the given path content at desired size.
+const _SVG=(content,size)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:${size||18}px;height:${size||18}px;display:block">${content}</svg>`;
+const ICON={
+  phone:    _SVG('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',18),
+  check:    _SVG('<polyline points="20 6 9 17 4 12"/>',18),
+  noteAdd:  _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',18),
+  calendar: _SVG('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',18),
+  whatsapp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>',
+  mic:      _SVG('<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/>',16),
+  micStop:  _SVG('<rect x="6" y="6" width="12" height="12" rx="1"/>',16),
+  search:   _SVG('<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',14),
+  refresh:  _SVG('<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/>',14),
+  moon:     _SVG('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',14),
+  sun:      _SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',14),
+  bubble:   _SVG('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',12),
+  removed:  _SVG('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',12),
+  restore:  _SVG('<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',18),
+  bookmark: _SVG('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',12),
+  info:     _SVG('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',16),
+  chevronR: _SVG('<polyline points="15 18 9 12 15 6"/>',18),
+  users:    _SVG('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',22),
+  scales:   _SVG('<path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7a4 4 0 0 0 6 0L5 7z"/><path d="M19 7l-3 7a4 4 0 0 0 6 0L19 7z"/><path d="M7 21h10"/>',22),
+  pause:    _SVG('<rect x="6" y="4" width="4" height="16" rx="0.5"/><rect x="14" y="4" width="4" height="16" rx="0.5"/>',14),
+  back:     _SVG('<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',16),
+  pencil:   _SVG('<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/>',16),
+  warning:  _SVG('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',12),
+  bell:     _SVG('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',14),
+  plus:     _SVG('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',16),
+  arrowL:   _SVG('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',16),
+  checkCircle:_SVG('<circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>',14),
+  fire:     _SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',12)
+};
+
+// Theme toggle (shared across pages via localStorage key 'at_theme')
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const m=document.getElementById('theme-moon'),s=document.getElementById('theme-sun');
+  if(m&&s){m.style.display=t==='dark'?'none':'block';s.style.display=t==='dark'?'block':'none';}
+  document.querySelectorAll('meta[name="theme-color"]').forEach(meta=>{
+    meta.setAttribute('content',t==='dark'?'#1F1E1C':'#FAF9F5');
+  });
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='light'?'dark':'light';
+  localStorage.setItem('at_theme',next);
+  applyTheme(next);
+}
+(function initTheme(){
+  let saved=localStorage.getItem('at_theme');
+  if(!saved){
+    saved=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  applyTheme(saved);
+})();
+
+const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID='19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const REDIRECT=location.origin+location.pathname;
+
+// Sheet status values stored in column V (per-row)
+const STATUS_ACTIVE='';        // empty cell = active (default)
+const STATUS_CONTINUE='continue';
+const STATUS_REMOVED='removed';
+
+let accessToken=null,allLeads=[],currentLead=null,recognition=null;
+let isRecording=false,expandedSet=new Set(),showAllSet=new Set();
+let prevCount=null,finalTranscript='',currentTab='active';
+// Whether the user has tapped the "לא נענו" sub-tab inside the continue tab.
+// When true, we render the no-answer list instead of the continue list.
+let _showingNoAnswer=false;
+let userName='',userEmail='';
+let pendingConfirm=null; // callback for confirm dialog
+let modalOpen=false;     // tracks note modal state for back button
+
+/* =========================
+   CONNECTION LAYER — robust API access with token refresh + retry + queue
+   ========================= */
+
+// Track token expiry. We refresh BEFORE Google rejects us so users don't
+// see failures during normal use.
+function tokenIsValid(){
+  if(!accessToken) return false;
+  const exp=parseInt(localStorage.getItem('lte')||'0');
+  return Date.now() < exp;
+}
+
+// Silent re-auth: opens the OAuth page in an invisible iframe with prompt=none.
+// If the user is still signed in to Google in the browser, this returns a fresh
+// token without any UI. If it fails (user signed out, third-party cookies blocked),
+// fall back to the full sign-in page so the user can re-authorize.
+let _silentAuthInFlight=null;
+function silentReauth(){
+  if(_silentAuthInFlight) return _silentAuthInFlight;
+  _silentAuthInFlight=new Promise((resolve)=>{
+    const iframe=document.createElement('iframe');
+    iframe.style.display='none';
+    const url='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+      client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',
+      scope:SCOPES,prompt:'none',
+      // login_hint helps Google pick the right account silently
+      login_hint:userEmail||localStorage.getItem('le')||''
+    });
+    let settled=false;
+    const finish=(success)=>{
+      if(settled) return; settled=true;
+      try{document.body.removeChild(iframe);}catch(_){}
+      _silentAuthInFlight=null;
+      resolve(success);
+    };
+    // Listen for the iframe to land on our redirect URL with #access_token
+    iframe.onload=()=>{
+      try{
+        const href=iframe.contentWindow.location.href;
+        if(href.includes('access_token=')){
+          const hash=href.split('#')[1]||'';
+          const p=new URLSearchParams(hash);
+          const tok=p.get('access_token');
+          const exp=parseInt(p.get('expires_in')||'3600');
+          if(tok){
+            accessToken=tok;
+            localStorage.setItem('lt',tok);
+            localStorage.setItem('lte',(Date.now()+(exp-120)*1000).toString());
+            finish(true); return;
+          }
+        }
+        if(href.includes('error=')){ finish(false); return; }
+      }catch(e){
+        // Cross-origin: as long as we got onload, we couldn't read the URL.
+        // We rely on the timeout below.
+      }
+    };
+    iframe.src=url;
+    document.body.appendChild(iframe);
+    // Hard timeout — if Google doesn't respond in 8s, give up
+    setTimeout(()=>finish(false), 8000);
+  });
+  return _silentAuthInFlight;
+}
+
+// Returns a valid access token, refreshing silently if needed.
+// Throws only if even silent refresh failed (then we ask user to log in).
+async function getValidToken(){
+  if(tokenIsValid()) return accessToken;
+  const ok=await silentReauth();
+  if(ok && accessToken) return accessToken;
+  throw new Error('TOKEN_EXPIRED');
+}
+
+// Robust fetch wrapper. Use this for ALL API calls (reads and writes).
+//   - injects Authorization header
+//   - validates/refreshes token before the call
+//   - on 401: refreshes once and retries
+//   - on network error: retries up to 3 times with backoff
+//   - returns parsed JSON, throws on terminal failure
+async function apiFetch(url,opts={},attempt=0){
+  // Make sure we have a fresh token. This call may pop up a silent reauth.
+  let tok;
+  try{ tok=await getValidToken(); }
+  catch(e){
+    setOnlineBadge('offline','אין הרשאה');
+    throw e;
+  }
+  const headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+tok});
+  // Apply a timeout so a stalled request doesn't hang forever
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),20000);
+  try{
+    const res=await fetch(url,Object.assign({},opts,{headers,signal:ctrl.signal}));
+    clearTimeout(t);
+    // 401: token rejected mid-flight (e.g. revoked or clock skew). Refresh + retry once.
+    if(res.status===401 && attempt===0){
+      // Force token to be considered expired so getValidToken refreshes
+      localStorage.setItem('lte','0');
+      return apiFetch(url,opts,attempt+1);
+    }
+    let data=null;
+    try{ data=await res.json(); }catch(_){}
+    if(!res.ok){
+      const msg=(data&&data.error&&data.error.message)||('HTTP '+res.status);
+      throw new Error(msg);
+    }
+    setOnlineBadge('online');
+    return data;
+  }catch(e){
+    clearTimeout(t);
+    // Network error: retry with backoff (up to 3 attempts)
+    const isNetwork=(e.name==='AbortError'||e.name==='TypeError'||/network/i.test(e.message||''));
+    if(isNetwork && attempt<3){
+      setOnlineBadge('retrying','מחבר מחדש...');
+      await new Promise(r=>setTimeout(r, 600*(attempt+1)));
+      return apiFetch(url,opts,attempt+1);
+    }
+    setOnlineBadge('offline');
+    throw e;
+  }
+}
+
+// Persistent write queue — when a write fails (offline, token expired, etc.)
+// we save it to localStorage so it can be replayed when connectivity returns.
+// Each entry: {id, url, opts, label, ts}
+function loadQueue(){ try{return JSON.parse(localStorage.getItem('wq')||'[]');}catch(_){return [];} }
+function saveQueue(q){ localStorage.setItem('wq',JSON.stringify(q)); }
+function enqueueWrite(url,opts,label){
+  const q=loadQueue();
+  q.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),url,opts,label,ts:Date.now()});
+  saveQueue(q);
+  updateQueueBadge();
+}
+async function flushQueue(){
+  let q=loadQueue();
+  if(q.length===0) return;
+  // Process oldest first. If any one fails, stop — we'll try again next event.
+  while(q.length){
+    const item=q[0];
+    try{
+      await apiFetch(item.url,item.opts);
+      q.shift(); saveQueue(q); updateQueueBadge();
+    }catch(e){
+      // If terminal (token gone), leave queue intact and bail
+      break;
+    }
+  }
+}
+function updateQueueBadge(){
+  const n=loadQueue().length;
+  const el=document.getElementById('queue-badge');
+  if(!el) return;
+  if(n>0){ el.style.display='inline-flex'; el.textContent=`${n} ממתין לשמירה`; }
+  else el.style.display='none';
+}
+
+// Connection status indicator in the header. States: online (hidden), retrying, offline.
+function setOnlineBadge(state,msg){
+  const el=document.getElementById('conn-badge');
+  if(!el) return;
+  if(state==='online'){ el.style.display='none'; return; }
+  el.style.display='inline-flex';
+  if(state==='retrying'){ el.textContent=msg||'מחבר מחדש...'; el.style.background='#fff3cd'; el.style.color='#856404'; }
+  else { el.textContent=msg||'אין חיבור'; el.style.background='#f8d7da'; el.style.color='#721c24'; }
+}
+
+// When network or visibility comes back — try to flush the queue and reload.
+window.addEventListener('online',()=>{ setOnlineBadge('online'); ensureFreshToken(); flushQueue(); maybeReload(); });
+window.addEventListener('offline',()=>setOnlineBadge('offline'));
+// Refresh on focus/visibility too — every time the user comes back to the app,
+// we make sure the token is fresh before any call.
+window.addEventListener('focus',()=>ensureFreshToken());
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) ensureFreshToken(); });
+
+// "Ensure fresh token" — if the token has less than 30 minutes of life left,
+// refresh it now. Called on every meaningful app event (focus, online, visibility).
+// This is the core mechanism that keeps the app permanently connected.
+let _ensureFreshInFlight=false;
+async function ensureFreshToken(){
+  if(_ensureFreshInFlight) return;
+  if(!accessToken) return;
+  const exp=parseInt(localStorage.getItem('lte')||'0');
+  if(!exp) return;
+  // 30 minutes safety window — refresh well before Google rejects us
+  if(Date.now() <= exp - 30*60*1000) return;
+  _ensureFreshInFlight=true;
+  try{
+    const ok=await silentReauth();
+    if(ok) flushQueue();
+  }finally{
+    _ensureFreshInFlight=false;
+  }
+}
+
+// Proactive token refresh: every 2 minutes, force a freshness check.
+// With 30-min safety window, we'll refresh ~30 min after login and every hour after that.
+setInterval(ensureFreshToken, 2*60*1000);
+
+// If silent reauth ever fails (e.g. brief network blip during refresh), retry
+// every minute in the background until we succeed. Never gives up while the
+// user is in the app.
+setInterval(()=>{
+  if(!navigator.onLine) return;
+  if(!accessToken) return;
+  const exp=parseInt(localStorage.getItem('lte')||'0');
+  // If we're within 5 min of expiry — keep trying aggressively until refreshed
+  if(exp && Date.now() > exp - 5*60*1000) ensureFreshToken();
+},60*1000);
+
+// Try flushing the queue every 30s in case anything is stuck
+setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
+
+
+function doLogin(){
+  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+    client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',scope:SCOPES,prompt:'select_account'
+  });
+}
+
+/* =========================
+   CONFIRM DIALOG (replaces native confirm)
+   ========================= */
+function showConfirm(title,msg,onYes,yesLabel){
+  document.getElementById('confirm-title').textContent=title||'אישור';
+  document.getElementById('confirm-msg').textContent=msg||'';
+  const yb=document.getElementById('confirm-yes-btn');
+  yb.textContent=yesLabel||'אישור';
+  pendingConfirm=onYes||null;
+  document.getElementById('confirm-dialog').classList.add('open');
+  // push a history state so the back button cancels the dialog instead of leaving
+  history.pushState({dialog:'confirm'},'');
+}
+function confirmYes(){
+  const cb=pendingConfirm;pendingConfirm=null;
+  document.getElementById('confirm-dialog').classList.remove('open');
+  // pop the history state we pushed
+  if(history.state&&history.state.dialog==='confirm') popHistorySilently();
+  if(cb)cb();
+}
+function confirmCancel(){
+  pendingConfirm=null;
+  document.getElementById('confirm-dialog').classList.remove('open');
+  if(history.state&&history.state.dialog==='confirm') popHistorySilently();
+}
+
+/* =========================
+   SIGN OUT (with confirmation)
+   ========================= */
+function confirmSignOut(){
+  showConfirm('להתנתק מהאפליקציה?','תצטרך להיכנס מחדש עם חשבון Google.',doSignOut,'התנתק');
+}
+function doSignOut(){
+  ['lt','lte','lp','ln','le'].forEach(k=>localStorage.removeItem(k));
+  accessToken=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+/* =========================
+   APP INIT
+   ========================= */
+window.addEventListener('load',()=>{
+  // Register service worker and listen for updates so new versions apply automatically
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then((reg)=>{
+      // Check for an updated SW every 5 minutes
+      setInterval(()=>reg.update().catch(()=>{}), 5*60*1000);
+      // When a new SW is installed and waiting, activate it immediately
+      reg.addEventListener('updatefound',()=>{
+        const newSW=reg.installing;
+        if(!newSW)return;
+        newSW.addEventListener('statechange',()=>{
+          if(newSW.state==='installed' && navigator.serviceWorker.controller){
+            newSW.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+    }).catch(()=>{});
+    // When the controlling SW changes, reload to get the fresh page
+    let reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloaded)return;reloaded=true;location.reload();
+    });
   }
 
-  // 2) HTML navigations — network-first so code updates are picked up quickly.
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(req).then((m) => m || caches.match('./index.html')))
-    );
-    return;
-  }
+  // seed history with two entries:
+  //   1) {page:'exit'} — leaving from this entry exits the app
+  //   2) {page:'app'}  — the user starts here
+  history.replaceState({page:'exit'},'');
+  history.pushState({page:'app'},'');
 
-  // 3) Static assets (logo, icon, manifest) — cache-first.
-  event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-      return res;
-    }).catch(() => cached))
-  );
+  if(location.hash&&location.hash.includes('access_token')){
+    const p=new URLSearchParams(location.hash.substring(1));
+    const tok=p.get('access_token'),exp=parseInt(p.get('expires_in')||'3600');
+    if(tok){
+      accessToken=tok;
+      localStorage.setItem('lt',tok);
+      localStorage.setItem('lte',(Date.now()+(exp-120)*1000).toString());
+      history.replaceState({page:'app'},'',location.pathname);
+      fetchUserInfo();showApp();loadLeads();askNotif();return;
+    }
+  }
+  const tok=localStorage.getItem('lt'),exp=parseInt(localStorage.getItem('lte')||'0');
+  if(tok&&Date.now()<exp){
+    accessToken=tok;
+    userName=localStorage.getItem('ln')||'';
+    userEmail=localStorage.getItem('le')||'';
+    restoreAvatar();showApp();loadLeads();askNotif();
+    // Force a freshness check immediately after open. If the token is in the
+    // last 30 min of its life, this refreshes silently before any API call.
+    setTimeout(ensureFreshToken, 500);
+  } else if(localStorage.getItem('le')){
+    // Token expired BUT we have a saved email — try silent reauth first
+    // (works as long as the user still has a Google session in the browser).
+    // Only fall through to the login screen if silent reauth fails.
+    userEmail=localStorage.getItem('le')||'';
+    userName=localStorage.getItem('ln')||'';
+    silentReauth().then(ok=>{
+      if(ok){
+        restoreAvatar();showApp();loadLeads();askNotif();
+      } else {
+        document.getElementById('login-screen').style.display='flex';
+      }
+    });
+  } else document.getElementById('login-screen').style.display='flex';
 });
+
+// Reload data whenever the app comes back to the foreground.
+// This is what makes changes from other devices/users show up immediately.
+let lastReloadAt=Date.now();
+function maybeReload(){
+  // throttle: at most once every 5s, and only if we have a token
+  if(!accessToken)return;
+  const now=Date.now();
+  if(now-lastReloadAt<5000)return;
+  lastReloadAt=now;
+  loadLeads();
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) maybeReload(); });
+window.addEventListener('focus',maybeReload);
+window.addEventListener('pageshow',(e)=>{ if(e.persisted) maybeReload(); });
+
+/* =========================
+   BACK BUTTON HANDLING
+   - If confirm dialog is open: cancel it (handled by browser popping the state)
+   - If note modal is open: save draft locally, close modal, stay in app
+   - If on continue/removed tab: switch to active tab
+   - Otherwise: ask before leaving the app
+   ========================= */
+// Track consecutive back-presses on the main page to require triple-back to exit
+let _backPressCount=0,_backPressTimer=null;
+function _resetBackCount(){clearTimeout(_backPressTimer);_backPressCount=0;}
+
+window.addEventListener('popstate',(e)=>{
+  if(_suppressPopstate){
+    _suppressPopstate=false;
+    return;
+  }
+  // confirm dialog open
+  if(document.getElementById('confirm-dialog').classList.contains('open')){
+    pendingConfirm=null;
+    document.getElementById('confirm-dialog').classList.remove('open');
+    history.replaceState({page:'app'},'');
+    _resetBackCount();
+    return;
+  }
+  // entry-edit modal (per-summary edit) — most-inner, on top of log-view
+  if(document.getElementById('entry-edit-modal').style.display==='flex'){
+    document.getElementById('entry-edit-modal').style.display='none';
+    _entryEditCtx=null;
+    _resetBackCount();
+    return;
+  }
+  // meeting modal (schedule a meeting) — independent of the log view
+  if(document.getElementById('meeting-modal').style.display==='flex'){
+    document.getElementById('meeting-modal').style.display='none';
+    _meetingLead=null;
+    _resetBackCount();
+    return;
+  }
+  // note (add summary) modal — must be checked BEFORE log-view, since it can
+  // be open ON TOP of the log-view (when adding from inside the viewer).
+  if(modalOpen){
+    saveDraftAndCloseModal();
+    _resetBackCount();
+    return;
+  }
+  // log-edit modal open -> close it, return to log-view (which is still open underneath)
+  if(document.getElementById('log-edit-modal').classList.contains('open')){
+    document.getElementById('log-edit-modal').classList.remove('open');
+    _resetBackCount();
+    return;
+  }
+  // log-view modal open -> close it, return to main app
+  if(document.getElementById('log-view-modal').classList.contains('open')){
+    document.getElementById('log-view-modal').classList.remove('open');
+    _logViewLead=null;
+    _resetBackCount();
+    return;
+  }
+  // not on the main tab -> switch to it
+  if(currentTab!=='active'){
+    switchTab('active');
+    history.replaceState({page:'app'},'');
+    _resetBackCount();
+    return;
+  }
+  // On the main tab — require 3 consecutive back-presses to leave
+  _backPressCount++;
+  // re-push so we don't actually leave yet
+  history.pushState({page:'app'},'');
+  if(_backPressCount<3){
+    showToast(`לחץ ${3-_backPressCount} פעמים נוספות כדי לצאת`);
+    clearTimeout(_backPressTimer);
+    _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
+    return;
+  }
+  // 3 presses reached — confirm before leaving the app
+  _backPressCount=0;
+  showConfirm('לצאת מהאפליקציה?','האפליקציה תיסגר אבל החיבור יישאר.',()=>{
+    history.go(-1);
+  },'צא');
+});
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+
+function fetchUserInfo(){
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}})
+    .then(r=>r.json()).then(u=>{
+      const ALLOWED = [
+        'avi@t-adv.co.il',
+        'office@t-adv.co.il',
+        'tal.adv.offc2@gmail.com',
+        'avi.t.razr@gmail.com'
+      ];
+      if(!ALLOWED.includes((u.email||'').toLowerCase())){
+        ['lt','lte','lp','ln','le'].forEach(k=>localStorage.removeItem(k));
+        accessToken=null;
+        document.getElementById('app').style.display='none';
+        document.getElementById('login-screen').style.display='flex';
+        alert('אין הרשאה: '+u.email);
+        return;
+      }
+      localStorage.setItem('lp',u.picture||'');
+      localStorage.setItem('ln',u.name||'');
+      localStorage.setItem('le',u.email||'');
+      userName=u.name||'';userEmail=u.email||'';
+      setAvatar(u.picture,u.name);
+    }).catch(()=>{});
+}
+function restoreAvatar(){setAvatar(localStorage.getItem('lp'),localStorage.getItem('ln'));}
+function setAvatar(pic,name){
+  const av=document.getElementById('user-avatar');if(!av)return;
+  av.innerHTML=pic?`<img src="${pic}">`:(name||'U')[0].toUpperCase();
+}
+function getUserTag(){
+  // First 5 chars before @ in email, or first 5 of name
+  if(userEmail){const u=userEmail.split('@')[0];return u.slice(0,5);}
+  return (userName||'user').slice(0,5);
+}
+
+function askNotif(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
+function notifyNew(name,phone){
+  if('Notification'in window&&Notification.permission==='granted'){
+    new Notification('ליד חדש | אבי טל ושות׳',{
+      body:name+'\n'+phone,
+      icon:'../icon.png',
+      badge:'../icon.png',
+      tag:'new-lead',
+      vibrate:[200,100,200]
+    });
+  }
+}
+
+function switchTab(tab){
+  currentTab=tab;
+  document.getElementById('tab-active').className='tab'+(tab==='active'?' active':'');
+  document.getElementById('tab-continue').className='tab'+(tab==='continue'?' active':'');
+  document.getElementById('tab-removed').className='tab'+(tab==='removed'?' active':'');
+  document.getElementById('active-section').style.display=tab==='active'?'block':'none';
+  document.getElementById('continue-section').style.display=tab==='continue'?'block':'none';
+  document.getElementById('removed-section').style.display=tab==='removed'?'block':'none';
+  filterLeads();
+}
+
+/* =========================
+   LOAD LEADS — now reads A:W (status in V, callers in W)
+   ========================= */
+let loadingLeads=false;
+let loadTimer=null;
+async function loadLeads(){
+  if(loadingLeads)return;
+  loadingLeads=true;
+  // Try to flush any queued writes first — this is a good moment because
+  // we know we have network (we're about to read).
+  if(navigator.onLine && accessToken) flushQueue();
+  updateQueueBadge();
+  // Only show the spinner for the very first load (when allLeads is empty)
+  const firstLoad=!allLeads||allLeads.length===0;
+  if(firstLoad){
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('leads-list').innerHTML='';
+  }
+  try{
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AJ?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const all=(data.values||[]).slice(1)
+      .map((row,i)=>{
+        // Audit log lives in AG (column 32) — moved from AB so AB/AC/AD
+        // can be used cleanly for reminders without overwriting history.
+        const meta=((row[32]||'')+'').trim();
+        // Pull the earliest date from the audit log. Each entry begins with
+        // "DD/MM/YY HH:MM" so we scan all entries and keep the smallest one.
+        // If the log is empty (a lead that's never been touched) we fall
+        // back to an empty string and the UI will hide the badge.
+        let entryDate='';
+        if(meta){
+          const dates=meta.split('\n').map(line=>{
+            const m=line.match(/^(\d{2})\/(\d{2})\/(\d{2})/);
+            if(!m) return null;
+            return {raw:`${m[1]}/${m[2]}/${m[3]}`, sortable:`20${m[3]}-${m[2]}-${m[1]}`};
+          }).filter(Boolean);
+          if(dates.length){
+            dates.sort((a,b)=>a.sortable.localeCompare(b.sortable));
+            entryDate=dates[0].raw;
+          }
+        }
+        // Helper — try to read a sheet cell as a date in any of the
+        // formats Sheets returns it. Returns ms timestamp (0 if invalid).
+        const parseSheetDate=(raw)=>{
+          if(!raw) return 0;
+          const s=String(raw).trim();
+          if(!s) return 0;
+          // dd/mm/yyyy or dd/mm/yy
+          let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+          if(m){
+            let yy=parseInt(m[3],10);
+            if(yy<100) yy+=2000;
+            const d=new Date(yy, parseInt(m[2],10)-1, parseInt(m[1],10));
+            if(!isNaN(d.getTime())) return d.getTime();
+          }
+          // ISO yyyy-mm-dd
+          m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+          if(m){
+            const d=new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+            if(!isNaN(d.getTime())) return d.getTime();
+          }
+          const d=new Date(s);
+          if(!isNaN(d.getTime())) return d.getTime();
+          return 0;
+        };
+        return {
+          index:i+2,
+          name:(row[0]||'').trim()||'(ללא שם)',
+          phone:(row[1]||'').toString().trim(),
+          note:(row[2]||'').trim(),
+          status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
+          callers:((row[22]||'')+'').trim(),                // column W (0-based 22) — comma-separated user tags
+          // Column AG (0-based 32) — full audit log: status changes, calls,
+          // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event".
+          // Moved from AB so AB/AC/AD can hold reminder data without conflict.
+          metaLog:meta,
+          // Pull the most recent "שיחה יצאה" entry from the metaLog so we
+          // can show "last called" date+time on each card. Each entry begins
+          // with "DD/MM/YY HH:MM | userTag | event" and the newest is on top.
+          lastCallTs: (()=>{
+            if(!meta) return '';
+            const lines = meta.split('\n');
+            for(const line of lines){
+              if(line.indexOf('שיחה יצאה') >= 0){
+                const m = line.match(/^(\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})/);
+                if(m) return m[1];
+              }
+            }
+            return '';
+          })(),
+          // Number of calls made to this lead (parsed from W which contains
+          // a comma-separated list of caller tags, one per call). This is the
+          // count we use to fill in the dot indicator above the lead's name.
+          callCount:((row[22]||'')+'').trim() ? ((row[22]||'')+'').split(',').filter(s=>s.trim()).length : 0,
+          // Column AE (0-based 30) — TRUE/FALSE flag for the
+          // "לא נענו" tab. When TRUE, the lead is hidden from all
+          // tabs except the no-answer one.
+          noAnswer: ((row[30]||'')+'').toString().toUpperCase().trim()==='TRUE',
+          // Column AF (0-based 31) — timestamp (ms) of when the lead was
+          // flagged as "לא נענו". Used to keep the most recently flagged
+          // lead at the top of the no-answer list, persisted across reloads
+          // and devices (not just localStorage).
+          noAnswerTs: parseInt(((row[31]||'')+'').toString().trim(), 10) || 0,
+          // Meeting date: column X (0-based 23). When the user schedules
+          // a meeting through the call-summary modal, the date is written
+          // here. We use it to decide if the lead belongs in the "פגישה"
+          // sub-tab.
+          meetingDateRaw: ((row[23]||'')+'').toString().trim(),
+          meetingDateMs: parseSheetDate(row[23]),
+          // Reminder date: column AB (0-based 27). When the user sets a
+          // reminder through the call-summary modal, written here. Same
+          // role as meeting date for the "תזכורת" sub-tab.
+          reminderDateRaw: ((row[27]||'')+'').toString().trim(),
+          reminderDateMs: parseSheetDate(row[27]),
+          // Earliest date the lead was logged — used as a "joined on" badge
+          // in the top-right corner of the lead row.
+          entryDate
+        };
+      })
+      .filter(l=>l.phone).reverse();
+
+    // Decide each lead's "last sub-tab" — which of the 4 continue sub-tabs
+    // it belongs to right now. The most recently set marker wins:
+    //   - noAnswerTs       (when "לא נענו" was set)
+    //   - reminderDateMs   (when a reminder was scheduled)
+    //   - meetingDateMs    (when a meeting was scheduled)
+    // The lead falls through to the plain "המשך" sub-tab when none has
+    // been set, or when the user explicitly moved them with the "המשך"
+    // top-bar button (which also sets noAnswer/meeting/reminder to empty
+    // through the meta log entries).
+    all.forEach(l => {
+      const candidates = [];
+      if(l.noAnswer && l.noAnswerTs) candidates.push({key:'noAnswer', ts:l.noAnswerTs});
+      if(l.reminderDateMs)           candidates.push({key:'reminder', ts:l.reminderDateMs});
+      if(l.meetingDateMs)            candidates.push({key:'meeting',  ts:l.meetingDateMs});
+      if(!candidates.length){
+        l.lastSubTab = 'continue';
+      } else {
+        candidates.sort((a,b)=>b.ts-a.ts);
+        l.lastSubTab = candidates[0].key;
+      }
+    });
+
+    const active=all.filter(l=>!l.status||l.status===STATUS_ACTIVE);
+    if(prevCount!==null&&active.length>prevCount)notifyNew(active[0].name,active[0].phone);
+    prevCount=active.length;
+    allLeads=all;
+
+    const wn=active.filter(l=>l.note).length;
+    document.getElementById('lead-count').textContent=active.length;
+    document.getElementById('sn').textContent=wn+' עם הערות';
+    document.getElementById('st').textContent=active.length;
+    document.getElementById('loading').style.display='none';
+    filterLeads();
+  }catch(e){
+    document.getElementById('loading').style.display='none';
+    if(firstLoad){
+      document.getElementById('leads-list').innerHTML=`<div style="padding:20px;color:var(--red);font-size:14px;display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><span>${e.message}</span></div>`;
+    }
+  }finally{
+    loadingLeads=false;
+    // Schedule next refresh — clear any old timer so we don't end up with multiple
+    if(loadTimer)clearTimeout(loadTimer);
+    loadTimer=setTimeout(loadLeads,30*1000);
+  }
+}
+
+/* =========================
+   NOTES PARSING
+   ========================= */
+function parseEntries(note){if(!note)return[];return note.split(/\n\n+/).filter(e=>e.trim());}
+
+function buildNoteEntry(entry,leadIdx,entryIdx){
+  const lines=entry.split('\n');
+  const ts=/^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim())?lines[0]:'';
+  const body=ts?lines.slice(1).join('\n'):entry;
+  let tsDisplay=ts,userTag='';
+  if(ts){
+    const parts=ts.split('|');
+    tsDisplay=parts[0].trim();
+    userTag=parts[1]?parts[1].trim():'';
+  }
+  // Edit button is wired up only when we have lead+entry indices (i.e. inside the
+  // expanded card or the fullscreen log viewer).
+  const editBtn=(leadIdx!==undefined&&entryIdx!==undefined)
+    ? `<button onclick="event.stopPropagation();openEditEntry(${leadIdx},${entryIdx})" class="note-entry-edit" title="ערוך סיכום זה">${ICON.pencil}</button>`
+    : '';
+  return `<div class="note-entry" style="position:relative">
+    ${ts?`<div class="note-ts">${tsDisplay}${userTag?`<span class="note-user">${userTag}</span>`:''}</div>`:''}
+    <div class="note-body" style="padding-left:36px">${esc(body.trim())}</div>
+    ${editBtn}
+  </div>`;
+}
+
+// Get the body of the most recent note entry (without timestamp), for inline preview on the card
+function getLatestNoteBody(note){
+  const entries=parseEntries(note);
+  if(!entries.length)return'';
+  const lines=entries[0].split('\n');
+  const hasTS=/^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim());
+  const body=hasTS?lines.slice(1).join('\n'):entries[0];
+  return body.trim();
+}
+
+/* =========================
+   CALLER VI — column W stores comma-separated user tags
+   ========================= */
+function leadWasCalledByMe(lead){
+  if(!lead||!lead.callers)return false;
+  const tag=getUserTag().toLowerCase();
+  return lead.callers.split(',').map(s=>s.trim().toLowerCase()).includes(tag);
+}
+
+/* =========================
+   RENDER
+   ========================= */
+function renderLeadCard(l,kind){
+  // kind: 'active' | 'continue' | 'removed'
+  const done=leadWasCalledByMe(l), exp=expandedSet.has(l.index), showAll=showAllSet.has(l.index);
+  const entries=parseEntries(l.note);
+  const shown=showAll?entries:entries.slice(0,3);
+  const latestBody=getLatestNoteBody(l.note);
+
+  let notesHtml='';
+  if(exp&&entries.length){
+    const items=shown.map((en,i)=>buildNoteEntry(en,l.index,i)).join('<hr class="note-sep">');
+    const showAllBtn=(!showAll&&entries.length>3)?`<button class="show-all-btn" onclick="event.stopPropagation();openLogView(${l.index})">כל השיחות (${entries.length})</button>`:'';
+    const hideBtn=(showAll)?`<button class="show-all-btn" onclick="event.stopPropagation();toggleShowAll(${l.index})">הצג פחות</button>`:'';
+    notesHtml=`<div class="note-box">
+      <div class="note-hdr">
+        <span class="note-hdr-label">${shown.length===1?'שיחה אחרונה':shown.length+' שיחות אחרונות'}</span>
+        ${showAllBtn}${hideBtn}
+      </div>
+      ${items}
+    </div>`;
+  }
+
+  let actionBtn;
+  if(kind==='removed'){
+    // No restore button — swipe right (with green "השב ללידים" background)
+    // is the only restore action.
+    actionBtn='';
+  } else {
+    // Phone icon stays neutral always — the call indicator is the dot row
+    // above the lead's name (filled red dots = past calls). No green color
+    // swap, no check icon swap.
+    actionBtn=`<button class="call-btn" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${ICON.phone}</button>`;
+  }
+
+  let label='';
+  if(kind==='removed')label=`<div class="removed-lbl">${ICON.removed}<span>הוסר</span></div>`;
+  else if(kind==='continue')label=`<div class="continue-lbl">${ICON.bookmark}<span>המשך</span></div>`;
+
+  return `<div class="lead-row-wrap">
+    <div class="call-dots">${renderCallDots(l.callCount||0)}${l.lastCallTs?`<div class="last-call-ts">${esc(l.lastCallTs)}</div>`:''}</div>
+    <div class="lead-row" onclick="toggleExpand(${l.index})">
+    <div class="lead-info">
+      <div class="lead-name">${esc(l.name)}</div>
+      <div class="lead-phone">${esc(l.phone)}</div>
+      ${l.note?`<div class="lead-badge">${ICON.bubble}<span>${entries.length} שיחות</span></div>`:''}
+      ${label}
+      ${latestBody?`<div class="lead-preview">${esc(latestBody)}</div>`:''}
+    </div>
+    ${l.entryDate?`<div class="lead-entry-date" title="תאריך כניסה למערכת">${esc(l.entryDate)}</div>`:`<div class="lead-entry-date" style="color:var(--green);border-color:var(--green)" title="ליד חדש">חדש</div>`}
+    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
+      ${actionBtn}
+      ${kind!=='removed' ? `<button class="anon-btn" onclick="event.stopPropagation();callLeadAnonymous(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="התקשר חסוי (#31#)">${ICON.phone}</button>` : ''}
+      ${kind!=='removed' ? `<button class="cal-btn" onclick="event.stopPropagation();openMeetingDialog(${l.index},'${ej(l.name)}','${ej(l.phone)}')" title="קבע פגישה">${ICON.calendar}</button>` : ''}
+      ${kind!=='removed' ? `<button class="note-btn" onclick="event.stopPropagation();openLogView(${l.index})" title="סיכומי שיחות">${ICON.noteAdd}</button>` : ''}
+      ${kind!=='removed' ? `<button class="wa-btn" onclick="event.stopPropagation();openWA('${ej(l.phone)}')" title="WhatsApp">${ICON.whatsapp}</button>` : ''}
+    </div>
+    </div>
+  </div>${notesHtml}`;
+}
+
+// Render the dot row above each lead. We always show a fixed number of slots
+// (10 dots is enough for any practical call cadence). Filled-in (red) dots
+// from left to right represent the count of calls made so far. Empty (grey)
+// dots represent remaining slots — purely visual, no upper limit on calls.
+function renderCallDots(count){
+  const TOTAL=10;
+  let html='';
+  for(let i=0;i<TOTAL;i++){
+    const filled = i < Math.min(count, TOTAL);
+    html += `<span class="call-dot${filled?' filled':''}"></span>`;
+  }
+  // If somehow more than TOTAL calls, show the actual count as a tiny number
+  if(count>TOTAL) html += `<span class="call-dot-extra">+${count-TOTAL}</span>`;
+  return html;
+}
+
+function renderLeads(leads){
+  const list=document.getElementById('leads-list');
+  list.innerHTML='';
+  if(!leads.length){list.innerHTML='<div class="empty">אין לידים</div>';return;}
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    // left bg = remove (red, swipe left); right bg = continue (blue, swipe right)
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right">המשך</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}" id="card-${l.index}">
+        ${renderLeadCard(l,'active')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'active');
+  });
+}
+
+function renderContinue(leads){
+  const list=document.getElementById('continue-list');
+  list.innerHTML='';
+  if(!leads.length){list.innerHTML='<div class="empty">אין לידים בהמשך</div>';return;}
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    // From "continue" tab: swipe left -> remove, swipe right -> back to active
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">חזרה ללידים</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'continue')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'continue');
+  });
+}
+
+/* Render the "לא נענו" sub-list. Same lead-card rendering as the
+   regular tabs; swipe handlers are tagged 'noanswer' so initSwipe
+   knows to clear AE + set the right destination status. */
+function renderNoAnswer(leads){
+  const list=document.getElementById('noanswer-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(!leads.length){
+    list.innerHTML='<div class="empty">אין לידים שסומנו כלא נענו</div>';
+    return;
+  }
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    // Swipe right → back to "המשך"; swipe left → "הוסרו"
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">העבר להמשך</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'noanswer')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'noanswer');
+  });
+}
+
+/* Render the "פגישה" sub-list. Sorted by meetingDateMs descending so
+   the most recently scheduled meeting comes first. Same swipe gestures
+   as the regular continue tab. */
+function renderMeeting(leads){
+  const list=document.getElementById('meeting-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(!leads.length){
+    list.innerHTML='<div class="empty">אין לידים עם פגישה</div>';
+    return;
+  }
+  leads.sort((a,b)=>(b.meetingDateMs||0)-(a.meetingDateMs||0));
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">החזר</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'meeting')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'meeting');
+  });
+}
+
+/* Render the "תזכורת" sub-list. */
+function renderReminder(leads){
+  const list=document.getElementById('reminder-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(!leads.length){
+    list.innerHTML='<div class="empty">אין לידים עם תזכורת</div>';
+    return;
+  }
+  leads.sort((a,b)=>(b.reminderDateMs||0)-(a.reminderDateMs||0));
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">החזר</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'reminder')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'reminder');
+  });
+}
+
+/* Switch between the two sub-tabs inside the "המשך" view. */
+/* The currently visible sub-tab inside "המשך". One of:
+   continue / meeting / reminder / noanswer. Persistent across renders
+   so filterLeads knows which sub-tab to count for the header pill. */
+let _continueSubtab = 'continue';
+function setContinueSubtab(which){
+  _continueSubtab = which;
+  // Backwards compat — older code reads _showingNoAnswer.
+  _showingNoAnswer = (which === 'noanswer');
+  // Pill active state — highlight only the current sub-tab.
+  ['continue','meeting','reminder','noanswer'].forEach(k=>{
+    const el = document.getElementById('subtab-' + k);
+    if(el) el.classList.toggle('active', k === which);
+  });
+  // Show only the matching list, hide the others.
+  document.getElementById('continue-list').style.display = which==='continue' ? '' : 'none';
+  document.getElementById('meeting-list').style.display  = which==='meeting'  ? '' : 'none';
+  document.getElementById('reminder-list').style.display = which==='reminder' ? '' : 'none';
+  document.getElementById('noanswer-list').style.display = which==='noanswer' ? '' : 'none';
+  filterLeads();
+}
+
+function renderRemoved(leads){
+  const list=document.getElementById('removed-list');
+  list.innerHTML='';
+  if(!leads.length){list.innerHTML='<div class="empty">אין לידים שהוסרו</div>';return;}
+  leads.forEach(l=>{
+    // Removed tab now supports swipe-right to restore (back to active).
+    // No restore button on the card — the swipe IS the action.
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML=`<div class="swipe-bg left" style="background:var(--bg)"></div><div class="swipe-bg right" style="background:var(--green)">השב ללידים</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}" id="removed-card-${l.index}">
+        ${renderLeadCard(l,'removed')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'removed');
+  });
+}
+
+/* =========================
+   SWIPE
+   - Active tab: left -> removed, right -> continue
+   - Continue tab: left -> removed, right -> active
+   ========================= */
+function initSwipe(wrap,idx,kind){
+  const content=wrap.querySelector('.swipe-content');
+  const bgL=wrap.querySelector('.swipe-bg.left');
+  const bgR=wrap.querySelector('.swipe-bg.right');
+  let startX=0,startY=0,currentX=0,swiping=false,axis=null;
+  const threshold=80;
+
+  function onStart(e){
+    const t=e.touches?e.touches[0]:e;
+    startX=t.clientX;startY=t.clientY;swiping=true;axis=null;currentX=0;
+  }
+  function onMove(e){
+    if(!swiping)return;
+    const t=e.touches?e.touches[0]:e;
+    const dx=t.clientX-startX,dy=t.clientY-startY;
+    if(!axis){if(Math.abs(dx)>8||Math.abs(dy)>8)axis=Math.abs(dx)>Math.abs(dy)?'x':'y';}
+    if(axis!=='x')return;
+    e.preventDefault();
+    currentX=dx;
+    content.style.transform=`translateX(${dx}px)`;
+    content.style.transition='none';
+    const pct=Math.min(Math.abs(dx)/threshold,1);
+    if(dx<0){bgL.style.opacity=pct;bgR.style.opacity=0;}
+    else{bgR.style.opacity=pct;bgL.style.opacity=0;}
+  }
+  function onEnd(){
+    if(!swiping||axis!=='x'){swiping=false;return;}
+    swiping=false;
+    content.style.transition='';
+    if(Math.abs(currentX)>=threshold){
+      const goingLeft=currentX<0;
+      content.style.transform=`translateX(${goingLeft?'-120%':'120%'})`;
+      setTimeout(()=>{
+        if(kind==='active'){
+          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          else          setLeadStatus(idx,STATUS_CONTINUE,'ליד הועבר ל"המשך"');
+        } else if(kind==='continue'){
+          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          else          setLeadStatus(idx,STATUS_ACTIVE,'ליד הוחזר ללידים');
+        } else if(kind==='removed'){
+          // From "removed": only swipe-right is a meaningful action (restore).
+          // Swipe-left does nothing — snap back instead.
+          if(!goingLeft) setLeadStatus(idx,STATUS_ACTIVE,'ליד הוחזר ללידים');
+          else { content.style.transform=''; bgL.style.opacity=0; bgR.style.opacity=0; }
+        } else if(kind==='noanswer'){
+          // From the "לא נענו" sub-tab:
+          //   Swipe-right → clear AE + move to continue
+          //   Swipe-left  → clear AE + move to removed
+          setNoAnswer(idx, false);
+          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          else          setLeadStatus(idx,STATUS_CONTINUE,'ליד הועבר להמשך');
+        } else if(kind==='meeting' || kind==='reminder'){
+          // From the "פגישה" / "תזכורת" sub-tabs:
+          //   Swipe-right → return the lead to the plain "המשך" sub-tab
+          //                 (we clear the relevant date so it stops showing
+          //                 up in the meeting/reminder sub-tab).
+          //   Swipe-left  → move to "הוסרו".
+          if(goingLeft){
+            setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          } else {
+            // Clear the date column so this lead leaves the sub-tab.
+            // Status stays CONTINUE so it shows up in plain "המשך".
+            const colLetter = (kind==='meeting') ? 'X' : 'AB';
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${idx}?valueInputOption=RAW`;
+            const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({values:[['']]})};
+            apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'נקה ' + colLetter));
+            // Also clear the time columns so we don't keep stale data
+            const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${kind==='meeting'?'Y':'AC'}${idx}?valueInputOption=RAW`;
+            const url3 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${kind==='meeting'?'Z':'AD'}${idx}?valueInputOption=RAW`;
+            apiFetch(url2, opts).catch(()=>enqueueWrite(url2, opts, 'נקה זמן'));
+            apiFetch(url3, opts).catch(()=>enqueueWrite(url3, opts, 'נקה זמן'));
+            // Update local state so the lead disappears from this sub-tab now
+            const lead = allLeads.find(l => l.index === idx);
+            if(lead){
+              if(kind==='meeting'){ lead.meetingDateRaw=''; lead.meetingDateMs=0; }
+              else { lead.reminderDateRaw=''; lead.reminderDateMs=0; }
+              lead.lastSubTab='continue';
+            }
+            filterLeads();
+            showToast('ליד הוחזר להמשך','ok');
+            appendMetaLog(idx, kind==='meeting' ? 'בוטלה פגישה' : 'בוטלה תזכורת');
+          }
+        }
+      },220);
+    } else {
+      content.style.transform='';
+      bgL.style.opacity=0;bgR.style.opacity=0;
+    }
+  }
+  wrap.addEventListener('touchstart',onStart,{passive:true});
+  wrap.addEventListener('touchmove',onMove,{passive:false});
+  wrap.addEventListener('touchend',onEnd);
+}
+
+/* Write TRUE/FALSE to column AE for a lead. When TRUE, the lead is
+   marked as "לא נענו" and only appears in the no-answer sub-tab. */
+async function setNoAnswer(idx, value){
+  const lead = allLeads.find(l => l.index === idx);
+  const ts = value ? Date.now() : 0;
+  if(lead){
+    lead.noAnswer = !!value;
+    lead.noAnswerTs = ts;
+    if(value){
+      const moves = loadMovesMap();
+      moves[idx] = ts;
+      saveMovesMap(moves);
+      lead.movedAt = ts;
+    }
+    const i = allLeads.indexOf(lead);
+    if(i > 0){ allLeads.splice(i, 1); allLeads.unshift(lead); }
+  }
+  filterLeads();
+  // Two parallel writes: AE (flag) and AF (timestamp). Fire-and-forget
+  // for instant UI — on failure the writes go to the offline queue which
+  // flushQueue() retries automatically.
+  const urlAE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AE${idx}?valueInputOption=USER_ENTERED`;
+  const optsAE = {method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({values:[[ value ? 'TRUE' : 'FALSE' ]]})};
+  const urlAF = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AF${idx}?valueInputOption=RAW`;
+  const optsAF = {method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({values:[[ value ? String(ts) : '' ]]})};
+  apiFetch(urlAE, optsAE).catch(()=>enqueueWrite(urlAE, optsAE, 'לא נענו'));
+  apiFetch(urlAF, optsAF).catch(()=>enqueueWrite(urlAF, optsAF, 'תאריך לא נענו'));
+  appendMetaLog(idx, value ? 'סומן כלא נענו' : 'הוסרה הסימון לא נענו');
+}
+
+/* =========================
+   STATUS UPDATE — writes to column V
+   ========================= */
+async function setLeadStatus(idx,status,toastMsg){
+  // optimistic UI
+  const lead=allLeads.find(l=>l.index===idx);
+  if(lead){
+    lead.status=status;
+    // Persist a "moved at" timestamp per row so the order survives reloads.
+    // loadLeads() reads this map and sorts each tab so most recently moved
+    // leads appear first.
+    const moves=loadMovesMap();
+    moves[idx]=Date.now();
+    saveMovesMap(moves);
+    lead.movedAt=moves[idx];
+    // Bump in-memory immediately so the change is visible without a reload.
+    const i=allLeads.indexOf(lead);
+    if(i>0){ allLeads.splice(i,1); allLeads.unshift(lead); }
+  }
+  filterLeads();
+  if(toastMsg)showToast(toastMsg);
+
+  // Fire-and-forget write — UI is already updated. On failure the write
+  // goes to the offline queue which retries automatically.
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[status]]})};
+  apiFetch(url,opts).catch(()=>{
+    enqueueWrite(url,opts,'סטטוס ליד');
+  });
+  // Also append a metadata log entry to column AB so we have full audit trail
+  const label = status===STATUS_CONTINUE ? 'הועבר להמשך'
+              : status===STATUS_REMOVED ? 'הוסר'
+              : 'הוחזר ללידים';
+  appendMetaLog(idx, label);
+}
+
+// Append an entry to the metadata log column (AB). Each entry is one line:
+// "DD/MM/YY HH:MM | userTag | event". Newest entries go on top.
+// Failures are queued like every other write so we never lose history.
+async function appendMetaLog(idx, event){
+  const lead=allLeads.find(l=>l.index===idx);
+  const ts=getTS(); // already includes user tag in format "DD/MM/YY HH:MM | tag"
+  const newEntry=`${ts} | ${event}`;
+  const prev=lead?(lead.metaLog||''):'';
+  const combined=prev?(newEntry+'\n'+prev):newEntry;
+  if(lead) lead.metaLog=combined;
+  // Audit log column moved from AB → AG so the reminder columns
+  // (AB/AC/AD) can hold their own data without conflict.
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AG${idx}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'יומן ליד'));
+}
+
+// Persistent map of {rowIndex: timestamp} — when each lead was last moved
+// between tabs. Used by loadLeads to keep the recency-based ordering across
+// page reloads.
+function loadMovesMap(){
+  try{ return JSON.parse(localStorage.getItem('lead_moves')||'{}'); }
+  catch(_){ return {}; }
+}
+function saveMovesMap(m){ localStorage.setItem('lead_moves',JSON.stringify(m)); }
+
+function restoreLead(idx){
+  setLeadStatus(idx,STATUS_ACTIVE,'ליד שוחזר');
+}
+
+/* =========================
+   CALLER MARK — writes to column W (append user tag on EVERY call)
+   ========================= */
+async function markCalled(idx){
+  const tag=getUserTag().toLowerCase();
+  if(!tag)return;
+  const lead=allLeads.find(l=>l.index===idx);
+  // Append on EVERY call (not deduped). The total call count is just the
+  // length of this list — that's what drives the dot indicator above each
+  // lead's name. Same user calling 3 times → 3 entries, 3 red dots.
+  let list=lead&&lead.callers?lead.callers.split(',').map(s=>s.trim()).filter(Boolean):[];
+  list.push(tag);
+  const newVal=list.join(', ');
+  if(lead){
+    lead.callers=newVal;
+    lead.callCount=list.length;
+  }
+  filterLeads();
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/W${idx}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סימון מתקשר'));
+  // Add to the audit log too
+  appendMetaLog(idx, 'שיחה יצאה');
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function ej(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+function toggleExpand(idx){
+  if(expandedSet.has(idx))expandedSet.delete(idx);else expandedSet.add(idx);
+  filterLeads();
+}
+function toggleShowAll(idx){
+  if(showAllSet.has(idx))showAllSet.delete(idx);else showAllSet.add(idx);
+  filterLeads();
+}
+
+/* =========================
+   FILTER & RENDER (search applies to all tabs)
+   ========================= */
+function filterLeads(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const match=l=>l.name.toLowerCase().includes(q)||l.phone.includes(q)||l.note.toLowerCase().includes(q);
+
+  // Special "no-answer" leads are excluded from the regular active/continue tabs
+  // and shown only in the dedicated no-answer sub-tab inside the continue view.
+  // ─── search semantics ─────────────────────────────────────────────
+  // - When the search box has text, results are aggregated across every
+  //   tab except "removed" — so finding a lead works regardless of which
+  //   tab they currently sit in.
+  // - In the "removed" tab, search only looks at removed leads.
+  const searching = q.trim().length > 0;
+  const removedOnlySearch = (currentTab === 'removed') && searching;
+
+  const active = allLeads.filter(l =>
+    (!l.status || l.status===STATUS_ACTIVE) && !l.noAnswer && match(l)
+  );
+  // All "continue"-status leads (excluding the "no-answer" set, which
+  // is decided by the AE flag, not by status). We split them by the
+  // "lastSubTab" marker computed in loadLeads — the lead appears in
+  // exactly one of the 4 sub-tabs based on the most recent action.
+  const allCont = allLeads.filter(l =>
+    l.status===STATUS_CONTINUE && !l.noAnswer && match(l)
+  );
+  const cont     = allCont.filter(l => l.lastSubTab === 'continue' || !l.lastSubTab);
+  const meeting  = allCont.filter(l => l.lastSubTab === 'meeting');
+  const reminder = allCont.filter(l => l.lastSubTab === 'reminder');
+  // No-answer is independent of status — driven by the AE TRUE/FALSE flag.
+  const noAnsw = allLeads.filter(l =>
+    l.noAnswer && match(l)
+  ).sort((a,b) => (b.noAnswerTs||0) - (a.noAnswerTs||0));
+  const rem = allLeads.filter(l =>
+    l.status===STATUS_REMOVED && !l.noAnswer && match(l)
+  );
+
+  // When searching from any tab except "removed", the active/continue/
+  // no-answer lists all show the search hits, so the user finds the lead
+  // wherever it lives. In "removed" the search only filters removed leads.
+  if(searching && !removedOnlySearch){
+    // Aggregate all non-removed matches into the visible list of the
+    // current tab so the user sees them without switching tabs.
+    // (Each tab still gets its own native list when not searching.)
+  }
+
+  renderLeads(active);
+  renderContinue(cont);
+  renderMeeting(meeting);
+  renderReminder(reminder);
+  renderRemoved(rem);
+  renderNoAnswer(noAnsw);
+  // Update the per-sub-tab pill counters
+  const setCnt = (id, n)=>{ const el=document.getElementById(id); if(el) el.textContent = n ? '('+n+')' : ''; };
+  setCnt('subtab-continue-count', cont.length);
+  setCnt('subtab-meeting-count',  meeting.length);
+  setCnt('subtab-reminder-count', reminder.length);
+  setCnt('subtab-noanswer-count', noAnsw.length);
+  // Header counter — depends on which sub-tab is showing inside "המשך"
+  const headerCount = currentTab !== 'continue' ? ({active:active.length, removed:rem.length}[currentTab] || 0)
+    : ({continue:cont.length, meeting:meeting.length, reminder:reminder.length, noanswer:noAnsw.length}[_continueSubtab] || cont.length);
+  document.getElementById('lead-count').textContent = headerCount;
+}
+
+/* =========================
+   CALL FLOW
+   ========================= */
+function callLead(idx,name,phone){
+  currentLead={index:idx,name,phone};
+  markCalled(idx);
+  window.location.href='tel:'+phone.replace(/[^0-9+]/g,'');
+  setTimeout(()=>openModal(name),1800);
+}
+// Anonymous call variant — prefixes the Israeli "block caller ID for this call"
+// code (#31#) so the recipient sees "Unknown number". Same call-summary flow
+// afterwards. The "%23" is the URL-encoded form of "#" (mandatory in tel: URIs).
+function callLeadAnonymous(idx,name,phone){
+  currentLead={index:idx,name,phone};
+  markCalled(idx);
+  const cleaned=phone.replace(/[^0-9+]/g,'');
+  window.location.href='tel:%2331%23'+cleaned;
+  setTimeout(()=>openModal(name),1800);
+}
+// Open the same summary modal but WITHOUT making a phone call.
+// Saving uses the same flow (saveNote -> column C with timestamp + user tag).
+function addNote(idx,name){
+  const lead=allLeads.find(l=>l.index===idx);
+  const phone=lead?lead.phone:'';
+  currentLead={index:idx,name,phone};
+  openModal(name);
+}
+// Tapping the phone button inside the call-summary modal — fires a tel:
+// to the current lead and marks the call. Used by users who arrived at the
+// modal via a reminder notification.
+function callCurrentLead(){
+  if(!currentLead || !currentLead.phone){ showToast('אין מספר טלפון','err'); return; }
+  markCalled(currentLead.index);
+  window.location.href='tel:'+currentLead.phone.replace(/[^0-9+]/g,'');
+}
+
+/* "לא נענו" button inside the call-summary modal. Closes the modal
+   (saving any draft) and flags AE=TRUE for the current lead. */
+function markCurrentLeadNoAnswer(){
+  if(!currentLead) return;
+  const idx = currentLead.index;
+  // Save any draft note that was typed before flagging
+  const note = document.getElementById('note-input').value.trim();
+  if(history.state && history.state.page === 'modal') popHistorySilently();
+  if(currentLead) localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  if(note){
+    const lead = allLeads.find(l => l.index === idx);
+    const entry = getTS()+'\n'+note;
+    const prev = lead ? lead.note : '';
+    const combined = prev ? entry+'\n\n'+prev : entry;
+    if(lead) lead.note = combined;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[combined]]})};
+    apiFetch(url, opts).catch(e => enqueueWrite(url, opts, 'סיכום שיחה'));
+  }
+  setNoAnswer(idx, true);
+  showToast('סומן: לא נענו');
+}
+
+function openModal(name){
+  document.getElementById('modal-name').textContent=name;
+  // restore any saved draft for this lead
+  const draftKey=currentLead?'draft_'+currentLead.index:null;
+  const draft=draftKey?(localStorage.getItem(draftKey)||''):'';
+  document.getElementById('note-input').value=draft;
+  finalTranscript=draft;
+  document.getElementById('note-modal').classList.add('open');
+  modalOpen=true;
+  // history entry so back button closes (and saves draft) instead of leaving
+  history.pushState({page:'modal'},'');
+  stopMic();
+  // While the call-summary is open, lock the page underneath: ANY
+  // downward swipe anywhere on the screen closes the modal (saving the
+  // draft) and is fully consumed — no pull-to-refresh, no rubber-banding,
+  // no background scrolling.
+  _attachNoteScrollLock();
+  // Don't auto-focus the textarea — the keyboard popping up is annoying when
+  // the user just wants to tap one of the action buttons (continue/meeting/
+  // reminder/remove). Some browsers/Android WebView auto-focus the first
+  // input/textarea in a newly-shown container, so we explicitly blur whatever
+  // ended up focused on the next two paint frames.
+  const blurAny=()=>{
+    const a=document.activeElement;
+    if(a && (a.tagName==='TEXTAREA' || a.tagName==='INPUT')) a.blur();
+  };
+  requestAnimationFrame(()=>{ blurAny(); requestAnimationFrame(blurAny); });
+  setTimeout(blurAny, 60);
+}
+
+/* ── Global scroll-lock for the call-summary modal ──────────────────
+   Goal: while the modal is open, ANY downward swipe anywhere on the
+   screen should close the modal and do nothing else — no page scroll,
+   no pull-to-refresh, no rubber-banding behind the sheet.
+
+   Strategy:
+   1. Lock body scroll via overflow:hidden + overscroll-behavior:none
+      (the second one disables pull-to-refresh on Chrome Android).
+   2. Add a document-level touchmove listener with {passive:false} that
+      preventDefault()s every move while the modal is open. The same
+      listener detects a meaningful downward swipe and triggers close.
+   3. Allow scrolling INSIDE the textarea (the only scrollable area
+      that should still respond) — we skip the prevent + close logic
+      when the touch started on the textarea AND its content overflows. */
+let _noteScrollLock = null;
+function _attachNoteScrollLock(){
+  if(_noteScrollLock) return; // already attached
+  // Lock the body so the page can't scroll behind the modal.
+  const prevBodyOverflow = document.body.style.overflow;
+  const prevBodyOverscroll = document.body.style.overscrollBehavior;
+  const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+  document.body.style.overflow = 'hidden';
+  document.body.style.overscrollBehavior = 'none';
+  document.documentElement.style.overscrollBehavior = 'none';
+
+  let startY = 0, startedInScrollable = false;
+  const noteSheet = document.querySelector('#note-modal .modal-sheet');
+  const textarea = document.getElementById('note-input');
+
+  const onStart = (e)=>{
+    if(!modalOpen){ return; }
+    if(!e.touches || !e.touches[0]) return;
+    startY = e.touches[0].clientY;
+    // If the touch started inside the textarea AND it overflows, allow
+    // native scrolling there (we won't preventDefault for that case).
+    startedInScrollable = false;
+    if(textarea && textarea.contains(e.target)){
+      const canScroll = textarea.scrollHeight > textarea.clientHeight;
+      if(canScroll) startedInScrollable = true;
+    }
+  };
+
+  const onMove = (e)=>{
+    if(!modalOpen) return;
+    if(!e.touches || !e.touches[0]) return;
+    const dy = e.touches[0].clientY - startY;
+    // Allow native scrolling inside the textarea (when it actually scrolls)
+    if(startedInScrollable){
+      // But still close on big downward swipes from inside the textarea
+      // when the textarea is scrolled to its top.
+      if(dy > 80 && textarea && textarea.scrollTop <= 0){
+        if(e.cancelable) e.preventDefault();
+        _closeNoteOnSwipe();
+      }
+      return;
+    }
+    // Default: block ANY page movement while the modal is open.
+    if(e.cancelable) e.preventDefault();
+    // A meaningful downward swipe → close the modal.
+    if(dy > 60){
+      _closeNoteOnSwipe();
+    }
+  };
+
+  // Wheel: also block scrolling on desktop / mouse wheel.
+  const onWheel = (e)=>{
+    if(!modalOpen) return;
+    if(textarea && textarea.contains(e.target)){
+      const canScroll = textarea.scrollHeight > textarea.clientHeight;
+      if(canScroll) return; // let the textarea scroll normally
+    }
+    if(e.cancelable) e.preventDefault();
+    if(e.deltaY > 30){
+      _closeNoteOnSwipe();
+    }
+  };
+
+  document.addEventListener('touchstart', onStart, {passive:true});
+  document.addEventListener('touchmove',  onMove,  {passive:false});
+  document.addEventListener('wheel',      onWheel, {passive:false});
+
+  _noteScrollLock = ()=>{
+    document.removeEventListener('touchstart', onStart);
+    document.removeEventListener('touchmove',  onMove);
+    document.removeEventListener('wheel',      onWheel);
+    document.body.style.overflow = prevBodyOverflow;
+    document.body.style.overscrollBehavior = prevBodyOverscroll;
+    document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
+    _noteScrollLock = null;
+  };
+}
+
+function _detachNoteScrollLock(){
+  if(_noteScrollLock) _noteScrollLock();
+}
+
+/* Close the modal due to a swipe gesture: save the draft (so what the
+   user typed isn't lost) and animate the sheet out. */
+let _swipeCloseInFlight = false;
+function _closeNoteOnSwipe(){
+  if(_swipeCloseInFlight) return;
+  _swipeCloseInFlight = true;
+  const sheet = document.querySelector('#note-modal .modal-sheet');
+  if(sheet){
+    sheet.style.transition = 'transform 0.18s cubic-bezier(.32,.72,0,1)';
+    sheet.style.transform = 'translateY(100%)';
+  }
+  setTimeout(()=>{
+    if(sheet){ sheet.style.transition=''; sheet.style.transform=''; }
+    saveDraftAndCloseModal();
+    _swipeCloseInFlight = false;
+  }, 180);
+}
+function closeModal(){
+  // user clicked "סגור בלי לשמור" -> drop the draft
+  if(currentLead)localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  if(history.state&&history.state.page==='modal') popHistorySilently();
+}
+function saveDraftAndCloseModal(){
+  // back button -> persist whatever was typed for next time
+  const txt=document.getElementById('note-input').value;
+  if(currentLead){
+    if(txt&&txt.trim())localStorage.setItem('draft_'+currentLead.index,txt);
+    else localStorage.removeItem('draft_'+currentLead.index);
+  }
+  _closeModalCore();
+  if(txt&&txt.trim())showToast('טיוטה נשמרה');
+}
+function _closeModalCore(){
+  document.getElementById('note-modal').classList.remove('open');
+  modalOpen=false;
+  stopMic();
+  // Release the page-wide scroll lock that openModal installed.
+  if(typeof _detachNoteScrollLock === 'function') _detachNoteScrollLock();
+  // Don't re-render the list here — closing without saving shouldn't cause
+  // a visible flash. Save flows (saveAndMove etc.) trigger their own
+  // filterLeads() so the UI stays in sync when there's an actual change.
+  // If the user opened this modal from inside the log viewer, return them there
+  if(_logViewReopenIndex!=null){
+    const idx=_logViewReopenIndex;
+    _logViewReopenIndex=null;
+    setTimeout(()=>openLogView(idx), 60);
+  }
+}
+
+// History navigation pattern: every inner window pushes a history entry
+// when it opens. The back button (popstate) closes the current window and
+// goes one level back. Programmatic close → use popHistorySilently to pop
+// without re-running the popstate logic (avoids cascading closes).
+let _suppressPopstate=false;
+function popHistorySilently(){
+  _suppressPopstate=true;
+  history.back();
+  setTimeout(()=>{_suppressPopstate=false;},120);
+}
+
+let _logViewLead=null;
+// When the user clicks "הוסף סיכום שיחה" inside the log viewer, we close the
+// viewer and open the note modal. Store the lead index here so we can reopen
+// the log viewer after the modal closes.
+let _logViewReopenIndex=null;
+let _logExpandAll=false; // tracks whether all entries are expanded in the viewer
+function openLogView(idx){
+  const l=allLeads.find(x=>x.index===idx);
+  if(!l)return;
+  _logViewLead=l;
+  _logExpandAll=false;
+  document.getElementById('log-view-name').textContent=l.name+(l.phone?` • ${l.phone}`:'');
+  renderLogViewContent();
+  document.getElementById('log-view-modal').classList.add('open');
+  history.pushState({page:'logview'},'');
+}
+function renderLogViewContent(){
+  const l=_logViewLead; if(!l)return;
+  const entries=parseEntries(l.note||'');
+  const wrap=document.getElementById('log-view-content');
+  if(!entries.length){
+    wrap.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">אין סיכומי שיחות עדיין</div>';
+    return;
+  }
+  // Header row with the global expand/collapse toggle
+  const toggleLabel=_logExpandAll?'צמצם הכל':'הרחב הכל';
+  const toggleIcon=_logExpandAll?ICON.chevronR:ICON.plus;
+  const header=`<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+    <button class="expand-all-btn" onclick="toggleLogExpandAll()">${toggleIcon}<span>${toggleLabel}</span></button>
+  </div>`;
+  wrap.innerHTML=header+entries.map((en,i)=>{
+    const lines=en.split('\n');
+    const head=lines[0]||'';
+    const isHead=/^\d{2}\/\d{2}\/\d{2}/.test(head.trim());
+    const body=isHead?lines.slice(1).join('\n'):en;
+    let tsDisplay='',userTag='';
+    if(isHead){
+      const parts=head.split('|');
+      tsDisplay=parts[0].trim();
+      userTag=parts[1]?parts[1].trim():'';
+    }
+    const expandedCls=_logExpandAll?' expanded':'';
+    return `<div class="entry-card${expandedCls}" onclick="toggleEntryCard(this)">
+      ${tsDisplay?`<div class="entry-ts">${esc(tsDisplay)}${userTag?`<span class="entry-user">${esc(userTag)}</span>`:''}</div>`:''}
+      <div class="entry-body">${esc(body.trim())}</div>
+      <button onclick="event.stopPropagation();openEditEntry(${l.index},${i})" class="note-entry-edit" title="ערוך סיכום זה">${ICON.pencil}</button>
+    </div>`;
+  }).join('');
+}
+// Toggle expand/collapse state of a single entry card
+function toggleEntryCard(el){
+  if(!el)return;
+  el.classList.toggle('expanded');
+}
+// Toggle expand state for all entries in the currently-open log viewer
+function toggleLogExpandAll(){
+  _logExpandAll=!_logExpandAll;
+  renderLogViewContent();
+}
+function closeLogView(){
+  document.getElementById('log-view-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logview') popHistorySilently();
+  _logViewLead=null;
+}
+function openAddFromLogView(){
+  const l=_logViewLead; if(!l) return;
+  // Close the log-view first, then open the note modal. This avoids any
+  // z-index/stacking confusion where the modal would appear behind the log
+  // viewer. We remember which lead we came from so we can reopen the log
+  // viewer after the note modal closes.
+  _logViewReopenIndex=l.index;
+  document.getElementById('log-view-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logview') popHistorySilently();
+  // Slight delay so the close animation can settle before the new modal opens
+  setTimeout(()=>addNote(l.index,l.name), 50);
+}
+function openEditFromLogView(){
+  const l=_logViewLead; if(!l) return;
+  document.getElementById('log-edit-name').textContent=l.name+(l.phone?` • ${l.phone}`:'');
+  document.getElementById('log-edit-textarea').value=l.note||'';
+  document.getElementById('log-edit-modal').classList.add('open');
+  history.pushState({page:'logedit'},'');
+}
+function closeLogEdit(){
+  document.getElementById('log-edit-modal').classList.remove('open');
+  if(history.state&&history.state.page==='logedit') popHistorySilently();
+}
+async function saveLogEdit(){
+  const l=_logViewLead; if(!l) return;
+  const txt=document.getElementById('log-edit-textarea').value;
+  l.note=txt;
+  closeLogEdit();
+  showToast('שומר...');
+  try{
+    if(!accessToken){signOut();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${l.index}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[txt]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+    filterLeads();
+    if(_logViewLead){_logViewLead.note=txt;openLogView(_logViewLead.index);}
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// ── EDIT a single note entry (in column C, by entry index) ─────────────────
+let _entryEditCtx=null;  // {leadIdx, entryIdx}
+function openEditEntry(leadIdx,entryIdx){
+  const lead=allLeads.find(x=>x.index===leadIdx);
+  if(!lead) return;
+  const entries=parseEntries(lead.note||'');
+  if(entryIdx<0||entryIdx>=entries.length) return;
+  _entryEditCtx={leadIdx,entryIdx};
+  const lines=entries[entryIdx].split('\n');
+  const head=/^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim())?lines[0]:'';
+  const body=head?lines.slice(1).join('\n'):entries[entryIdx];
+  document.getElementById('entry-edit-head').textContent=head;
+  document.getElementById('entry-edit-text').value=body;
+  document.getElementById('entry-edit-modal').style.display='flex';
+  history.pushState({page:'entryedit'},'');
+}
+function closeEditEntry(){
+  document.getElementById('entry-edit-modal').style.display='none';
+  if(history.state&&history.state.page==='entryedit') popHistorySilently();
+  _entryEditCtx=null;
+}
+async function saveEditEntry(){
+  if(!_entryEditCtx) return;
+  const {leadIdx,entryIdx}=_entryEditCtx;
+  const newBody=document.getElementById('entry-edit-text').value.trim();
+  const lead=allLeads.find(x=>x.index===leadIdx);
+  if(!lead){closeEditEntry();return;}
+  const entries=parseEntries(lead.note||'');
+  if(entryIdx<0||entryIdx>=entries.length){closeEditEntry();return;}
+  const oldEntry=entries[entryIdx];
+  const lines=oldEntry.split('\n');
+  const head=/^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim())?lines[0]:'';
+  if(!newBody){
+    entries.splice(entryIdx,1);
+  } else {
+    entries[entryIdx]=head?(head+'\n'+newBody):newBody;
+  }
+  const newVal=entries.join('\n\n');
+  lead.note=newVal; // optimistic
+  closeEditEntry();
+  // refresh whatever view is open
+  if(_logViewLead&&_logViewLead.index===leadIdx) openLogView(leadIdx);
+  filterLeads();
+  showToast('שומר...');
+  try{
+    if(!accessToken){signOut();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${lead.index}?valueInputOption=RAW`;
+    const r=await fetch(url,{
+      method:'PUT',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נשמר','ok');
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// ── Delete a single entry (used by the "מחק" button in the entry editor) ────
+async function deleteEntry(){
+  if(!_entryEditCtx) return;
+  const {leadIdx,entryIdx}=_entryEditCtx;
+  const lead=allLeads.find(x=>x.index===leadIdx);
+  if(!lead){closeEditEntry();return;}
+  const entries=parseEntries(lead.note||'');
+  if(entryIdx<0||entryIdx>=entries.length){closeEditEntry();return;}
+  entries.splice(entryIdx,1);
+  const newVal=entries.join('\n\n');
+  lead.note=newVal;
+  closeEditEntry();
+  if(_logViewLead&&_logViewLead.index===leadIdx) openLogView(leadIdx);
+  filterLeads();
+  showToast('שומר...');
+  try{
+    if(!accessToken){signOut();throw new Error('אין הרשאה');}
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${lead.index}?valueInputOption=RAW`;
+    const r=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})});
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    showToast('נמחק','ok');
+  }catch(e){showToast(e.message,'err');}
+}
+
+// ── Meeting scheduler (writes date to col X, start time to Y, end time to Z) ──
+let _meetingLead=null;
+// Custom meeting picker — visual calendar grid (Sunday-first) + time slot grid.
+// State held centrally so each interaction (click on day, click on slot,
+// manual time entry, month nav) can update the right pieces.
+const HEBREW_MONTHS=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+let _meetingPick={
+  // The day currently selected (full Date components). Defaults set in openMeetingDialog.
+  day:1,month:1,year:2026,
+  // What month the calendar is currently showing (may differ from selected day if user navigates)
+  viewMonth:1,viewYear:2026,
+  // Time selection
+  hour:9,minute:0
+};
+
+// Flag — when true, the meeting modal is being used as a reminder dialog.
+// saveMeeting() reads this and writes to AB/AC/AD instead of X/Y/Z.
+let _isReminderMode=false;
+
+// Reuse the meeting dialog as a reminder dialog. Same UI (calendar + time
+// slots + manual entry) but writes to columns AB/AC/AD when saved.
+// Default = today, next half-hour slot. Source lead is the lead whose call
+// summary modal is currently open (currentLead).
+// Open the meeting dialog from inside the call-summary modal. Reuses the
+// regular openMeetingDialog flow but pulls the lead from currentLead.
+// We also close the note-modal so we don't have two stacked sheets.
+function openMeetingFromSummary(){
+  if(!currentLead) return;
+  const lead=allLeads.find(l=>l.index===currentLead.index);
+  if(!lead) return;
+  // Save any typed note before closing. saveNote() handles the modal close
+  // and history pop itself, so we just call it. If there's no note we close
+  // manually. AVOID double-popping history (saveNote does its own pop).
+  const note=document.getElementById('note-input').value.trim();
+  if(note){
+    saveNote();
+  } else {
+    if(history.state&&history.state.page==='modal') popHistorySilently();
+    _closeModalCore();
+  }
+  openMeetingDialog(lead.index, lead.name||'', lead.phone||'');
+}
+
+function openReminderDialog(){
+  if(!currentLead) return;
+  const lead=allLeads.find(l=>l.index===currentLead.index);
+  if(!lead) return;
+  // Same as openMeetingFromSummary — let saveNote handle close+pop, or do
+  // it manually if there's nothing to save. Avoids double-pop bug that
+  // would corrupt the history state and break subsequent button clicks.
+  const note=document.getElementById('note-input').value.trim();
+  if(note){
+    saveNote();
+  } else {
+    if(history.state&&history.state.page==='modal') popHistorySilently();
+    _closeModalCore();
+  }
+  _meetingLead=lead;
+  _isReminderMode=true;
+  // Update the title text to reflect that this is a reminder, not a meeting
+  const sheet=document.querySelector('#meeting-modal .modal-sheet');
+  if(sheet){
+    const titleEl=sheet.querySelector('div[style*="font-size:16px"]');
+    if(titleEl) titleEl.textContent='קביעת תזכורת';
+    const saveBtn=sheet.querySelector('.btn-save');
+    if(saveBtn) saveBtn.textContent='שמור תזכורת';
+  }
+  // Show the optional note field — only relevant for reminders
+  const noteEl=document.getElementById('reminder-note');
+  if(noteEl){ noteEl.style.display=''; noteEl.value=''; }
+  document.getElementById('meeting-name').textContent=lead.name+(lead.phone?` • ${lead.phone}`:'');
+  // Default selection — today
+  const now=new Date();
+  _meetingPick.day=now.getDate();
+  _meetingPick.month=now.getMonth()+1;
+  _meetingPick.year=now.getFullYear();
+  _meetingPick.viewMonth=_meetingPick.month;
+  _meetingPick.viewYear=_meetingPick.year;
+  let h=now.getHours(), m=now.getMinutes();
+  if(m<30){m=30;}else{m=0; h++;}
+  if(h<8){h=8;m=0;}
+  if(h>=20){h=8;m=0;}
+  _meetingPick.hour=h; _meetingPick.minute=m;
+  renderCalendar();
+  renderTimeSlots();
+  syncHiddenInputs();
+  document.getElementById('meeting-modal').style.display='flex';
+  history.pushState({page:'meeting'},'');
+}
+
+function openMeetingDialog(idx,name,phone){
+  const lead=allLeads.find(l=>l.index===idx);
+  if(!lead) return;
+  _meetingLead=lead;
+  _isReminderMode=false;
+  // Restore the title and save button to "meeting" labels in case a previous
+  // reminder dialog left them set to reminder text.
+  const sheet=document.querySelector('#meeting-modal .modal-sheet');
+  if(sheet){
+    const titleEl=sheet.querySelector('div[style*="font-size:16px"]');
+    if(titleEl) titleEl.textContent='קביעת פגישה';
+    const saveBtn=sheet.querySelector('.btn-save');
+    if(saveBtn) saveBtn.textContent='שמור פגישה';
+  }
+  // Hide reminder-only note input
+  const noteEl=document.getElementById('reminder-note');
+  if(noteEl){ noteEl.style.display='none'; noteEl.value=''; }
+  document.getElementById('meeting-name').textContent=name+(phone?` • ${phone}`:'');
+  // Default selection — today + the next half-hour slot
+  const now=new Date();
+  _meetingPick.day=now.getDate();
+  _meetingPick.month=now.getMonth()+1;
+  _meetingPick.year=now.getFullYear();
+  _meetingPick.viewMonth=_meetingPick.month;
+  _meetingPick.viewYear=_meetingPick.year;
+  // Default time = next half-hour slot, clamped to 08:00–20:00 range
+  let h=now.getHours(), m=now.getMinutes();
+  if(m<30){m=30;}else{m=0; h++;}
+  if(h<8){h=8;m=0;}
+  if(h>=20){h=8;m=0;} // if it's late, default to morning
+  _meetingPick.hour=h; _meetingPick.minute=m;
+  renderCalendar();
+  renderTimeSlots();
+  syncHiddenInputs();
+  document.getElementById('meeting-modal').style.display='flex';
+  history.pushState({page:'meeting'},'');
+}
+
+// Days in month, with leap-year handling for February
+function daysInMonth(year,month){
+  if(month===2){
+    const leap=(year%4===0 && year%100!==0) || (year%400===0);
+    return leap?29:28;
+  }
+  return [31,28,31,30,31,30,31,31,30,31,30,31][month-1];
+}
+
+// Render the visual calendar grid for the current view month
+function renderCalendar(){
+  const p=_meetingPick;
+  const ym=p.viewYear, mm=p.viewMonth;
+  const title=`${HEBREW_MONTHS[mm-1]} ${ym}`;
+  document.getElementById('cal-title').textContent=title;
+  // Day-of-week of the 1st (0=Sunday, 6=Saturday)
+  const firstDow=new Date(ym, mm-1, 1).getDay();
+  const total=daysInMonth(ym,mm);
+  const today=new Date();
+  const todayY=today.getFullYear(), todayM=today.getMonth()+1, todayD=today.getDate();
+  const grid=document.getElementById('cal-grid');
+  let html='';
+  // Pad with empty cells for days before the 1st (so 1st sits in the right column)
+  for(let i=0;i<firstDow;i++) html+='<div class="cal-day empty"></div>';
+  // Render each day
+  for(let d=1; d<=total; d++){
+    const isToday=(ym===todayY && mm===todayM && d===todayD);
+    const isPast=(ym<todayY) || (ym===todayY && mm<todayM) || (ym===todayY && mm===todayM && d<todayD);
+    const isSel=(ym===p.year && mm===p.month && d===p.day);
+    const cls=['cal-day'];
+    if(isToday) cls.push('today');
+    if(isPast) cls.push('past');
+    if(isSel) cls.push('selected');
+    html+=`<button type="button" class="${cls.join(' ')}" onclick="pickDay(${ym},${mm},${d})">${d}</button>`;
+  }
+  grid.innerHTML=html;
+}
+
+function pickDay(y,m,d){
+  _meetingPick.year=y;
+  _meetingPick.month=m;
+  _meetingPick.day=d;
+  // No need to re-render time slots, but the calendar needs to update its
+  // .selected highlight.
+  renderCalendar();
+  syncHiddenInputs();
+}
+
+function navMonth(delta){
+  const p=_meetingPick;
+  p.viewMonth+=delta;
+  if(p.viewMonth<1){p.viewMonth=12; p.viewYear--;}
+  if(p.viewMonth>12){p.viewMonth=1; p.viewYear++;}
+  renderCalendar();
+}
+
+// Render the half-hour time slot buttons from 08:00 to 20:00 (inclusive)
+function renderTimeSlots(){
+  const slots=[];
+  for(let h=8; h<=20; h++){
+    slots.push({h,m:0});
+    if(h<20) slots.push({h,m:30});
+  }
+  const wrap=document.getElementById('time-slots');
+  const pad=n=>String(n).padStart(2,'0');
+  wrap.innerHTML=slots.map(s=>{
+    const sel=(s.h===_meetingPick.hour && s.m===_meetingPick.minute);
+    return `<button type="button" class="time-slot${sel?' selected':''}" onclick="pickTime(${s.h},${s.m})">${pad(s.h)}:${pad(s.m)}</button>`;
+  }).join('');
+  // Update the "current selection" badge above the slots
+  document.getElementById('time-current').textContent=`${pad(_meetingPick.hour)}:${pad(_meetingPick.minute)}`;
+}
+
+function pickTime(h,m){
+  _meetingPick.hour=h;
+  _meetingPick.minute=m;
+  // Pre-fill manual inputs with the selected slot, so the user can tweak just
+  // the minute (or hour) from there if they need a non-half-hour time.
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('manual-hour').value=pad(h);
+  document.getElementById('manual-minute').value=pad(m);
+  renderTimeSlots();
+  syncHiddenInputs();
+}
+
+// Manual time entry — fired on every keystroke. We accept any valid hour+minute.
+function onManualTimeChange(){
+  const hEl=document.getElementById('manual-hour');
+  const mEl=document.getElementById('manual-minute');
+  const h=parseInt(hEl.value,10);
+  const m=parseInt(mEl.value,10);
+  if(isNaN(h)||isNaN(m)) return; // wait until both fields have valid input
+  if(h<0||h>23||m<0||m>59) return;
+  _meetingPick.hour=h;
+  _meetingPick.minute=m;
+  // Re-render slot grid so the previously-selected slot is no longer highlighted
+  renderTimeSlots();
+  // BUT we want to keep the manual input values visible to the user,
+  // so re-set them after renderTimeSlots() (which doesn't touch the manual inputs).
+  syncHiddenInputs();
+}
+
+// Push the current selection to the hidden inputs that saveMeeting reads.
+function syncHiddenInputs(){
+  const p=_meetingPick;
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('meeting-date').value=`${p.year}-${pad(p.month)}-${pad(p.day)}`;
+  document.getElementById('meeting-start').value=`${pad(p.hour)}:${pad(p.minute)}`;
+  // Update the "+1h" preview
+  let nh=p.hour+1; if(nh>=24) nh-=24;
+  document.getElementById('meeting-end-preview').textContent=`${pad(nh)}:${pad(p.minute)}`;
+  document.getElementById('time-current').textContent=`${pad(p.hour)}:${pad(p.minute)}`;
+}
+
+function closeMeetingDialog(){
+  document.getElementById('meeting-modal').style.display='none';
+  if(history.state&&history.state.page==='meeting') popHistorySilently();
+  _meetingLead=null;
+}
+function recomputeMeetingEnd(){/* compatibility no-op */}
+async function saveMeeting(){
+  if(!_meetingLead) return;
+  const dateIso=document.getElementById('meeting-date').value;
+  const startTime=document.getElementById('meeting-start').value;
+  if(!dateIso||!startTime){showToast('בחר תאריך ושעה');return;}
+  const [h,m]=startTime.split(':').map(s=>parseInt(s,10));
+  let nh=h+1, nm=m;
+  if(nh>=24) nh-=24;
+  const endTime=`${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
+  // Convert ISO date (yyyy-mm-dd) to dd/mm/yy for display + DATE() formula for the cell
+  const [yyyy,mm,dd]=dateIso.split('-').map(s=>parseInt(s,10));
+  const lead=_meetingLead;
+  const rowNum=lead.index;
+  closeMeetingDialog();
+  // Also close the underlying call-summary modal if it was open (the user
+  // tapped "פגישה" or "תזכורת" from inside the summary). This way after
+  // saving they're back at the leads list, not stuck on a stale modal.
+  const noteModal=document.getElementById('note-modal');
+  if(noteModal && noteModal.classList.contains('open')){
+    if(typeof closeModal==='function') closeModal();
+  }
+  showToast('שומר פגישה...');
+  try{
+    if(!accessToken){signOut();throw new Error('אין הרשאה');}
+    // Use spreadsheets:batchUpdate with updateCells + fields=userEnteredValue.
+    // This sets ONLY the cell value — leaves any existing format /
+    // conditional formatting intact, AND writes a real DATE/TIME so automation
+    // tools like Make can read structured values.
+    if(_leadsSheetId===null){
+      const r0=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties(sheetId,index)`,
+        {headers:{'Authorization':'Bearer '+accessToken}});
+      const d0=await r0.json();
+      if(d0.error)throw new Error(d0.error.message);
+      const first=(d0.sheets||[]).find(s=>s.properties&&s.properties.index===0)||(d0.sheets||[])[0];
+      if(!first)throw new Error('לא נמצא גיליון');
+      _leadsSheetId=first.properties.sheetId;
+    }
+    const sheetId=_leadsSheetId;
+    const rowIdx=rowNum-1; // 0-based
+    // Column choice depends on whether this is a meeting (X/Y/Z) or a
+    // reminder (AB/AC/AD). The shape of the write is identical; only the
+    // target columns differ.
+    const xColIdx=_isReminderMode?27:23; // AB or X
+    const yColIdx=_isReminderMode?28:24; // AC or Y
+    const zColIdx=_isReminderMode?29:25; // AD or Z
+    const body={
+      requests:[
+        {updateCells:{
+          rows:[{values:[{userEnteredValue:{formulaValue:`=DATE(${yyyy},${mm},${dd})`}}]}],
+          fields:'userEnteredValue',
+          start:{sheetId,rowIndex:rowIdx,columnIndex:xColIdx}
+        }},
+        {updateCells:{
+          rows:[{values:[{userEnteredValue:{formulaValue:`=TIME(${h},${m},0)`}}]}],
+          fields:'userEnteredValue',
+          start:{sheetId,rowIndex:rowIdx,columnIndex:yColIdx}
+        }},
+        {updateCells:{
+          rows:[{values:[{userEnteredValue:{formulaValue:`=TIME(${nh},${nm},0)`}}]}],
+          fields:'userEnteredValue',
+          start:{sheetId,rowIndex:rowIdx,columnIndex:zColIdx}
+        }}
+      ]
+    };
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const ddP=String(dd).padStart(2,'0'),mmP=String(mm).padStart(2,'0'),yyP=String(yyyy).slice(2);
+    // Update the local lead so the new sub-tab takes effect immediately,
+    // without needing to wait for the next loadLeads. We also bump the
+    // status to CONTINUE because the lead now belongs in the meeting/
+    // reminder sub-tab (which lives under "המשך"). Move the lead to the
+    // top of allLeads so it shows up first in its sub-list.
+    const ts = Date.now();
+    if(lead){
+      const dateMs = new Date(yyyy, mm-1, dd, h, m, 0).getTime();
+      if(_isReminderMode){
+        lead.reminderDateRaw = `${ddP}/${mmP}/${yyyy}`;
+        lead.reminderDateMs = dateMs;
+        lead.lastSubTab = 'reminder';
+      } else {
+        lead.meetingDateRaw = `${ddP}/${mmP}/${yyyy}`;
+        lead.meetingDateMs = dateMs;
+        lead.lastSubTab = 'meeting';
+      }
+      // Make sure status is CONTINUE so it shows up in the המשך tab
+      if(lead.status !== STATUS_CONTINUE){
+        lead.status = STATUS_CONTINUE;
+        // Persist the status change in the background
+        const urlV = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${rowNum}?valueInputOption=RAW`;
+        const optsV = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[STATUS_CONTINUE]]})};
+        apiFetch(urlV, optsV).catch(()=>enqueueWrite(urlV, optsV, 'סטטוס ליד'));
+      }
+      // Bump the move map so the lead floats to the top of its sub-list
+      const moves = loadMovesMap();
+      moves[rowNum] = ts;
+      saveMovesMap(moves);
+      lead.movedAt = ts;
+    }
+    filterLeads();
+    // Both flows fire the same webhook. The "type" field lets Make route the
+    // payload to the right branch (Calendar event "פגישה" vs "תזכורת",
+    // optionally WhatsApp for meetings only, etc).
+    const payload={
+      type:_isReminderMode?'reminder':'meeting',
+      rowNum,
+      name:lead.name||'',
+      phone:lead.phone||'',
+      date:`${ddP}/${mmP}/${yyyy}`,
+      startTime:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`,
+      endTime:`${endTime}:00`
+    };
+    if(_isReminderMode){
+      showToast(`תזכורת נקבעה ${ddP}/${mmP}/${yyP} ${startTime}`,'ok');
+      // Capture the optional short note typed in the reminder-note field.
+      // It's shown in the reminders list and in the system notification body.
+      const noteEl=document.getElementById('reminder-note');
+      const reminderNote=(noteEl?noteEl.value:'').trim();
+      // Store locally so we can fire a notification 5 minutes before the
+      // reminder time, even if offline. The "when" timestamp is in millis.
+      const whenDate=new Date(yyyy, mm-1, dd, h, m, 0);
+      addLocalReminder({
+        leadIdx:rowNum,
+        name:lead.name||'',
+        phone:lead.phone||'',
+        when:whenDate.getTime(),
+        note:reminderNote,
+        fired:false
+      });
+    } else {
+      showToast(`פגישה נקבעה ${ddP}/${mmP}/${yyP} ${startTime}–${endTime}`,'ok');
+    }
+    fireMeetingWebhook(payload);
+  }catch(e){
+    showToast(e.message,'err');
+  }
+}
+
+// Fire the Make.com webhook to trigger the meeting automation immediately.
+// Uses fetch with no-cors mode + keepalive so it runs even if the page is
+// closed right after the call. Errors are swallowed silently — the data is
+// already in the sheet, so Make can fall back to the scheduled sync.
+const MEETING_WEBHOOK_URL='https://hook.eu2.make.com/v1f2u71ib68t7rfuiblnx4cg2riqy927';
+function fireMeetingWebhook(payload){
+  try{
+    fetch(MEETING_WEBHOOK_URL,{
+      method:'POST',
+      mode:'no-cors',
+      keepalive:true,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).catch(()=>{});
+  }catch(e){/* ignore — sheet already updated */}
+}
+
+let _leadsSheetId=null;
+
+function getTS(){
+  const n=new Date(),p=x=>String(x).padStart(2,'0');
+  const ts=`${p(n.getDate())}/${p(n.getMonth()+1)}/${String(n.getFullYear()).slice(2)} ${p(n.getHours())}:${p(n.getMinutes())}`;
+  const tag=getUserTag();
+  return ts+(tag?` | ${tag}`:'');
+}
+
+async function saveNote(){
+  const note=document.getElementById('note-input').value.trim();
+  // pop the modal history entry without triggering popstate logic
+  if(history.state&&history.state.page==='modal') popHistorySilently();
+  // clear draft for this lead since we're saving
+  if(currentLead)localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  if(!note)return;
+  const row=currentLead.index,lead=allLeads.find(l=>l.index===row);
+  const entry=getTS()+'\n'+note,prev=lead?lead.note:'';
+  const combined=prev?entry+'\n\n'+prev:entry;
+  if(lead)lead.note=combined;
+  // Optimistic UI: show "saved" + expand immediately, run write in background.
+  expandedSet.add(row);
+  showToast('נשמר','ok');
+  filterLeads();
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
+  appendMetaLog(row, 'סיכום שיחה נוסף');
+}
+
+// Corner button action: save the typed note (if any) and move the lead to a
+// new tab in one tap. Used by the two corner buttons on the summary modal.
+async function saveAndMove(target){
+  if(!currentLead) return;
+  const idx=currentLead.index;
+  const note=document.getElementById('note-input').value.trim();
+  // Pop modal history entry first
+  if(history.state&&history.state.page==='modal') popHistorySilently();
+  if(currentLead) localStorage.removeItem('draft_'+currentLead.index);
+  _closeModalCore();
+  // Save the note text first if anything was typed (reuses saveNote's write logic)
+  if(note){
+    const lead=allLeads.find(l=>l.index===idx);
+    const entry=getTS()+'\n'+note, prev=lead?lead.note:'';
+    const combined=prev?entry+'\n\n'+prev:entry;
+    if(lead)lead.note=combined;
+    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
+    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
+    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
+  }
+  // Now set the new status (this also re-renders the lists)
+  const status=target==='continue'?STATUS_CONTINUE:STATUS_REMOVED;
+  const msg=target==='continue'?'נשמר והועבר להמשך':'נשמר והועבר להוסרו';
+  setLeadStatus(idx,status,msg);
+}
+
+/* =========================
+   MIC
+   ========================= */
+function toggleMic(){
+  if(isRecording){stopMic();return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('הדפדפן לא תומך בהכתבה');return;}
+  finalTranscript=document.getElementById('note-input').value;
+  recognition=new SR();
+  recognition.lang='he-IL';recognition.continuous=false;recognition.interimResults=true;
+  recognition.onresult=e=>{
+    let interim='';
+    for(let i=0;i<e.results.length;i++){
+      if(e.results[i].isFinal)finalTranscript+=e.results[i][0].transcript;
+      else interim=e.results[i][0].transcript;
+    }
+    document.getElementById('note-input').value=finalTranscript+interim;
+  };
+  recognition.onend=()=>{if(isRecording)recognition.start();};
+  recognition.onerror=e=>{if(e.error!=='no-speech')stopMic();};
+  recognition.start();
+  isRecording=true;
+  document.getElementById('mic-btn').classList.add('recording');
+  document.getElementById('mic-btn').innerHTML=ICON.micStop+' <span>עצור הקלטה</span>';
+}
+function stopMic(){
+  isRecording=false;
+  if(recognition){try{recognition.abort();}catch(e){}recognition=null;}
+  const b=document.getElementById('mic-btn');
+  if(b){b.classList.remove('recording');b.innerHTML=ICON.mic+' <span>הכתב (מיקרופון)</span>';}
+}
+function openWA(phone){
+  let clean=phone.replace(/[^0-9]/g,'');
+  if(clean.startsWith('0'))clean='972'+clean.substring(1);
+  window.open('https://api.whatsapp.com/send?phone='+clean,'_blank');
+}
+function showToast(msg,kind){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');
+  t.className='toast';
+  let iconHtml='';
+  if(kind==='ok')      iconHtml=`<span style="display:inline-flex">${ICON.check}</span>`;
+  else if(kind==='err')iconHtml=`<span style="display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`;
+  t.style.display='inline-flex';t.style.alignItems='center';t.style.gap='8px';
+  t.innerHTML=iconHtml+'<span>'+msg.replace(/^[✓✗]\s?/,'')+'</span>';
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+/* =========================
+   DRAG-TO-CLOSE
+   Any bottom-sheet modal can be dismissed by dragging it down. We attach
+   touch listeners to each .modal-sheet inside known modal containers.
+   When the user drags down past 80px (or releases with downward velocity
+   above the threshold), we call the matching close-without-save function.
+   This applies to: note (call summary), meeting, reminder (same as meeting),
+   and any future bottom-sheet modal that follows the same pattern.
+   ========================= */
+/* =========================
+   LOCAL REMINDERS SYSTEM
+   Reminders are stored in localStorage so they survive reloads and work
+   offline. The system has 3 layers:
+     1) When the user saves a reminder dialog → we store {leadIdx, name,
+        phone, when} in localStorage.
+     2) A 30-second interval scans the list. Any reminder whose "when" is
+        within 5 minutes of "now" and hasn't fired yet → we fire a browser
+        Notification.
+     3) The Service Worker also runs a periodic sync (best effort) so even
+        when the app is closed, notifications can fire.
+   ========================= */
+const REMINDERS_KEY='at_reminders';
+const REMINDERS_LEAD_TO_FOCUS_KEY='at_reminders_focus';
+
+function loadReminders(){
+  try{ return JSON.parse(localStorage.getItem(REMINDERS_KEY)||'[]'); }
+  catch(_){ return []; }
+}
+function saveReminders(arr){ localStorage.setItem(REMINDERS_KEY, JSON.stringify(arr)); }
+
+// Store a new reminder. Called from saveMeeting() when in reminder mode.
+function addLocalReminder(rec){
+  const list=loadReminders();
+  // Replace any existing reminder for the same lead — we keep one at a time
+  const filtered=list.filter(r=>r.leadIdx!==rec.leadIdx);
+  filtered.push(rec);
+  saveReminders(filtered);
+  refreshRemindersBadge();
+}
+
+// Remove a reminder by lead index
+function removeLocalReminder(leadIdx){
+  const list=loadReminders().filter(r=>r.leadIdx!==leadIdx);
+  saveReminders(list);
+  refreshRemindersBadge();
+}
+
+// Update header badge with the number of active (not yet fired) reminders
+function refreshRemindersBadge(){
+  const badge=document.getElementById('reminders-badge');
+  if(!badge) return;
+  const active=loadReminders().filter(r=>!r.fired);
+  if(active.length>0){
+    badge.textContent=active.length;
+    badge.style.display='inline-block';
+  } else {
+    badge.style.display='none';
+  }
+}
+
+// Ask for notification permission once after a user action
+function ensureNotificationPermission(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  if(Notification.permission!=='denied'){
+    Notification.requestPermission();
+  }
+  return Notification.permission==='granted';
+}
+
+// Fire a single reminder — show a notification and mark it as fired
+function fireReminder(rec){
+  rec.fired=true;
+  const all=loadReminders();
+  const idx=all.findIndex(r=>r.leadIdx===rec.leadIdx);
+  if(idx>=0) all[idx]=rec;
+  saveReminders(all);
+  refreshRemindersBadge();
+  // Show notification if permission granted
+  if('Notification' in window && Notification.permission==='granted'){
+    const title='תזכורת';
+    // The body shows "להתקשר ל-<name>" plus the optional note (if any) on a
+    // second line. The note also appears in the reminders list card.
+    const body='להתקשר ל-'+rec.name+(rec.note?'\n'+rec.note:'');
+    try{
+      // Prefer Service Worker registration so notifications show even if
+      // the page is in background. Two action buttons:
+      //   "📞 התקשר" → SW opens tel: directly + focuses app on the lead so
+      //     when the call ends the user lands in the call-summary modal.
+      //   "פתח"      → just opens the call-summary modal for this lead.
+      if(navigator.serviceWorker && navigator.serviceWorker.ready){
+        navigator.serviceWorker.ready.then(reg=>{
+          reg.showNotification(title, {
+            body, icon:'../icon.png', badge:'../icon.png',
+            tag:'reminder-'+rec.leadIdx,
+            data:{leadIdx:rec.leadIdx, phone:rec.phone||'', name:rec.name||''},
+            requireInteraction:true,
+            actions:[
+              {action:'call', title:'📞 התקשר'},
+              {action:'open', title:'פתח'}
+            ]
+          });
+        });
+      } else {
+        new Notification(title, {body, icon:'../icon.png'});
+      }
+    }catch(_){}
+  }
+}
+
+// Periodic check — every 30 seconds. Fires notifications 5 minutes BEFORE
+// the reminder time. Also auto-removes reminders that are >2h past.
+function checkReminders(){
+  const list=loadReminders();
+  const now=Date.now();
+  const FIVE_MIN=5*60*1000;
+  list.forEach(r=>{
+    if(r.fired) return;
+    const diff=r.when-now;
+    if(diff<=FIVE_MIN && diff>=-30000){ // within 5 min before / 30s after
+      fireReminder(r);
+    }
+  });
+  // No auto-cleanup — reminders stay in the list until the user explicitly
+  // deletes them (via the trash icon in the reminders list). This way past
+  // reminders remain visible as a record.
+}
+
+// Start the periodic check on page load
+setInterval(checkReminders, 30*1000);
+// Also run once shortly after load to catch reminders that fired while away
+setTimeout(checkReminders, 2000);
+window.addEventListener('focus', checkReminders);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkReminders(); });
+
+// Open the reminders list (fullscreen). Lists all active + recently-fired
+// reminders sorted by "when" ascending. Each row is tappable → opens the
+// lead's call summary modal so the user can call them right away.
+function openRemindersList(){
+  ensureNotificationPermission();
+  const list=loadReminders().sort((a,b)=>a.when-b.when);
+  const wrap=document.getElementById('reminders-list');
+  const sub=document.getElementById('reminders-sub');
+  if(!list.length){
+    wrap.innerHTML='<div style="padding:30px 20px;color:var(--muted);font-size:14px;text-align:center">אין תזכורות פעילות</div>';
+    sub.textContent='';
+  } else {
+    sub.textContent=list.length+' תזכורות';
+    wrap.innerHTML=list.map(r=>{
+      const d=new Date(r.when);
+      const pad=n=>String(n).padStart(2,'0');
+      const dateStr=`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`;
+      const timeStr=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const isPast=Date.now()>r.when;
+      const isUpcoming=!isPast && (r.when-Date.now())<5*60*1000;
+      const colorBar=r.fired?'var(--red)':isUpcoming?'#9a6800':'var(--slate)';
+      return `<div style="border:1px solid var(--border);border-inline-start:3px solid ${colorBar};background:var(--white);padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="openReminderLead(${r.leadIdx})">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(r.name)}</div>
+          <div style="font-size:12px;color:var(--muted);direction:ltr;text-align:right;margin-top:2px">${esc(r.phone||'')}</div>
+          ${r.note?`<div style="font-size:12px;color:var(--text);margin-top:3px;font-style:italic">${esc(r.note)}</div>`:''}
+          <div style="font-size:12px;color:${isPast?'var(--red)':'var(--slate)'};font-weight:600;margin-top:3px">${dateStr} • ${timeStr}${r.fired?' • הוצגה':''}</div>
+        </div>
+        <button onclick="event.stopPropagation();deleteReminder(${r.leadIdx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('reminders-modal').style.display='flex';
+  history.pushState({page:'reminders'},'');
+}
+
+function closeRemindersList(){
+  document.getElementById('reminders-modal').style.display='none';
+  if(history.state&&history.state.page==='reminders') popHistorySilently();
+}
+
+function deleteReminder(leadIdx){
+  removeLocalReminder(leadIdx);
+  // Re-render the list
+  openRemindersList();
+}
+
+// Tapping a reminder row → close the list, open that lead's call-summary
+// modal so the user can dictate notes / make the call right away.
+function openReminderLead(leadIdx){
+  const lead=allLeads.find(l=>l.index===leadIdx);
+  closeRemindersList();
+  if(!lead){ showToast('הליד לא נמצא','err'); return; }
+  // Make sure the lead's tab is visible (e.g. if it's in continue/removed)
+  if(lead.status==='continue') switchTab('continue');
+  else if(lead.status==='removed') switchTab('removed');
+  else switchTab('active');
+  // Then open the call-summary modal for it
+  setTimeout(()=>{
+    currentLead={index:leadIdx, name:lead.name, phone:lead.phone};
+    openModal(lead.name);
+  }, 100);
+}
+
+// On page load: refresh badge + ask for permission early
+window.addEventListener('load', ()=>{
+  refreshRemindersBadge();
+  // Ask for notification permission silently after 1.5s — gives the user
+  // time to see the page first.
+  setTimeout(()=>{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }, 1500);
+  // Check URL hash — if a notification opened the page with #lead=NNN,
+  // open that lead's call-summary modal automatically.
+  setTimeout(()=>{ checkLeadFromHash(); }, 1500);
+});
+
+// Listen for messages from the service worker (notification click while the
+// app is already open). Both "open" and "call" actions send open-lead — the
+// SW handles the actual tel: dial directly via clients.openWindow.
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', (e)=>{
+    if(!e || !e.data) return;
+    if(e.data.kind==='open-lead' && e.data.leadIdx){
+      openReminderLead(e.data.leadIdx);
+    }
+  });
+}
+
+function checkLeadFromHash(){
+  const m=(location.hash||'').match(/lead=(\d+)/);
+  if(!m) return;
+  const idx=parseInt(m[1],10);
+  // Clear hash so refreshing doesn't keep re-opening
+  history.replaceState(null,'',location.pathname+location.search);
+  // Wait for leads to load before opening
+  const tryOpen=()=>{
+    if(allLeads && allLeads.length){
+      openReminderLead(idx);
+    } else {
+      setTimeout(tryOpen, 500);
+    }
+  };
+  tryOpen();
+}
+
+
+(function attachDragToClose(){
+  // Map modal element id → close function name (called as closer())
+  // Note: 'note-modal' (call summary) gets a separate, stronger handler
+  // (see attachNoteModalGlobalClose below) — any swipe anywhere closes
+  // it without scrolling the page or pull-to-refreshing.
+  const closerMap={
+    'meeting-modal':()=>closeMeetingDialog(),
+    // Fullscreen sheets — dragging the title bar down is also a close gesture
+    'log-view-modal':()=>closeLogView(),
+    'log-edit-modal':()=>closeLogEdit(),
+    'reminders-modal':()=>closeRemindersList(),
+    'confirm-dialog':()=>{
+      // Same as pressing the X — cancel without firing the action
+      pendingConfirm=null;
+      document.getElementById('confirm-dialog').classList.remove('open');
+      if(history.state&&history.state.dialog==='confirm') popHistorySilently();
+    }
+  };
+
+  function attach(modalId){
+    const modalEl=document.getElementById(modalId);
+    if(!modalEl) return;
+    const sheet=modalEl.querySelector('.modal-sheet, .log-fullscreen-sheet') || modalEl;
+    let startY=0, startX=0, lastY=0, dragging=false, startTime=0, gestureCommitted=false;
+    let pendingFrame=null;
+
+    // Coalesce touchmove updates into one paint per frame so dragging is
+    // perfectly smooth on mobile (touchmove fires faster than 60Hz).
+    const applyTransform=(translateY)=>{
+      if(pendingFrame!==null) cancelAnimationFrame(pendingFrame);
+      pendingFrame=requestAnimationFrame(()=>{
+        pendingFrame=null;
+        sheet.style.transform=`translateY(${Math.max(0,translateY)}px)`;
+      });
+    };
+
+    // Reset all transient styles. Critical: must restore animation+transition
+    // even when the touch was actually a button tap, otherwise future opens
+    // are blank (animation:none stays set forever) and subsequent button
+    // clicks may be inert because of stale inline styles.
+    const resetStyles=()=>{
+      sheet.style.animation='';
+      sheet.style.transition='';
+      sheet.style.transform='';
+    };
+
+    const onStart=e=>{
+      if(modalEl.style.display==='none' && !modalEl.classList.contains('open')) return;
+      // Don't intercept touches that started on form controls or buttons —
+      // we don't want to disable their animation/click for a drag that
+      // probably won't happen.
+      const t=e.target;
+      if(t && (t.closest('button') || t.closest('input') || t.closest('textarea') || t.closest('select') || t.closest('a') || t.closest('[role="button"]'))){
+        dragging=false;
+        return;
+      }
+      // Don't intercept touches inside a scrollable container — the user is
+      // probably trying to scroll content, not close the sheet.
+      let el=t;
+      while(el && el!==sheet){
+        if(el.nodeType===1){
+          const cs=getComputedStyle(el);
+          if((cs.overflowY==='auto' || cs.overflowY==='scroll') && el.scrollHeight>el.clientHeight){
+            dragging=false;
+            return;
+          }
+        }
+        el=el.parentElement;
+      }
+      startY=e.touches[0].clientY;
+      startX=e.touches[0].clientX;
+      lastY=startY;
+      startTime=Date.now();
+      dragging=true;
+      gestureCommitted=false;
+      // Kill any in-flight animation/transition so our drag isn't fighting it
+      sheet.style.animation='none';
+      sheet.style.transition='none';
+    };
+
+    const onMove=e=>{
+      if(!dragging) return;
+      lastY=e.touches[0].clientY;
+      const dy=lastY-startY;
+      const dx=Math.abs(e.touches[0].clientX-startX);
+      // Wait until movement clearly looks like a vertical drag
+      if(!gestureCommitted){
+        if(dy<8 && dx<8) return;
+        if(dx>Math.abs(dy)){
+          // Horizontal — abort and restore styles
+          dragging=false;
+          resetStyles();
+          return;
+        }
+        gestureCommitted=true;
+        const focused=document.activeElement;
+        if(focused && (focused.tagName==='TEXTAREA' || focused.tagName==='INPUT')){
+          focused.blur();
+        }
+      }
+      // Stop the page behind from scrolling along with the drag.
+      // touchmove must be registered as non-passive for this to work.
+      if(e.cancelable) e.preventDefault();
+      applyTransform(dy);
+    };
+
+    const onEnd=()=>{
+      if(!dragging) return;
+      dragging=false;
+      if(pendingFrame!==null){ cancelAnimationFrame(pendingFrame); pendingFrame=null; }
+      if(!gestureCommitted){
+        // No actual drag — fully restore styles so buttons + future opens work
+        resetStyles();
+        return;
+      }
+      const dy=lastY-startY;
+      const dt=Math.max(1, Date.now()-startTime);
+      const velocity=dy/dt;
+      sheet.style.transition='transform 0.22s cubic-bezier(.32,.72,0,1)';
+      if(dy>80 || velocity>0.5){
+        sheet.style.transform='translateY(100%)';
+        const closer=closerMap[modalId];
+        setTimeout(()=>{
+          resetStyles();
+          if(closer) closer();
+        }, 220);
+      } else {
+        sheet.style.transform='translateY(0)';
+        setTimeout(resetStyles, 230);
+      }
+    };
+
+    sheet.addEventListener('touchstart', onStart, {passive:true});
+    // touchmove must be non-passive so we can preventDefault() and block
+    // the underlying page from scrolling along with the drag.
+    sheet.addEventListener('touchmove', onMove, {passive:false});
+    sheet.addEventListener('touchend', onEnd, {passive:true});
+    sheet.addEventListener('touchcancel', onEnd, {passive:true});
+  }
+
+  ['meeting-modal','log-view-modal','log-edit-modal','reminders-modal','confirm-dialog']
+    .forEach(attach);
+})();
+
+</script>
+</body>
+</html>
