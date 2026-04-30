@@ -1,8 +1,9 @@
 {
   "name": "תיק שלי — אבי טל ושות׳",
   "short_name": "תיק שלי",
-  "description": "אפליקציית לקוחות של משרד עו״ד אבי טל ושות׳",
+  "description": "אגף לקוחות — משרד עורכי דין אבי טל ושות׳",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FAF9F5",
@@ -10,11 +11,7 @@
   "lang": "he",
   "dir": "rtl",
   "icons": [
-    {
-      "src": "../icon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "../icon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icon.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
