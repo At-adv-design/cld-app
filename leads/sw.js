@@ -1,6 +1,6 @@
 // Service worker for the LEADS app
 // IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v63';
+const CACHE_NAME = 'at-leads-v64';
 const ASSETS = [
   './',
   './index.html',
