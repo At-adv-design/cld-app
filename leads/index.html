@@ -420,6 +420,10 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>פגישה</span>
       </button>
+      <button class="top-btn" onclick="openCalendarOverlay()" title="פתח קלנדר Google">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+        <span>קלנדר</span>
+      </button>
       <button class="top-btn" onclick="openReminderDialog()" title="קבע תזכורת">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span>תזכורת</span>
@@ -469,11 +473,6 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
         <div class="mtitle" style="font-size:15px">סיכומי שיחות</div>
         <div class="msub" id="log-view-name" style="margin-top:2px"></div>
       </div>
-      <!-- Calendar button — opens an overlay with the user's Google Calendar -->
-      <button onclick="openCalendarOverlay()" title="ראה קלנדר Google" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>קלנדר</span>
-      </button>
     </div>
     <div class="log-content-area" id="log-view-content"></div>
     <div class="log-action-row">
@@ -505,10 +504,6 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
         <div class="mtitle" style="font-size:15px">עריכת סיכומי שיחות</div>
         <div class="msub" id="log-edit-name" style="margin-top:2px"></div>
       </div>
-      <button onclick="openCalendarOverlay()" title="ראה קלנדר Google" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>קלנדר</span>
-      </button>
     </div>
     <div style="font-size:11px;color:var(--muted)">זהירות: עריכה ידנית של כל הלוג</div>
     <textarea id="log-edit-textarea" style="flex:1;min-height:0;width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:14px;resize:none;direction:rtl;font-family:inherit;line-height:1.5"></textarea>
@@ -2523,6 +2518,35 @@ async function _calLoadMonth(y, m){
   }catch(e){
     const msg = String(e.message || e || '');
     console.error('Calendar fetch failed:', msg);
+
+    // Calendar API not enabled in the Google Cloud project — this is a
+    // one-time admin task. Show a clear instruction with the link to
+    // enable it in Google Cloud Console.
+    const apiNotEnabled = /has not been used in project|API has not been used|disabled\.\s*Enable it|console\.developers\.google\.com\/apis\/api\/calendar/i.test(msg);
+    if(apiNotEnabled){
+      // Try to extract the project number from the error message so we
+      // can build the exact "enable" URL Google offers.
+      const projMatch = msg.match(/project\s+(\d+)/);
+      const projNum = projMatch ? projMatch[1] : '';
+      const enableUrl = projNum
+        ? `https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=${projNum}`
+        : 'https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview';
+      document.getElementById('cal-events-list').innerHTML = `
+        <div class="cal-empty" style="padding:18px;line-height:1.7;text-align:right">
+          <div style="margin-bottom:10px;font-weight:700;color:var(--red)">Google Calendar API לא מופעל</div>
+          <div style="margin-bottom:12px;color:var(--text);font-style:normal">
+            יש להפעיל את ה-API פעם אחת ב-Google Cloud Console:
+          </div>
+          <div style="margin-bottom:14px;color:var(--text);font-style:normal">
+            1. <a href="${esc(enableUrl)}" target="_blank" rel="noopener" style="color:#3A5BB0;text-decoration:underline;font-weight:700">פתח את הקישור הזה</a><br>
+            2. לחץ על <strong>ENABLE</strong><br>
+            3. המתן 1-2 דקות ונסה שוב
+          </div>
+          <button onclick="_calRetry()" style="background:var(--slate);color:#fff;border:none;padding:8px 16px;font-size:12px;cursor:pointer;font-family:inherit">נסה שוב</button>
+        </div>`;
+      return;
+    }
+
     // ANY auth-related error (insufficient scope, 401, 403, ACCESS_TOKEN_SCOPE_INSUFFICIENT)
     // means the token was issued before we added the calendar scope.
     // Show a clear "re-connect" button that signs out and back in
