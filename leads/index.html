@@ -133,7 +133,12 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 /* Call-count dot indicator — sits above the lead row, spanning its full width.
    Each dot = one call attempt. Grey = empty slot, red = call made.
    direction:ltr so the dots fill left→right consistently regardless of RTL parent. */
-.call-dots{display:flex;align-items:center;gap:4px;padding:6px 14px 0;direction:ltr;justify-content:flex-start;}
+.call-dots{display:flex;align-items:center;gap:4px;padding:6px 14px 0;direction:ltr;justify-content:flex-start;flex-wrap:wrap;}
+.last-call-ts{
+  font-size:9px;font-weight:600;color:var(--muted);
+  width:100%;direction:rtl;text-align:left;letter-spacing:.3px;
+  margin-top:2px;padding-inline-start:0;
+}
 .call-dot{display:inline-block;width:6px;height:6px;background:#d0d0d0;flex-shrink:0;}
 .call-dot.filled{background:var(--red);}
 .call-dot-extra{font-size:9px;font-weight:700;color:var(--red);margin-inline-start:2px;}
@@ -1263,6 +1268,20 @@ async function loadLeads(){
           // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event".
           // Moved from AB so AB/AC/AD can hold reminder data without conflict.
           metaLog:meta,
+          // Pull the most recent "שיחה יצאה" entry from the metaLog so we
+          // can show "last called" date+time on each card. Each entry begins
+          // with "DD/MM/YY HH:MM | userTag | event" and the newest is on top.
+          lastCallTs: (()=>{
+            if(!meta) return '';
+            const lines = meta.split('\n');
+            for(const line of lines){
+              if(line.indexOf('שיחה יצאה') >= 0){
+                const m = line.match(/^(\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})/);
+                if(m) return m[1];
+              }
+            }
+            return '';
+          })(),
           // Number of calls made to this lead (parsed from W which contains
           // a comma-separated list of caller tags, one per call). This is the
           // count we use to fill in the dot indicator above the lead's name.
@@ -1427,7 +1446,7 @@ function renderLeadCard(l,kind){
   else if(kind==='continue')label=`<div class="continue-lbl">${ICON.bookmark}<span>המשך</span></div>`;
 
   return `<div class="lead-row-wrap">
-    <div class="call-dots">${renderCallDots(l.callCount||0)}</div>
+    <div class="call-dots">${renderCallDots(l.callCount||0)}${l.lastCallTs?`<div class="last-call-ts">${esc(l.lastCallTs)}</div>`:''}</div>
     <div class="lead-row" onclick="toggleExpand(${l.index})">
     <div class="lead-info">
       <div class="lead-name">${esc(l.name)}</div>
