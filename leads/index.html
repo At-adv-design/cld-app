@@ -376,15 +376,22 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
   </div>
 
   <div id="continue-section" style="display:none">
-    <!-- Sub-tab toggle row inside the "המשך" section. Tapping the
-         "לא נענו" pill switches the list below to show only no-answer
-         leads (column AE = TRUE). The "המשך" pill switches back. -->
+    <!-- Sub-tab toggle row inside the "המשך" section. Each pill filters
+         the list below to a different category, decided by which event
+         is most recent on the lead (meeting / reminder / no-answer set
+         from the call-summary modal). -->
     <div id="cont-subtabs" style="display:flex;gap:6px;padding:8px 14px 0;flex-wrap:wrap">
-      <button id="subtab-continue" class="subtab active" onclick="setContinueSubtab('continue')">המשך</button>
-      <button id="subtab-noanswer" class="subtab" onclick="setContinueSubtab('noanswer')">לא נענו <span id="subtab-noanswer-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-continue" class="subtab active" onclick="setContinueSubtab('continue')">המשך <span id="subtab-continue-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-meeting"  class="subtab"        onclick="setContinueSubtab('meeting')">פגישה <span id="subtab-meeting-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-reminder" class="subtab"        onclick="setContinueSubtab('reminder')">תזכורת <span id="subtab-reminder-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
+      <button id="subtab-noanswer" class="subtab"        onclick="setContinueSubtab('noanswer')">לא נענו <span id="subtab-noanswer-count" style="font-size:10px;font-weight:700;margin-inline-start:3px"></span></button>
     </div>
     <div id="continue-list"></div>
+    <div id="meeting-list"  style="display:none;padding:10px 14px"></div>
+    <div id="reminder-list" style="display:none;padding:10px 14px"></div>
     <div id="noanswer-list" style="display:none;padding:10px 14px"></div>
+    <div id="meeting-list"  style="display:none;padding:10px 14px"></div>
+    <div id="reminder-list" style="display:none;padding:10px 14px"></div>
   </div>
 
   <div id="removed-section" style="display:none">
@@ -1197,12 +1204,14 @@ async function loadLeads(){
     document.getElementById('leads-list').innerHTML='';
   }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AF?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:AJ?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const all=(data.values||[]).slice(1)
       .map((row,i)=>{
-        const meta=((row[27]||'')+'').trim();
+        // Audit log lives in AG (column 32) — moved from AB so AB/AC/AD
+        // can be used cleanly for reminders without overwriting history.
+        const meta=((row[32]||'')+'').trim();
         // Pull the earliest date from the audit log. Each entry begins with
         // "DD/MM/YY HH:MM" so we scan all entries and keep the smallest one.
         // If the log is empty (a lead that's never been touched) we fall
@@ -1219,6 +1228,30 @@ async function loadLeads(){
             entryDate=dates[0].raw;
           }
         }
+        // Helper — try to read a sheet cell as a date in any of the
+        // formats Sheets returns it. Returns ms timestamp (0 if invalid).
+        const parseSheetDate=(raw)=>{
+          if(!raw) return 0;
+          const s=String(raw).trim();
+          if(!s) return 0;
+          // dd/mm/yyyy or dd/mm/yy
+          let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+          if(m){
+            let yy=parseInt(m[3],10);
+            if(yy<100) yy+=2000;
+            const d=new Date(yy, parseInt(m[2],10)-1, parseInt(m[1],10));
+            if(!isNaN(d.getTime())) return d.getTime();
+          }
+          // ISO yyyy-mm-dd
+          m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+          if(m){
+            const d=new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+            if(!isNaN(d.getTime())) return d.getTime();
+          }
+          const d=new Date(s);
+          if(!isNaN(d.getTime())) return d.getTime();
+          return 0;
+        };
         return {
           index:i+2,
           name:(row[0]||'').trim()||'(ללא שם)',
@@ -1226,8 +1259,9 @@ async function loadLeads(){
           note:(row[2]||'').trim(),
           status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
           callers:((row[22]||'')+'').trim(),                // column W (0-based 22) — comma-separated user tags
-          // Column AB (0-based 27) — full audit log: status changes, calls,
-          // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event"
+          // Column AG (0-based 32) — full audit log: status changes, calls,
+          // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event".
+          // Moved from AB so AB/AC/AD can hold reminder data without conflict.
           metaLog:meta,
           // Number of calls made to this lead (parsed from W which contains
           // a comma-separated list of caller tags, one per call). This is the
@@ -1242,12 +1276,45 @@ async function loadLeads(){
           // lead at the top of the no-answer list, persisted across reloads
           // and devices (not just localStorage).
           noAnswerTs: parseInt(((row[31]||'')+'').toString().trim(), 10) || 0,
+          // Meeting date: column X (0-based 23). When the user schedules
+          // a meeting through the call-summary modal, the date is written
+          // here. We use it to decide if the lead belongs in the "פגישה"
+          // sub-tab.
+          meetingDateRaw: ((row[23]||'')+'').toString().trim(),
+          meetingDateMs: parseSheetDate(row[23]),
+          // Reminder date: column AB (0-based 27). When the user sets a
+          // reminder through the call-summary modal, written here. Same
+          // role as meeting date for the "תזכורת" sub-tab.
+          reminderDateRaw: ((row[27]||'')+'').toString().trim(),
+          reminderDateMs: parseSheetDate(row[27]),
           // Earliest date the lead was logged — used as a "joined on" badge
           // in the top-right corner of the lead row.
           entryDate
         };
       })
       .filter(l=>l.phone).reverse();
+
+    // Decide each lead's "last sub-tab" — which of the 4 continue sub-tabs
+    // it belongs to right now. The most recently set marker wins:
+    //   - noAnswerTs       (when "לא נענו" was set)
+    //   - reminderDateMs   (when a reminder was scheduled)
+    //   - meetingDateMs    (when a meeting was scheduled)
+    // The lead falls through to the plain "המשך" sub-tab when none has
+    // been set, or when the user explicitly moved them with the "המשך"
+    // top-bar button (which also sets noAnswer/meeting/reminder to empty
+    // through the meta log entries).
+    all.forEach(l => {
+      const candidates = [];
+      if(l.noAnswer && l.noAnswerTs) candidates.push({key:'noAnswer', ts:l.noAnswerTs});
+      if(l.reminderDateMs)           candidates.push({key:'reminder', ts:l.reminderDateMs});
+      if(l.meetingDateMs)            candidates.push({key:'meeting',  ts:l.meetingDateMs});
+      if(!candidates.length){
+        l.lastSubTab = 'continue';
+      } else {
+        candidates.sort((a,b)=>b.ts-a.ts);
+        l.lastSubTab = candidates[0].key;
+      }
+    });
 
     const active=all.filter(l=>!l.status||l.status===STATUS_ACTIVE);
     if(prevCount!==null&&active.length>prevCount)notifyNew(active[0].name,active[0].phone);
@@ -1438,9 +1505,6 @@ function renderNoAnswer(leads){
   const list=document.getElementById('noanswer-list');
   if(!list) return;
   list.innerHTML='';
-  // Update the sub-tab counter pill
-  const cnt=document.getElementById('subtab-noanswer-count');
-  if(cnt) cnt.textContent = leads.length ? '('+leads.length+')' : '';
   if(!leads.length){
     list.innerHTML='<div class="empty">אין לידים שסומנו כלא נענו</div>';
     return;
@@ -1458,13 +1522,71 @@ function renderNoAnswer(leads){
   });
 }
 
+/* Render the "פגישה" sub-list. Sorted by meetingDateMs descending so
+   the most recently scheduled meeting comes first. Same swipe gestures
+   as the regular continue tab. */
+function renderMeeting(leads){
+  const list=document.getElementById('meeting-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(!leads.length){
+    list.innerHTML='<div class="empty">אין לידים עם פגישה</div>';
+    return;
+  }
+  leads.sort((a,b)=>(b.meetingDateMs||0)-(a.meetingDateMs||0));
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">החזר</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'meeting')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'meeting');
+  });
+}
+
+/* Render the "תזכורת" sub-list. */
+function renderReminder(leads){
+  const list=document.getElementById('reminder-list');
+  if(!list) return;
+  list.innerHTML='';
+  if(!leads.length){
+    list.innerHTML='<div class="empty">אין לידים עם תזכורת</div>';
+    return;
+  }
+  leads.sort((a,b)=>(b.reminderDateMs||0)-(a.reminderDateMs||0));
+  leads.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.className='swipe-wrap';
+    wrap.innerHTML=`<div class="swipe-bg left">הסר</div><div class="swipe-bg right" style="background:var(--green)">החזר</div>
+      <div class="swipe-content"><div class="lead-card${l.note?' has-note':''}${expandedSet.has(l.index)?' expanded':''}">
+        ${renderLeadCard(l,'reminder')}
+      </div></div>`;
+    list.appendChild(wrap);
+    initSwipe(wrap,l.index,'reminder');
+  });
+}
+
 /* Switch between the two sub-tabs inside the "המשך" view. */
+/* The currently visible sub-tab inside "המשך". One of:
+   continue / meeting / reminder / noanswer. Persistent across renders
+   so filterLeads knows which sub-tab to count for the header pill. */
+let _continueSubtab = 'continue';
 function setContinueSubtab(which){
+  _continueSubtab = which;
+  // Backwards compat — older code reads _showingNoAnswer.
   _showingNoAnswer = (which === 'noanswer');
-  document.getElementById('subtab-continue').classList.toggle('active', !_showingNoAnswer);
-  document.getElementById('subtab-noanswer').classList.toggle('active', _showingNoAnswer);
-  document.getElementById('continue-list').style.display = _showingNoAnswer ? 'none' : '';
-  document.getElementById('noanswer-list').style.display = _showingNoAnswer ? '' : 'none';
+  // Pill active state — highlight only the current sub-tab.
+  ['continue','meeting','reminder','noanswer'].forEach(k=>{
+    const el = document.getElementById('subtab-' + k);
+    if(el) el.classList.toggle('active', k === which);
+  });
+  // Show only the matching list, hide the others.
+  document.getElementById('continue-list').style.display = which==='continue' ? '' : 'none';
+  document.getElementById('meeting-list').style.display  = which==='meeting'  ? '' : 'none';
+  document.getElementById('reminder-list').style.display = which==='reminder' ? '' : 'none';
+  document.getElementById('noanswer-list').style.display = which==='noanswer' ? '' : 'none';
   filterLeads();
 }
 
@@ -1542,6 +1664,38 @@ function initSwipe(wrap,idx,kind){
           setNoAnswer(idx, false);
           if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
           else          setLeadStatus(idx,STATUS_CONTINUE,'ליד הועבר להמשך');
+        } else if(kind==='meeting' || kind==='reminder'){
+          // From the "פגישה" / "תזכורת" sub-tabs:
+          //   Swipe-right → return the lead to the plain "המשך" sub-tab
+          //                 (we clear the relevant date so it stops showing
+          //                 up in the meeting/reminder sub-tab).
+          //   Swipe-left  → move to "הוסרו".
+          if(goingLeft){
+            setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
+          } else {
+            // Clear the date column so this lead leaves the sub-tab.
+            // Status stays CONTINUE so it shows up in plain "המשך".
+            const colLetter = (kind==='meeting') ? 'X' : 'AB';
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${idx}?valueInputOption=RAW`;
+            const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({values:[['']]})};
+            apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'נקה ' + colLetter));
+            // Also clear the time columns so we don't keep stale data
+            const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${kind==='meeting'?'Y':'AC'}${idx}?valueInputOption=RAW`;
+            const url3 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${kind==='meeting'?'Z':'AD'}${idx}?valueInputOption=RAW`;
+            apiFetch(url2, opts).catch(()=>enqueueWrite(url2, opts, 'נקה זמן'));
+            apiFetch(url3, opts).catch(()=>enqueueWrite(url3, opts, 'נקה זמן'));
+            // Update local state so the lead disappears from this sub-tab now
+            const lead = allLeads.find(l => l.index === idx);
+            if(lead){
+              if(kind==='meeting'){ lead.meetingDateRaw=''; lead.meetingDateMs=0; }
+              else { lead.reminderDateRaw=''; lead.reminderDateMs=0; }
+              lead.lastSubTab='continue';
+            }
+            filterLeads();
+            showToast('ליד הוחזר להמשך','ok');
+            appendMetaLog(idx, kind==='meeting' ? 'בוטלה פגישה' : 'בוטלה תזכורת');
+          }
         }
       },220);
     } else {
@@ -1562,33 +1716,27 @@ async function setNoAnswer(idx, value){
   if(lead){
     lead.noAnswer = !!value;
     lead.noAnswerTs = ts;
-    // Also keep the local "movedAt" in sync — the in-memory order uses
-    // it. When unmarking, we reset to 0 so the lead drops off the list.
     if(value){
       const moves = loadMovesMap();
       moves[idx] = ts;
       saveMovesMap(moves);
       lead.movedAt = ts;
     }
-    // Bump in-memory order so the move shows up immediately
     const i = allLeads.indexOf(lead);
     if(i > 0){ allLeads.splice(i, 1); allLeads.unshift(lead); }
   }
   filterLeads();
-  // Two parallel writes: AE (flag) and AF (timestamp). When unmarking
-  // we clear AF too so the lead doesn't keep an obsolete timestamp.
+  // Two parallel writes: AE (flag) and AF (timestamp). Fire-and-forget
+  // for instant UI — on failure the writes go to the offline queue which
+  // flushQueue() retries automatically.
   const urlAE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AE${idx}?valueInputOption=USER_ENTERED`;
   const optsAE = {method:'PUT', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({values:[[ value ? 'TRUE' : 'FALSE' ]]})};
   const urlAF = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AF${idx}?valueInputOption=RAW`;
   const optsAF = {method:'PUT', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({values:[[ value ? String(ts) : '' ]]})};
-  try{
-    await Promise.all([apiFetch(urlAE, optsAE), apiFetch(urlAF, optsAF)]);
-  }catch(e){
-    enqueueWrite(urlAE, optsAE, 'לא נענו');
-    enqueueWrite(urlAF, optsAF, 'תאריך לא נענו');
-  }
+  apiFetch(urlAE, optsAE).catch(()=>enqueueWrite(urlAE, optsAE, 'לא נענו'));
+  apiFetch(urlAF, optsAF).catch(()=>enqueueWrite(urlAF, optsAF, 'תאריך לא נענו'));
   appendMetaLog(idx, value ? 'סומן כלא נענו' : 'הוסרה הסימון לא נענו');
 }
 
@@ -1614,16 +1762,13 @@ async function setLeadStatus(idx,status,toastMsg){
   filterLeads();
   if(toastMsg)showToast(toastMsg);
 
+  // Fire-and-forget write — UI is already updated. On failure the write
+  // goes to the offline queue which retries automatically.
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[status]]})};
-  try{
-    await apiFetch(url,opts);
-  }catch(e){
-    // Network/auth failure → save to queue so we don't lose the action.
-    // The queue is replayed on reconnect / next visibility event.
+  apiFetch(url,opts).catch(()=>{
     enqueueWrite(url,opts,'סטטוס ליד');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-  }
+  });
   // Also append a metadata log entry to column AB so we have full audit trail
   const label = status===STATUS_CONTINUE ? 'הועבר להמשך'
               : status===STATUS_REMOVED ? 'הוסר'
@@ -1641,10 +1786,11 @@ async function appendMetaLog(idx, event){
   const prev=lead?(lead.metaLog||''):'';
   const combined=prev?(newEntry+'\n'+prev):newEntry;
   if(lead) lead.metaLog=combined;
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AB${idx}?valueInputOption=RAW`;
+  // Audit log column moved from AB → AG so the reminder columns
+  // (AB/AC/AD) can hold their own data without conflict.
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AG${idx}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
-  try{ await apiFetch(url,opts); }
-  catch(e){ enqueueWrite(url,opts,'יומן ליד'); }
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'יומן ליד'));
 }
 
 // Persistent map of {rowIndex: timestamp} — when each lead was last moved
@@ -1680,8 +1826,7 @@ async function markCalled(idx){
   filterLeads();
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/W${idx}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
-  try{ await apiFetch(url,opts); }
-  catch(e){ enqueueWrite(url,opts,'סימון מתקשר'); }
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סימון מתקשר'));
   // Add to the audit log too
   appendMetaLog(idx, 'שיחה יצאה');
 }
@@ -1718,9 +1863,17 @@ function filterLeads(){
   const active = allLeads.filter(l =>
     (!l.status || l.status===STATUS_ACTIVE) && !l.noAnswer && match(l)
   );
-  const cont = allLeads.filter(l =>
+  // All "continue"-status leads (excluding the "no-answer" set, which
+  // is decided by the AE flag, not by status). We split them by the
+  // "lastSubTab" marker computed in loadLeads — the lead appears in
+  // exactly one of the 4 sub-tabs based on the most recent action.
+  const allCont = allLeads.filter(l =>
     l.status===STATUS_CONTINUE && !l.noAnswer && match(l)
   );
+  const cont     = allCont.filter(l => l.lastSubTab === 'continue' || !l.lastSubTab);
+  const meeting  = allCont.filter(l => l.lastSubTab === 'meeting');
+  const reminder = allCont.filter(l => l.lastSubTab === 'reminder');
+  // No-answer is independent of status — driven by the AE TRUE/FALSE flag.
   const noAnsw = allLeads.filter(l =>
     l.noAnswer && match(l)
   ).sort((a,b) => (b.noAnswerTs||0) - (a.noAnswerTs||0));
@@ -1739,12 +1892,20 @@ function filterLeads(){
 
   renderLeads(active);
   renderContinue(cont);
+  renderMeeting(meeting);
+  renderReminder(reminder);
   renderRemoved(rem);
   renderNoAnswer(noAnsw);
-  // update header counter for the current tab
-  const counts={active:active.length, continue:cont.length, removed:rem.length, noanswer:noAnsw.length};
-  document.getElementById('lead-count').textContent =
-    (currentTab==='continue' && _showingNoAnswer) ? counts.noanswer : (counts[currentTab] || 0);
+  // Update the per-sub-tab pill counters
+  const setCnt = (id, n)=>{ const el=document.getElementById(id); if(el) el.textContent = n ? '('+n+')' : ''; };
+  setCnt('subtab-continue-count', cont.length);
+  setCnt('subtab-meeting-count',  meeting.length);
+  setCnt('subtab-reminder-count', reminder.length);
+  setCnt('subtab-noanswer-count', noAnsw.length);
+  // Header counter — depends on which sub-tab is showing inside "המשך"
+  const headerCount = currentTab !== 'continue' ? ({active:active.length, removed:rem.length}[currentTab] || 0)
+    : ({continue:cont.length, meeting:meeting.length, reminder:reminder.length, noanswer:noAnsw.length}[_continueSubtab] || cont.length);
+  document.getElementById('lead-count').textContent = headerCount;
 }
 
 /* =========================
@@ -2511,6 +2672,38 @@ async function saveMeeting(){
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const ddP=String(dd).padStart(2,'0'),mmP=String(mm).padStart(2,'0'),yyP=String(yyyy).slice(2);
+    // Update the local lead so the new sub-tab takes effect immediately,
+    // without needing to wait for the next loadLeads. We also bump the
+    // status to CONTINUE because the lead now belongs in the meeting/
+    // reminder sub-tab (which lives under "המשך"). Move the lead to the
+    // top of allLeads so it shows up first in its sub-list.
+    const ts = Date.now();
+    if(lead){
+      const dateMs = new Date(yyyy, mm-1, dd, h, m, 0).getTime();
+      if(_isReminderMode){
+        lead.reminderDateRaw = `${ddP}/${mmP}/${yyyy}`;
+        lead.reminderDateMs = dateMs;
+        lead.lastSubTab = 'reminder';
+      } else {
+        lead.meetingDateRaw = `${ddP}/${mmP}/${yyyy}`;
+        lead.meetingDateMs = dateMs;
+        lead.lastSubTab = 'meeting';
+      }
+      // Make sure status is CONTINUE so it shows up in the המשך tab
+      if(lead.status !== STATUS_CONTINUE){
+        lead.status = STATUS_CONTINUE;
+        // Persist the status change in the background
+        const urlV = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${rowNum}?valueInputOption=RAW`;
+        const optsV = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[STATUS_CONTINUE]]})};
+        apiFetch(urlV, optsV).catch(()=>enqueueWrite(urlV, optsV, 'סטטוס ליד'));
+      }
+      // Bump the move map so the lead floats to the top of its sub-list
+      const moves = loadMovesMap();
+      moves[rowNum] = ts;
+      saveMovesMap(moves);
+      lead.movedAt = ts;
+    }
+    filterLeads();
     // Both flows fire the same webhook. The "type" field lets Make route the
     // payload to the right branch (Calendar event "פגישה" vs "תזכורת",
     // optionally WhatsApp for meetings only, etc).
@@ -2587,18 +2780,13 @@ async function saveNote(){
   const entry=getTS()+'\n'+note,prev=lead?lead.note:'';
   const combined=prev?entry+'\n\n'+prev:entry;
   if(lead)lead.note=combined;
-  document.getElementById('saving-overlay').classList.add('show');
+  // Optimistic UI: show "saved" + expand immediately, run write in background.
+  expandedSet.add(row);
+  showToast('נשמר','ok');
+  filterLeads();
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${row}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
-  try{
-    await apiFetch(url,opts);
-    expandedSet.add(row);showToast('נשמר','ok');filterLeads();
-  }catch(e){
-    enqueueWrite(url,opts,'סיכום שיחה');
-    showToast('שמור — יסונכרן כשהחיבור יחזור','ok');
-    expandedSet.add(row);filterLeads();
-  }
-  finally{document.getElementById('saving-overlay').classList.remove('show');}
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
   appendMetaLog(row, 'סיכום שיחה נוסף');
 }
 
@@ -2618,12 +2806,9 @@ async function saveAndMove(target){
     const entry=getTS()+'\n'+note, prev=lead?lead.note:'';
     const combined=prev?entry+'\n\n'+prev:entry;
     if(lead)lead.note=combined;
-    document.getElementById('saving-overlay').classList.add('show');
     const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
     const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
-    try{ await apiFetch(url,opts); }
-    catch(e){ enqueueWrite(url,opts,'סיכום שיחה'); }
-    finally{document.getElementById('saving-overlay').classList.remove('show');}
+    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
   }
   // Now set the new status (this also re-renders the lists)
   const status=target==='continue'?STATUS_CONTINUE:STATUS_REMOVED;
