@@ -159,6 +159,33 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 /* Three badges sit side-by-side under a lead row: "calls", "continue",
    "removed". They share the same size and padding so they line up nicely. */
 .lead-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);background:rgba(26,122,69,0.07);border:1px solid rgba(26,122,69,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;}
+/* Row that holds the call-count badge plus location badges (continue / meeting / reminder / no-answer / removed).
+   All badges in ONE horizontal row, right-to-left in RTL. The call-count
+   badge appears first (rightmost), then status badges flow to the left. */
+.lead-badge-row{
+  display:flex;flex-direction:row;flex-wrap:nowrap;
+  gap:4px;align-items:center;margin-top:4px;
+  overflow-x:auto;
+  /* Hide the scrollbar visually but allow horizontal scroll if many badges */
+  scrollbar-width:none;
+}
+.lead-badge-row::-webkit-scrollbar{display:none;}
+.lead-badge-row .lead-badge{margin-top:0;flex-shrink:0;}
+.lead-badge-row .loc-badge{flex-shrink:0;white-space:nowrap;}
+.loc-badge{
+  display:inline-flex;align-items:center;
+  font-size:10px;font-weight:700;
+  padding:2px 7px;
+  border-radius:3px;
+  border:1px solid;
+  letter-spacing:.2px;
+}
+.loc-continue{color:#2563eb;background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.25);}
+.loc-meeting{color:#7c3aed;background:rgba(124,58,237,0.08);border-color:rgba(124,58,237,0.25);}
+.loc-reminder{color:#d97706;background:rgba(217,119,6,0.08);border-color:rgba(217,119,6,0.25);}
+.loc-continue-sub{color:#0891b2;background:rgba(8,145,178,0.08);border-color:rgba(8,145,178,0.25);}
+.loc-noanswer{color:#dc2626;background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.25);}
+.loc-removed{color:#6b7280;background:rgba(107,114,128,0.08);border-color:rgba(107,114,128,0.25);}
 .lead-preview{font-size:12px;color:#555;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
 
 /* Compact preview list — up to 2 most recent notes shown right on the
@@ -374,7 +401,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="lead-count">טוען...</span>
-      <span title="גרסה" style="font-size:9px;color:var(--green);font-weight:700;padding:0 4px;font-family:monospace">v80</span>
+      <span title="גרסה" style="font-size:9px;color:var(--green);font-weight:700;padding:0 4px;font-family:monospace">v82</span>
       <button class="hdr-btn" onclick="loadLeads()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
       </button>
@@ -1109,7 +1136,7 @@ window.addEventListener('load',()=>{
   // When the user visits the page and their localStorage version
   // doesn't match, we wipe ALL caches and reload — this is the
   // bulletproof way to kick out a stuck old SW. Once per upgrade.
-  const APP_VERSION = 'v80';
+  const APP_VERSION = 'v82';
   if('serviceWorker' in navigator){
     const stored = localStorage.getItem('app_version');
     if(stored !== APP_VERSION){
@@ -1752,13 +1779,37 @@ function renderLeadCard(l,kind){
     <div class="lead-info">
       <div class="lead-name">${esc(l.name)}</div>
       <div class="lead-phone">${esc(l.phone)}</div>
-      ${l.note?`<div class="lead-badge">${ICON.bubble}<span>${entries.length} שיחות</span></div>`:''}
+      <div class="lead-badge-row">
+        ${l.note?`<div class="lead-badge">${ICON.bubble}<span>${entries.length} שיחות</span></div>`:''}
+        ${_locationBadges(l)}
+      </div>
       ${label}
       ${previewHtml}
     </div>
     ${l.entryDate?`<div class="lead-entry-date" title="תאריך כניסה למערכת">${esc(l.entryDate)}</div>`:`<div class="lead-entry-date" style="color:var(--green);border-color:var(--green)" title="ליד חדש">חדש</div>`}
     </div>
   </div>${notesHtml}`;
+}
+
+/* Build location badges for a lead — shows which tab + sub-tab the
+   lead currently lives in. So if a lead is in "המשך" → "לא נענו", we
+   render two badges: one for "המשך" and one for "לא נענו". */
+function _locationBadges(l){
+  const out = [];
+  if(l.status === STATUS_CONTINUE){
+    out.push('<span class="loc-badge loc-continue">המשך</span>');
+    if(l.lastSubTab === 'meeting')      out.push('<span class="loc-badge loc-meeting">פגישה</span>');
+    else if(l.lastSubTab === 'reminder') out.push('<span class="loc-badge loc-reminder">תזכורת</span>');
+    else if(l.lastSubTab === 'continue') out.push('<span class="loc-badge loc-continue-sub">להמשך טיפול</span>');
+  } else if(l.status === STATUS_REMOVED){
+    out.push('<span class="loc-badge loc-removed">הוסר</span>');
+  }
+  // No-answer is a separate flag — can co-exist with continue status,
+  // but practically only lives inside the noAnswer sub-tab.
+  if(l.noAnswer){
+    out.push('<span class="loc-badge loc-noanswer">לא נענו</span>');
+  }
+  return out.join('');
 }
 
 // Render the dot row above each lead. We always show a fixed number of slots
@@ -2157,46 +2208,87 @@ function _undoSetLeadStatus(idx, prevStatus, prevMovedAt){
   showToast('המעבר בוטל', 'ok');
 }
 
-/* Custom toast with an "undo" button. Stays on screen for 3.5 seconds.
-   Tapping "ביטול" calls onUndo and dismisses immediately. */
+/* Custom toast with an "undo" button. Stays on screen for 4 seconds.
+   Tapping "ביטול" calls onUndo and dismisses immediately. Sits above
+   regular .toast notifications so the two never collide. */
 let _undoToastTimer = null;
+let _undoToastHandler = null;
 function showUndoToast(message, onUndo){
-  // Reuse the existing toast container if present, otherwise create one
+  // Hide any plain toast that's currently showing — the undo toast is
+  // strictly more useful (still tells you what happened, plus offers
+  // an undo).
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+
+  // Build (or reuse) the undo-toast host
   let host = document.getElementById('undo-toast');
   if(!host){
     host = document.createElement('div');
     host.id = 'undo-toast';
-    host.style.cssText = `
-      position:fixed;left:50%;transform:translateX(-50%);
-      bottom:calc(20px + env(safe-area-inset-bottom));
-      background:var(--slate);color:#fff;
-      padding:10px 8px 10px 14px;
-      display:none;align-items:center;gap:10px;
-      font-family:inherit;font-size:13px;font-weight:500;
-      box-shadow:0 4px 16px rgba(0,0,0,.25);
-      z-index:480;min-width:240px;max-width:90vw;
-      direction:rtl;
-    `;
-    host.innerHTML = `
-      <span id="undo-toast-msg" style="flex:1;line-height:1.3"></span>
-      <button id="undo-toast-btn" style="background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 12px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;flex-shrink:0">ביטול</button>
-    `;
     document.body.appendChild(host);
   }
+  // Reset cssText every time so older inline styles don't linger
+  host.style.cssText = `
+    position:fixed;left:50%;
+    bottom:calc(70px + env(safe-area-inset-bottom));
+    transform:translateX(-50%);
+    background:#3a3a48;color:#fff;
+    padding:0;
+    display:flex;align-items:stretch;
+    font-family:inherit;font-size:13px;font-weight:600;
+    box-shadow:0 6px 20px rgba(0,0,0,.35);
+    z-index:9999;min-width:260px;max-width:92vw;
+    direction:rtl;
+    border:2px solid #fff;
+    animation:undoToastIn .18s ease-out;
+  `;
+  // Make sure the keyframes are defined just once
+  if(!document.getElementById('undo-toast-keyframes')){
+    const st = document.createElement('style');
+    st.id = 'undo-toast-keyframes';
+    st.textContent = '@keyframes undoToastIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}';
+    document.head.appendChild(st);
+  }
+  host.innerHTML = `
+    <span id="undo-toast-msg" style="flex:1;line-height:1.3;padding:14px 16px;display:flex;align-items:center"></span>
+    <button id="undo-toast-btn" type="button" style="
+      background:#e74c3c;border:0;
+      color:#fff;padding:0 22px;font-size:14px;font-weight:800;
+      font-family:inherit;cursor:pointer;flex-shrink:0;
+      border-right:2px solid #fff;
+      letter-spacing:.5px;
+      min-width:80px;
+      touch-action:manipulation;
+    ">ביטול</button>
+  `;
   document.getElementById('undo-toast-msg').textContent = message || 'בוצע';
-  host.style.display = 'flex';
-  // Replace any previous timer
+
+  // Replace any previous timer + handler
   if(_undoToastTimer){ clearTimeout(_undoToastTimer); _undoToastTimer = null; }
   const close = () => {
-    host.style.display = 'none';
+    if(host) host.style.display = 'none';
     if(_undoToastTimer){ clearTimeout(_undoToastTimer); _undoToastTimer = null; }
+    _undoToastHandler = null;
   };
-  document.getElementById('undo-toast-btn').onclick = (e) => {
-    e.stopPropagation();
+  _undoToastHandler = () => {
     close();
-    if(typeof onUndo === 'function') onUndo();
+    if(typeof onUndo === 'function'){
+      try{ onUndo(); }
+      catch(e){ console.error('undo failed:', e); }
+    }
   };
-  _undoToastTimer = setTimeout(close, 3500);
+  // Wire both click AND touchend (for stubborn iOS Safari) and use
+  // pointerdown as a third belt-and-braces — only one fires per tap
+  // because we close() immediately, removing the listener.
+  const btn = document.getElementById('undo-toast-btn');
+  const fire = (e) => {
+    if(e){ e.stopPropagation(); e.preventDefault(); }
+    if(_undoToastHandler) _undoToastHandler();
+  };
+  btn.addEventListener('click', fire);
+  btn.addEventListener('touchend', fire);
+
+  // 4 seconds to give the user a comfortable window to react
+  _undoToastTimer = setTimeout(close, 4000);
 }
 
 // Append an entry to the metadata log column (AB). Each entry is one line:
