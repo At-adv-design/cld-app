@@ -1425,7 +1425,26 @@ async function loadLeads(){
           name:(row[0]||'').trim()||'(ללא שם)',
           phone:(row[1]||'').toString().trim(),
           note:(row[2]||'').trim(),
-          status:((row[21]||'')+'').trim().toLowerCase(),  // column V (0-based 21)
+          // Column V holds the lead status. The app writes 'continue'
+          // and 'removed' in English, but the sheet may contain Hebrew
+          // values too (לידים שעודכנו ידנית, או גיליונות יבוא ישנים).
+          // We normalize:
+          //   continue / המשך / להמשך / continueStatus → 'continue'
+          //   removed / הוסר / מחוק / נמחק / נדחה   → 'removed'
+          //   active / פעיל / או ריק                 → '' (active default)
+          //   anything else                          → '' (treat as active)
+          // This way every lead with a phone number ends up visible in
+          // exactly one of the three top tabs (active / continue / removed).
+          status: (()=>{
+            const raw = ((row[21]||'')+'').trim().toLowerCase();
+            if(!raw) return '';
+            if(['continue','המשך','להמשך'].some(s=>raw.indexOf(s)>=0)) return 'continue';
+            if(['removed','הוסר','מחוק','נמחק','נדחה'].some(s=>raw.indexOf(s)>=0)) return 'removed';
+            if(['active','פעיל'].some(s=>raw.indexOf(s)>=0)) return '';
+            // Unknown value → show in active tab as a fallback so the lead
+            // is never invisible. The user can then move it via swipe.
+            return '';
+          })(),
           callers:((row[22]||'')+'').trim(),                // column W (0-based 22) — comma-separated user tags
           // Column AG (0-based 32) — full audit log: status changes, calls,
           // summaries. Each entry: "DD/MM/YY HH:MM | userTag | event".
