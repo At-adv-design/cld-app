@@ -1,5 +1,5 @@
 // Service worker for the INSOLVENCY app — aggressive auto-update.
-const CACHE_NAME = 'at-insolvency-v83';
+const CACHE_NAME = 'at-insolvency-v84';
 const ASSETS = [
   './manifest.json',
   '../logo.png',
