@@ -400,7 +400,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="lead-count">טוען...</span>
-      <span title="גרסה" style="font-size:9px;color:var(--green);font-weight:700;padding:0 4px;font-family:monospace">v83</span>
+      <span title="גרסה" style="font-size:9px;color:var(--green);font-weight:700;padding:0 4px;font-family:monospace">v85</span>
       <button class="hdr-btn" onclick="loadLeads()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
       </button>
@@ -1150,7 +1150,7 @@ window.addEventListener('load',()=>{
   // When the user visits the page and their localStorage version
   // doesn't match, we wipe ALL caches and reload — this is the
   // bulletproof way to kick out a stuck old SW. Once per upgrade.
-  const APP_VERSION = 'v83';
+  const APP_VERSION = 'v85';
   if('serviceWorker' in navigator){
     const stored = localStorage.getItem('app_version');
     if(stored !== APP_VERSION){
@@ -1770,9 +1770,12 @@ function renderLeadCard(l,kind){
     actionBtn=`<button class="call-btn" onclick="event.stopPropagation();callLead(${l.index},'${ej(l.name)}','${ej(l.phone)}')">${ICON.phone}</button>`;
   }
 
+  // The old "continue-lbl" / "removed-lbl" labels are no longer needed —
+  // the same info now appears as colored loc-badges next to the call-count
+  // badge. Keeping a single label only for "removed" so the strikethrough/
+  // grey variant is visually obvious; "continue" is covered by the badge.
   let label='';
-  if(kind==='removed')label=`<div class="removed-lbl">${ICON.removed}<span>הוסר</span></div>`;
-  else if(kind==='continue')label=`<div class="continue-lbl">${ICON.bookmark}<span>המשך</span></div>`;
+  // (continue label intentionally not rendered to avoid duplication with the loc-badge)
 
   // Action buttons row — sits right under the call-dots strip (which
   // also includes "last call timestamp"). This frees the bottom of the
@@ -2039,9 +2042,9 @@ function initSwipe(wrap,idx,kind){
           // From the "לא נענו" sub-tab:
           //   Swipe-right → clear AE + move to continue
           //   Swipe-left  → clear AE + move to removed
-          setNoAnswer(idx, false);
-          if(goingLeft) setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
-          else          setLeadStatus(idx,STATUS_CONTINUE,'ליד הועבר להמשך');
+          // Single combined undo: capture state of BOTH AE/AF and V before
+          // changing anything, restore everything in one go on undo.
+          _swipeNoAnswerAway(idx, goingLeft);
         } else if(kind==='meeting' || kind==='reminder'){
           // From the "פגישה" / "תזכורת" sub-tabs:
           //   Swipe-right → return the lead to the plain "המשך" sub-tab
@@ -2051,28 +2054,7 @@ function initSwipe(wrap,idx,kind){
           if(goingLeft){
             setLeadStatus(idx,STATUS_REMOVED,'ליד הוסר');
           } else {
-            // Clear the date column so this lead leaves the sub-tab.
-            // Status stays CONTINUE so it shows up in plain "המשך".
-            const colLetter = (kind==='meeting') ? 'X' : 'AB';
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${idx}?valueInputOption=RAW`;
-            const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({values:[['']]})};
-            apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'נקה ' + colLetter));
-            // Also clear the time columns so we don't keep stale data
-            const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${kind==='meeting'?'Y':'AC'}${idx}?valueInputOption=RAW`;
-            const url3 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${kind==='meeting'?'Z':'AD'}${idx}?valueInputOption=RAW`;
-            apiFetch(url2, opts).catch(()=>enqueueWrite(url2, opts, 'נקה זמן'));
-            apiFetch(url3, opts).catch(()=>enqueueWrite(url3, opts, 'נקה זמן'));
-            // Update local state so the lead disappears from this sub-tab now
-            const lead = allLeads.find(l => l.index === idx);
-            if(lead){
-              if(kind==='meeting'){ lead.meetingDateRaw=''; lead.meetingDateMs=0; }
-              else { lead.reminderDateRaw=''; lead.reminderDateMs=0; }
-              lead.lastSubTab='continue';
-            }
-            filterLeads();
-            showToast('ליד הוחזר להמשך','ok');
-            appendMetaLog(idx, kind==='meeting' ? 'בוטלה פגישה' : 'בוטלה תזכורת');
+            _swipeClearMeetingReminder(idx, kind);
           }
         }
       },220);
@@ -2220,6 +2202,139 @@ function _undoSetLeadStatus(idx, prevStatus, prevMovedAt){
   apiFetch(url, opts).catch(() => enqueueWrite(url, opts, 'ביטול'));
   appendMetaLog(idx, 'בוטל המעבר');
   showToast('המעבר בוטל', 'ok');
+}
+
+/* Combined swipe action for the "לא נענו" sub-tab.
+   Captures BOTH the AE/AF state (no-answer flag + timestamp) AND the
+   V (status) value, performs the new write, and offers a single undo
+   that restores everything atomically. */
+function _swipeNoAnswerAway(idx, goingLeft){
+  const lead = allLeads.find(l => l.index === idx);
+  if(!lead) return;
+  // Snapshot
+  const prev = {
+    noAnswer: !!lead.noAnswer,
+    noAnswerTs: lead.noAnswerTs || 0,
+    status: lead.status || '',
+    movedAt: lead.movedAt || 0,
+  };
+  // Apply locally
+  lead.noAnswer = false;
+  lead.noAnswerTs = 0;
+  lead.status = goingLeft ? STATUS_REMOVED : STATUS_CONTINUE;
+  const moves = loadMovesMap();
+  moves[idx] = Date.now();
+  saveMovesMap(moves);
+  lead.movedAt = moves[idx];
+  // Bump to top of in-memory list
+  const i = allLeads.indexOf(lead);
+  if(i > 0){ allLeads.splice(i,1); allLeads.unshift(lead); }
+  filterLeads();
+  // Write to sheet — AE FALSE, AF empty, V = new status
+  const writes = [
+    {col:'AE', val:'FALSE', input:'USER_ENTERED', label:'לא נענו'},
+    {col:'AF', val:'',      input:'RAW',          label:'תאריך לא נענו'},
+    {col:'V',  val:lead.status, input:'RAW',     label:'סטטוס'},
+  ];
+  writes.forEach(w => {
+    const url  = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${w.col}${idx}?valueInputOption=${w.input}`;
+    const opts = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[w.val]]})};
+    apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, w.label));
+  });
+  appendMetaLog(idx, goingLeft ? 'הוסר' : 'הועבר להמשך');
+  // Show ONE undo toast that restores both AE/AF and V
+  const msg = goingLeft ? 'ליד הוסר' : 'ליד הועבר להמשך';
+  showUndoToast(msg, () => {
+    const lead2 = allLeads.find(l => l.index === idx);
+    if(lead2){
+      lead2.noAnswer   = prev.noAnswer;
+      lead2.noAnswerTs = prev.noAnswerTs;
+      lead2.status     = prev.status;
+      lead2.movedAt    = prev.movedAt;
+      const moves2 = loadMovesMap();
+      if(prev.movedAt) moves2[idx] = prev.movedAt;
+      else delete moves2[idx];
+      saveMovesMap(moves2);
+    }
+    filterLeads();
+    const undoWrites = [
+      {col:'AE', val: prev.noAnswer ? 'TRUE' : 'FALSE', input:'USER_ENTERED', label:'ביטול לא נענו'},
+      {col:'AF', val: prev.noAnswerTs ? String(prev.noAnswerTs) : '', input:'RAW', label:'ביטול תאריך לא נענו'},
+      {col:'V',  val: prev.status, input:'RAW', label:'ביטול סטטוס'},
+    ];
+    undoWrites.forEach(w => {
+      const url  = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${w.col}${idx}?valueInputOption=${w.input}`;
+      const opts = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[w.val]]})};
+      apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, w.label));
+    });
+    appendMetaLog(idx, 'בוטל המעבר');
+    showToast('המעבר בוטל', 'ok');
+  });
+}
+
+/* Combined swipe action for the "פגישה" / "תזכורת" sub-tabs (swipe-right).
+   Clears the date columns so the lead leaves the sub-tab, while keeping
+   the status as CONTINUE. Snapshots all cleared values for undo. */
+function _swipeClearMeetingReminder(idx, kind){
+  const lead = allLeads.find(l => l.index === idx);
+  if(!lead) return;
+  // Column layout: meeting → X (date), Y (start), Z (end)
+  //                reminder → AB (date), AC (start), AD (end)
+  const cols = (kind === 'meeting')
+    ? {date:'X', start:'Y', end:'Z'}
+    : {date:'AB', start:'AC', end:'AD'};
+  // Snapshot
+  const prev = {
+    dateRaw:   (kind === 'meeting') ? (lead.meetingDateRaw || '')   : (lead.reminderDateRaw || ''),
+    dateMs:    (kind === 'meeting') ? (lead.meetingDateMs || 0)     : (lead.reminderDateMs || 0),
+    startRaw:  (kind === 'meeting') ? (lead.meetingStartRaw || '')  : (lead.reminderStartRaw || ''),
+    endRaw:    (kind === 'meeting') ? (lead.meetingEndRaw || '')    : (lead.reminderEndRaw || ''),
+    lastSubTab: lead.lastSubTab || 'continue',
+  };
+  // Apply locally
+  if(kind === 'meeting'){ lead.meetingDateRaw = ''; lead.meetingDateMs = 0; }
+  else                  { lead.reminderDateRaw = ''; lead.reminderDateMs = 0; }
+  lead.lastSubTab = 'continue';
+  filterLeads();
+  // Write blanks to the 3 columns
+  const blank = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[['']]})};
+  ['date','start','end'].forEach(k => {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${cols[k]}${idx}?valueInputOption=RAW`;
+    apiFetch(url, blank).catch(()=>enqueueWrite(url, blank, 'נקה ' + cols[k]));
+  });
+  appendMetaLog(idx, kind === 'meeting' ? 'בוטלה פגישה' : 'בוטלה תזכורת');
+  // Single undo toast that restores the 3 cleared cells + local state
+  const msg = (kind === 'meeting') ? 'הפגישה בוטלה' : 'התזכורת בוטלה';
+  showUndoToast(msg, () => {
+    const lead2 = allLeads.find(l => l.index === idx);
+    if(lead2){
+      if(kind === 'meeting'){
+        lead2.meetingDateRaw = prev.dateRaw;
+        lead2.meetingDateMs  = prev.dateMs;
+        lead2.meetingStartRaw = prev.startRaw;
+        lead2.meetingEndRaw   = prev.endRaw;
+      } else {
+        lead2.reminderDateRaw = prev.dateRaw;
+        lead2.reminderDateMs  = prev.dateMs;
+        lead2.reminderStartRaw = prev.startRaw;
+        lead2.reminderEndRaw   = prev.endRaw;
+      }
+      lead2.lastSubTab = prev.lastSubTab;
+    }
+    filterLeads();
+    const writes = [
+      {col: cols.date,  val: prev.dateRaw,  label:'שחזור תאריך'},
+      {col: cols.start, val: prev.startRaw, label:'שחזור שעת התחלה'},
+      {col: cols.end,   val: prev.endRaw,   label:'שחזור שעת סיום'},
+    ];
+    writes.forEach(w => {
+      const url  = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${w.col}${idx}?valueInputOption=RAW`;
+      const opts = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[w.val]]})};
+      apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, w.label));
+    });
+    appendMetaLog(idx, kind === 'meeting' ? 'שחזור פגישה' : 'שחזור תזכורת');
+    showToast('בוטל', 'ok');
+  });
 }
 
 /* Custom toast with an "undo" button. Stays on screen for 4 seconds.
@@ -3870,20 +3985,70 @@ async function saveAndMove(target){
   if(history.state&&history.state.page==='modal') popHistorySilently();
   if(currentLead) localStorage.removeItem('draft_'+currentLead.index);
   _closeModalCore();
-  // Save the note text first if anything was typed (reuses saveNote's write logic)
+
+  const lead = allLeads.find(l => l.index === idx);
+  const status = target==='continue' ? STATUS_CONTINUE : STATUS_REMOVED;
+  const msg    = target==='continue' ? 'נשמר והועבר להמשך' : 'נשמר והועבר להוסרו';
+
+  // Snapshot for undo: previous note (without the new entry) + previous status
+  const prevNote = lead ? (lead.note || '') : '';
+  const prevStatus = lead ? (lead.status || '') : '';
+  const prevMovedAt = lead ? (lead.movedAt || 0) : 0;
+
+  // Save the note text first (if anything was typed)
+  let combinedNote = prevNote;
   if(note){
-    const lead=allLeads.find(l=>l.index===idx);
-    const entry=getTS()+'\n'+note, prev=lead?lead.note:'';
-    const combined=prev?entry+'\n\n'+prev:entry;
-    if(lead)lead.note=combined;
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
-    const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combined]]})};
-    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'סיכום שיחה'));
+    const entry = getTS() + '\n' + note;
+    combinedNote = prevNote ? entry + '\n\n' + prevNote : entry;
+    if(lead) lead.note = combinedNote;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
+    const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[combinedNote]]})};
+    apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'סיכום שיחה'));
   }
-  // Now set the new status (this also re-renders the lists)
-  const status=target==='continue'?STATUS_CONTINUE:STATUS_REMOVED;
-  const msg=target==='continue'?'נשמר והועבר להמשך':'נשמר והועבר להוסרו';
-  setLeadStatus(idx,status,msg);
+
+  // Apply status change (optimistic + write)
+  if(lead){
+    lead.status = status;
+    const moves = loadMovesMap();
+    moves[idx] = Date.now();
+    saveMovesMap(moves);
+    lead.movedAt = moves[idx];
+    const i = allLeads.indexOf(lead);
+    if(i > 0){ allLeads.splice(i,1); allLeads.unshift(lead); }
+  }
+  filterLeads();
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`;
+  const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[status]]})};
+  apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'סטטוס ליד'));
+  const label = status === STATUS_CONTINUE ? 'הועבר להמשך' : 'הוסר';
+  appendMetaLog(idx, label);
+
+  // Single undo toast that restores BOTH the note and the status
+  showUndoToast(msg, () => {
+    const lead2 = allLeads.find(l => l.index === idx);
+    if(lead2){
+      lead2.note = prevNote;
+      lead2.status = prevStatus;
+      lead2.movedAt = prevMovedAt;
+      const moves = loadMovesMap();
+      if(prevMovedAt) moves[idx] = prevMovedAt;
+      else delete moves[idx];
+      saveMovesMap(moves);
+    }
+    filterLeads();
+    // Restore note if we changed it
+    if(note){
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${idx}?valueInputOption=RAW`;
+      const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[prevNote]]})};
+      apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'ביטול סיכום'));
+    }
+    // Restore status
+    const urlV = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/V${idx}?valueInputOption=RAW`;
+    const optsV = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[prevStatus]]})};
+    apiFetch(urlV, optsV).catch(()=>enqueueWrite(urlV, optsV, 'ביטול סטטוס'));
+    appendMetaLog(idx, 'בוטל המעבר');
+    showToast('המעבר בוטל', 'ok');
+  });
 }
 
 /* =========================
