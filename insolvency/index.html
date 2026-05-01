@@ -63,7 +63,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* Spacer that takes the place of the header in the document flow so the
    first elements after it don't jump under it. */
 .header-spacer{height:96px;}
-.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+.hdr-row-top{display:flex;gap:8px;align-items:center;}
+/* The bottom row only shows when there's a pending-approvals badge to
+   show. We center the badge inside the row so it sits cleanly under
+   the controls above. min-height:0 prevents an empty row from taking
+   vertical space when no pending items are awaiting review. */
+.hdr-row-bottom{display:flex;gap:8px;align-items:center;min-height:0;}
+.hdr-row-bottom:empty{display:none;}
 .hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .hdr-btn:active{background:var(--border);}
@@ -82,12 +89,22 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
    spreadsheet cell. Tight layout: 2 small chips side-by-side. */
 .section-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
 /* === Customer-area modal sections === */
-.cust-section{background:var(--white);border:1px solid var(--border);}
+.cust-section{
+  background:var(--white);border:1px solid var(--border);
+  /* Cream-warm accent stripe on the inline-start edge (right in RTL).
+     Same neutral color for every section — differentiation is by icon
+     shape, not color. */
+  border-inline-start:3px solid #b39c80;
+}
 /* Collapsible head — chevron on the left, title + badge on the right (RTL) */
 .cust-section-head{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:11px 13px;cursor:pointer;
   transition:background .12s;
+  /* Cream-tinted head — gives the section a distinct "header band" without
+     color. Same shade for every section. */
+  background:#f5ede0;
+  border-bottom:1px solid #e6dac5;
   /* Make sure children don't intercept the click — the head itself
      handles toggling via onclick. */
   -webkit-tap-highlight-color:rgba(58,58,72,.12);
@@ -97,8 +114,17 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   z-index:2;
 }
 .cust-section-head *{pointer-events:none !important;}
-.cust-section-head:active{background:var(--bg);}
+.cust-section-head:active{background:#ebe1cf;}
 .cust-section-head-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+/* Small leading icon next to the title — gives each section its own
+   visual cue. Same muted-cream color for all icons; the differentiation
+   is the icon's shape. */
+.cust-section-leading-icon{
+  width:18px;height:18px;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#8a7560;
+}
+.cust-section-leading-icon svg{width:15px;height:15px;}
 .cust-section-title-text{font-size:13px;font-weight:700;color:var(--slate);}
 .cust-section-badge{font-size:10px;font-weight:500;color:var(--muted);}
 .cust-section-chev{
@@ -106,6 +132,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   transition:transform .15s ease;flex-shrink:0;
 }
 .cust-section.open .cust-section-chev{transform:rotate(180deg);}
+
+/* Dark-mode head — muted warm tone that reads as cream-ish against the
+   dark canvas without being a strong color. */
+[data-theme="dark"] .cust-section{border-inline-start-color:#8a7560;}
+[data-theme="dark"] .cust-section-head{background:rgba(120,100,75,0.18);border-bottom-color:rgba(120,100,75,0.32);}
+[data-theme="dark"] .cust-section-head:active{background:rgba(120,100,75,0.28);}
+[data-theme="dark"] .cust-section-leading-icon{color:#b39c80;}
 .cust-section-body{display:none;border-top:1px solid var(--border);padding:13px;}
 .cust-section.open .cust-section-body{display:block;}
 /* Legacy class — still referenced in places, kept for back-compat */
@@ -452,26 +485,60 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .sdot-lg{width:10px;height:10px;border-radius:2px;}
 
 /* CARD BODY */
-.card-body{border-top:1px solid var(--border);padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.card-body{border-top:1px solid var(--border);padding:12px 14px;display:flex;flex-direction:column;gap:14px;}
 /* Collapsible section inside a card. The header is always visible;
-   the body collapses to nothing when the section is .collapsed. */
-.card-section{display:flex;flex-direction:column;gap:5px;}
+   the body collapses to nothing when the section is .collapsed.
+   The four sections (reports/docs/service/injunction) are visually
+   distinguished by structure (boxed mini-card with stripe + tinted
+   header band) and by icon shape — NOT by color. The accent palette
+   is a uniform cream/tan; differentiation comes from each section's
+   unique leading icon. */
+.card-section{
+  display:flex;flex-direction:column;gap:5px;
+  border:1px solid var(--border);
+  /* Cream-warm accent stripe — neutral monochrome, tan/sand rather than
+     cold gray. Same color for every section; differentiation is by
+     icon shape, not color. */
+  border-inline-start:3px solid #b39c80;
+  background:var(--white);
+}
 .card-section-head{
   display:flex;align-items:center;gap:8px;cursor:pointer;
-  padding:4px 0;user-select:none;
+  padding:8px 10px;user-select:none;
+  /* Cream-tinted head — warmer than --bg, gives the section a clear
+     "header band" without introducing color. */
+  background:#f5ede0;
+  border-bottom:1px solid #e6dac5;
 }
+.card-section.collapsed .card-section-head{border-bottom-color:transparent;}
 .card-section-chev{
   font-size:10px;color:var(--muted);
   transition:transform .15s;display:inline-block;width:12px;
 }
 .card-section.collapsed > .card-section-chev,
 .card-section.collapsed .card-section-head .card-section-chev{transform:rotate(-90deg);}
-.card-section-body{display:flex;flex-direction:column;gap:5px;}
+.card-section-body{display:flex;flex-direction:column;gap:5px;padding:10px;}
 /* The collapse rule must beat any inline style="display:flex" on
    nested sections — use !important to lock it down. */
 .card-section.collapsed > .card-section-body,
 .card-section.collapsed .card-section-body{display:none !important;}
-.section-title{font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;}
+.section-title{font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:0;}
+
+/* Dark-mode head — a muted warm tone that still reads as "cream-ish"
+   against the dark canvas without becoming high-contrast color. */
+[data-theme="dark"] .card-section-head{background:rgba(120,100,75,0.18);border-bottom-color:rgba(120,100,75,0.32);}
+[data-theme="dark"] .card-section{border-inline-start-color:#8a7560;}
+
+/* Section icon — small symbol on the right side of the head (RTL) so
+   each section has its own visual cue. All icons share the same neutral
+   muted-cream color; the differentiation is the icon's shape. */
+.card-section-icon{
+  width:18px;height:18px;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#8a7560;
+}
+.card-section-icon svg{width:14px;height:14px;}
+[data-theme="dark"] .card-section-icon{color:#b39c80;}
 
 /* REPORTS */
 .reports-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:100%;grid-auto-rows:34px;}
@@ -654,6 +721,20 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </head>
 <body>
 
+<!-- Version badge — fixed top-right corner, above everything -->
+<span id="app-version-tag" style="
+  position:fixed;
+  top:calc(2px + env(safe-area-inset-top));
+  right:4px;
+  font-size:9px;color:var(--green);font-weight:700;
+  font-family:monospace;
+  padding:1px 4px;
+  background:rgba(255,255,255,0.85);
+  border-radius:2px;
+  pointer-events:none;
+  z-index:10000;
+" title="גרסה">v84</span>
+
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
@@ -680,23 +761,29 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   <div id="active-filters-bar" style="position:fixed;top:0;left:0;right:0;z-index:97;display:none;flex-direction:column;background:var(--white);border-bottom:1px solid var(--border);box-shadow:0 2px 4px rgba(0,0,0,0.04);"></div>
   <div class="header">
     <div class="hdr-right">
-      <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
-      <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
-      <!-- Global "pending approvals" badge. Clicking it scrolls to the
-           first client card that has pending uploads. Hidden when zero. -->
-      <button id="pending-approvals-badge" onclick="jumpToFirstPending()" title="מסמכים ממתינים לאישור" style="display:none;align-items:center;gap:4px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:inherit">
-        <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite"></span>
-        <span id="pending-approvals-count">0</span>
-      </button>
-      <span class="hdr-count" id="total-count">טוען...</span>
-      <button class="hdr-btn" onclick="loadData()" title="רענן">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
-      </button>
-      <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-      </button>
-      <div class="avatar" id="user-avatar" onclick="signOut()"></div>
+      <!-- Top row: status badges, count, refresh, theme, avatar -->
+      <div class="hdr-row-top">
+        <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
+        <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
+        <span class="hdr-count" id="total-count">טוען...</span>
+        <button class="hdr-btn" onclick="loadData()" title="רענן">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+        </button>
+        <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+        <div class="avatar" id="user-avatar" onclick="signOut()"></div>
+      </div>
+      <!-- Bottom row: pending approvals badge — sits on its own line so
+           the blinking attention-grabber doesn't crowd the count/refresh
+           controls above. Hidden via display:none until pending > 0. -->
+      <div class="hdr-row-bottom" style="display:none">
+        <button id="pending-approvals-badge" onclick="jumpToFirstPending()" title="מסמכים ממתינים לאישור" style="display:none;align-items:center;gap:4px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:inherit">
+          <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite"></span>
+          <span id="pending-approvals-count">0</span>
+        </button>
+      </div>
     </div>
     <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
   </div>
@@ -1328,7 +1415,15 @@ const ICON={
   folder:   _SVG('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',18),
   // Question-mark icon — used inline next to each requirement item
   question: _SVG('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',16),
-  whatsapp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>'
+  whatsapp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>',
+  // Section icons — one per card section so the four blocks read as
+  // distinct categories at a glance (in addition to the colored stripe).
+  // reportsIcon = clipboard-with-lines, docsIcon = stacked papers,
+  // serviceIcon = mail/envelope (delivery confirmations), injIcon = pause.
+  reportsIcon: _SVG('<rect x="6" y="3" width="12" height="18" rx="1"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>',14),
+  docsIcon: _SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',14),
+  serviceIcon: _SVG('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',14),
+  injIcon: _SVG('<rect x="6" y="4" width="4" height="16" rx="0.5"/><rect x="14" y="4" width="4" height="16" rx="0.5"/>',14)
 };
 
 // Decorate any element with data-icon="<name>" by prepending the matching ICON
@@ -2269,11 +2364,16 @@ function updatePendingApprovalsBadge(){
   const badge = document.getElementById('pending-approvals-badge');
   const countEl = document.getElementById('pending-approvals-count');
   if(!badge || !countEl) return;
+  // Also toggle the bottom hdr row so it doesn't reserve empty vertical
+  // space when there's nothing to show.
+  const row = badge.parentElement;
   if(total > 0){
     countEl.textContent = total;
     badge.style.display = 'inline-flex';
+    if(row) row.style.display = 'flex';
   } else {
     badge.style.display = 'none';
+    if(row) row.style.display = 'none';
   }
 }
 
@@ -2563,7 +2663,8 @@ function renderCards(clients){
         <div class="card-section" data-section="reports">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'reports')">
             <span class="card-section-chev">▼</span>
-            <span class="section-title" style="color:var(--red);margin:0">דוחות — ${c.overdueCount} לא הוגשו</span>
+            <span class="card-section-icon">${ICON.reportsIcon}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">דוחות — ${c.overdueCount} לא הוגשו</span>
           </div>
           <div class="card-section-body">
           <div style="height:30px;overflow:hidden"><div class="reports-grid">${reportCells}</div></div>
@@ -2582,7 +2683,8 @@ function renderCards(clients){
         <div class="card-section" data-section="docs">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'docs')">
             <span class="card-section-chev">▼</span>
-            <span class="section-title" style="color:var(--slate);margin:0">השלמת מסמכים</span>
+            <span class="card-section-icon">${ICON.docsIcon}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">השלמת מסמכים</span>
             ${docsDeadline?`<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:3px;padding:2px 7px;white-space:nowrap;margin-inline-start:auto">תאריך אחרון: ${docsDeadline}</span>`:''}
           </div>
           <div class="card-section-body">
@@ -2614,8 +2716,9 @@ function renderCards(clients){
         <div class="card-section" data-section="service">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'service')">
             <span class="card-section-chev">▼</span>
+            <span class="card-section-icon">${ICON.serviceIcon}</span>
             <div style="display:flex;align-items:baseline;gap:6px;flex:1;min-width:0">
-              <span class="section-title" style="color:var(--slate);margin:0;flex-shrink:0">אישורי מסירה:</span>
+              <span class="section-title" style="color:#5c4a36;margin:0;flex-shrink:0">אישורי מסירה:</span>
               <span onclick="event.stopPropagation();openBdEdit(${c.rowNum})" style="font-size:11px;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;cursor:pointer;padding:2px 6px;border:1px dashed transparent;border-radius:3px;transition:all .12s" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg)'" onmouseout="this.style.borderColor='transparent';this.style.background='transparent'" title="${esc(c.bdRaw||'הוסף תיעוד')}">${esc(c.bdRaw||'הוסף תיעוד...')}</span>
             </div>
             ${c.srvDeadline?`<span style="font-size:10px;font-weight:700;color:${c.srvUrgent?'var(--red)':'var(--slate)'};background:${c.srvUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.srvUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;flex-shrink:0">תאריך אחרון: ${c.srvDeadline}</span>`:''}
@@ -2632,7 +2735,8 @@ function renderCards(clients){
         <div class="card-section" data-section="injunction">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'injunction')">
             <span class="card-section-chev">▼</span>
-            <span class="section-title" style="color:var(--slate);margin:0">עיכוב הליכים</span>
+            <span class="card-section-icon">${ICON.injIcon}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">עיכוב הליכים</span>
             ${c.injEndDate?`<span style="font-size:10px;font-weight:700;color:${c.injUrgent?'var(--red)':'var(--slate)'};background:${c.injUrgent?'var(--red-bg)':'var(--bg)'};border:1px solid ${c.injUrgent?'var(--red-border)':'var(--border)'};border-radius:3px;padding:2px 7px;white-space:nowrap;margin-inline-start:auto">תאריך אחרון: ${c.injEndDate}</span>`:''}
           </div>
           <div class="card-section-body">
@@ -3480,10 +3584,21 @@ function renderCustomerArea(){
   // We don't put the onclick inline anymore — there's a delegated
   // click handler in toggleCustSection's section that catches every
   // click on .cust-section-head, which is more robust on mobile.
+  // Each section also has a leading icon picked by its key (so each
+  // category — Drive, reports, docs, info, creds — is visually
+  // distinct beyond just its title).
+  const sectIcon = {
+    drive:   ICON.folder,
+    reports: ICON.reportsIcon,
+    docs:    ICON.docsIcon,
+    info:    ICON.question,
+    creds:   ICON.customer,
+  };
   const sect = (key, title, badge, contentHtml) => `
     <div class="cust-section ${isOpen(key)?'open':''}" data-cust-key="${key}">
       <div class="cust-section-head" data-cust-key="${key}">
         <div class="cust-section-head-left">
+          ${sectIcon[key] ? `<span class="cust-section-leading-icon">${sectIcon[key]}</span>` : ''}
           <span class="cust-section-title-text">${title}</span>
           ${badge?`<span class="cust-section-badge">${badge}</span>`:''}
         </div>
