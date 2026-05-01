@@ -1,6 +1,6 @@
 // Service worker for the LEADS app
 // IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v64';
+const CACHE_NAME = 'at-leads-v67';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,14 @@ const ASSETS = [
   '../logo.png',
   '../icon.png'
 ];
+
+// Listen for SKIP_WAITING messages from the page so a new SW activates
+// without waiting for all tabs to close.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
