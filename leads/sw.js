@@ -6,7 +6,7 @@
 //   - Static assets (icons, manifest): cache-first but updated in the background.
 //   - On message {type:'SKIP_WAITING'} we activate immediately.
 //   - clients.claim() in activate so the new SW takes over open tabs.
-const CACHE_NAME = 'at-leads-v77';
+const CACHE_NAME = 'at-leads-v80';
 const ASSETS = [
   './manifest.json',
   '../logo.png',
