@@ -150,6 +150,31 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lead-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green);background:rgba(26,122,69,0.07);border:1px solid rgba(26,122,69,0.18);border-radius:3px;padding:2px 6px;margin-top:4px;}
 .lead-preview{font-size:12px;color:#555;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
 
+/* Compact preview list — up to 2 most recent notes shown right on the
+   collapsed lead card. Each row: bold timestamp + body text. */
+.lead-preview-list{
+  display:flex;flex-direction:column;gap:3px;
+  margin-top:6px;
+}
+.lead-preview-row{
+  font-size:12px;color:#555;line-height:1.45;
+  display:flex;gap:6px;align-items:flex-start;
+  word-break:break-word;
+  /* Each row clamps to 1 line — keeps the card compact even when notes are long */
+  overflow:hidden;
+}
+.lpr-ts{
+  font-size:11px;font-weight:700;color:var(--slate);
+  flex-shrink:0;white-space:nowrap;
+  background:var(--bg);
+  border:1px solid var(--border);
+  padding:1px 6px;border-radius:2px;
+}
+.lpr-body{
+  flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
 /* CALL BUTTON */
 .call-btn{width:44px;height:44px;border-radius:4px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .12s;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
 .call-btn:active{transform:scale(.92);background:var(--bg);}
@@ -198,12 +223,12 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .entry-card:active{background:var(--border);}
 .entry-card .entry-body{font-size:13px;color:#444;line-height:1.55;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;padding-left:36px;}
 .entry-card.expanded .entry-body{display:block;-webkit-line-clamp:unset;overflow:visible;}
-.entry-card .entry-ts{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;display:flex;gap:6px;align-items:center;padding-left:36px;}
+.entry-card .entry-ts{font-size:11px;font-weight:700;color:var(--slate);margin-bottom:4px;display:flex;gap:6px;align-items:center;padding-left:36px;}
 .entry-card .entry-user{background:var(--white);border:1px solid var(--border);padding:1px 5px;font-size:10px;font-weight:600;color:var(--slate);letter-spacing:0.2px;}
 /* Expand-all global toggle button */
 .expand-all-btn{display:inline-flex;align-items:center;gap:5px;background:var(--white);border:1px solid var(--border);color:var(--slate);padding:5px 10px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
 .expand-all-btn:active{background:var(--bg);}
-.note-ts{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:3px;display:flex;gap:6px;align-items:center;}
+.note-ts{font-size:11px;font-weight:700;color:var(--slate);margin-bottom:4px;display:flex;gap:6px;align-items:center;}
 .note-entry-edit{position:absolute;left:0;top:0;width:28px;height:28px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);}
 .note-entry-edit:active{background:var(--border);}
 .note-user{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1px 5px;font-size:10px;font-weight:600;color:var(--slate);letter-spacing:0.2px;}
@@ -440,10 +465,9 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
     <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
       <div class="msub" id="modal-name" style="flex:1;min-width:0;margin:0"></div>
       <!-- "לא נענו" — marks AE=TRUE so the lead moves to the no-answer
-           sub-tab. Same dark style as the call button; phone icon with
-           a slash through it to convey "no answer". -->
+           sub-tab. Icon: a square with an X in the middle. -->
       <button onclick="markCurrentLeadNoAnswer()" title="סמן: לא נענו" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
       </button>
       <button onclick="openWA(currentLead && currentLead.phone || '')" title="שלח WhatsApp" style="background:var(--slate);color:#fff;border:none;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-family:inherit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a1 1 0 0 0 1 1 5 5 0 0 0 5 5 1 1 0 0 0 1-1v-1.5a.5.5 0 0 0-.4-.5l-2-.4a.5.5 0 0 0-.5.13l-.6.6a7 7 0 0 1-3-3l.6-.6a.5.5 0 0 0 .13-.5l-.4-2A.5.5 0 0 0 10.5 7H9a1 1 0 0 0-1 1v2z"/></svg>
@@ -573,7 +597,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       </div>
     </div>
     <!-- Month grid -->
-    <div id="cal-month-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:10px;background:var(--bg);flex-shrink:0"></div>
+    <div id="cal-month-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;padding:10px;background:var(--bg);flex-shrink:0"></div>
     <!-- Selected day events -->
     <div style="border-top:1px solid var(--border);padding:8px 12px;background:var(--white);font-size:12px;font-weight:700;color:var(--slate);flex-shrink:0">
       <span id="cal-selected-label">היום</span>
@@ -606,6 +630,25 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .cal-evt-title{font-size:12px;color:var(--text);font-weight:600;line-height:1.3;}
 .cal-evt-loc{font-size:10px;color:var(--muted);}
 .cal-empty{font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic;}
+
+/* Hour-grid layout for the day view: clear time-line from 08:00 to 22:00 */
+.cal-allday-section{display:flex;flex-direction:column;gap:5px;margin-bottom:8px;}
+.cal-evt-allday{border-right-color:var(--orange,#C68A3C);}
+.cal-hourgrid{display:flex;flex-direction:column;}
+.cal-hour-row{
+  display:flex;gap:8px;align-items:flex-start;
+  padding:5px 0;border-top:1px solid var(--border);
+  min-height:34px;
+}
+.cal-hour-row:first-child{border-top:none;}
+.cal-hour-label{
+  width:42px;flex-shrink:0;
+  font-size:10px;font-weight:700;color:var(--muted);
+  padding-top:3px;text-align:left;
+}
+.cal-hour-content{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;}
+.cal-hour-row.cal-hour-now{background:rgba(58,91,176,.06);}
+.cal-hour-row.cal-hour-now .cal-hour-label{color:var(--blue,#3A5BB0);}
 </style>
 
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
@@ -624,6 +667,12 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
            reminder and appears in the reminders list AND in the system
            notification body so the user sees it at a glance. -->
       <input type="text" id="reminder-note" placeholder="הערה (אופציונלי)" maxlength="80" style="display:none;flex:1;min-width:0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-family:inherit;color:var(--text);text-align:right"/>
+      <!-- View Google Calendar — same overlay used in the call-summary modal,
+           so the user can check their existing schedule before picking a time. -->
+      <button onclick="openCalendarOverlay()" title="צפה בקלנדר Google" style="background:var(--slate);border:1px solid var(--slate);padding:9px 12px;font-size:12px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;gap:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>קלנדר</span>
+      </button>
       <button class="btn btn-save" style="padding:9px 18px;font-size:14px;font-weight:700;width:auto;flex-shrink:0" onclick="saveMeeting()">שמור פגישה</button>
     </div>
 
@@ -1139,9 +1188,16 @@ window.addEventListener('popstate',(e)=>{
     _suppressPopstate=false;
     return;
   }
-  // calendar overlay — top-most, must be checked first
+  // calendar overlay — top-most. Even though we don't push a history
+  // entry on open, the back button should close the calendar first
+  // (because that's what the user expects). We close it without
+  // consuming the back press: instead, we re-push a state so that
+  // the next back press goes to the next layer (note-modal).
   if(document.getElementById('calendar-modal').style.display === 'flex'){
     document.getElementById('calendar-modal').style.display = 'none';
+    // Re-push the state we just popped so we don't accidentally
+    // unwind two history entries with one back press.
+    history.pushState({page:'modal'}, '');
     _resetBackCount();
     return;
   }
@@ -1481,6 +1537,54 @@ function getLatestNoteBody(note){
   return body.trim();
 }
 
+/* Get the timestamp of the most recent note entry. Returns the raw
+   "DD/MM/YY HH:MM" string from the entry, or '' if no timestamp exists. */
+function getLatestNoteTS(note){
+  const entries=parseEntries(note);
+  if(!entries.length) return '';
+  const firstLine = entries[0].split('\n')[0].trim();
+  if(!/^\d{2}\/\d{2}\/\d{2}/.test(firstLine)) return '';
+  // The timestamp may have a "| user" suffix; strip it.
+  return firstLine.split('|')[0].trim();
+}
+
+/* Same for the SECOND most recent entry. */
+function getNthNoteTS(note, n){
+  const entries=parseEntries(note);
+  if(!entries[n]) return '';
+  const firstLine = entries[n].split('\n')[0].trim();
+  if(!/^\d{2}\/\d{2}\/\d{2}/.test(firstLine)) return '';
+  return firstLine.split('|')[0].trim();
+}
+function getNthNoteBody(note, n){
+  const entries=parseEntries(note);
+  if(!entries[n]) return '';
+  const lines = entries[n].split('\n');
+  const hasTS = /^\d{2}\/\d{2}\/\d{2}/.test(lines[0].trim());
+  return (hasTS ? lines.slice(1).join('\n') : entries[n]).trim();
+}
+
+/* Format a "DD/MM/YY HH:MM" timestamp as a friendly relative label:
+   - "היום HH:MM"   if the date is today
+   - "אתמול HH:MM"  if yesterday
+   - "DD/MM/YY HH:MM" otherwise */
+function _formatNoteTS(rawTs){
+  if(!rawTs) return '';
+  const m = rawTs.match(/^(\d{2})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+  if(!m) return rawTs;
+  const dd = parseInt(m[1],10), mm = parseInt(m[2],10), yy = parseInt(m[3],10);
+  const hh = m[4], mn = m[5];
+  // 2-digit year — assume 2000s
+  const fullY = 2000 + yy;
+  const noteDate = new Date(fullY, mm-1, dd);
+  noteDate.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diffDays = Math.round((today - noteDate) / (1000*60*60*24));
+  if(diffDays === 0) return 'היום ' + hh + ':' + mn;
+  if(diffDays === 1) return 'אתמול ' + hh + ':' + mn;
+  return rawTs;
+}
+
 /* =========================
    CALLER VI — column W stores comma-separated user tags
    ========================= */
@@ -1498,7 +1602,29 @@ function renderLeadCard(l,kind){
   const done=leadWasCalledByMe(l), exp=expandedSet.has(l.index), showAll=showAllSet.has(l.index);
   const entries=parseEntries(l.note);
   const shown=showAll?entries:entries.slice(0,3);
-  const latestBody=getLatestNoteBody(l.note);
+
+  // Compact preview — up to 2 most recent notes with their timestamps,
+  // shown collapsed under the lead's name. Each preview line shows
+  // "היום HH:MM" / "אתמול HH:MM" / "DD/MM/YY HH:MM" + the body.
+  let previewHtml = '';
+  if(!exp && entries.length){
+    const previews = [];
+    for(let i = 0; i < Math.min(2, entries.length); i++){
+      const ts = getNthNoteTS(l.note, i);
+      const body = getNthNoteBody(l.note, i);
+      const tsLabel = _formatNoteTS(ts);
+      if(!body && !tsLabel) continue;
+      previews.push(
+        '<div class="lead-preview-row">' +
+          (tsLabel ? '<span class="lpr-ts">'+esc(tsLabel)+'</span>' : '') +
+          (body ? '<span class="lpr-body">'+esc(body)+'</span>' : '') +
+        '</div>'
+      );
+    }
+    if(previews.length){
+      previewHtml = '<div class="lead-preview-list">' + previews.join('') + '</div>';
+    }
+  }
 
   let notesHtml='';
   if(exp&&entries.length){
@@ -1538,7 +1664,7 @@ function renderLeadCard(l,kind){
       <div class="lead-phone">${esc(l.phone)}</div>
       ${l.note?`<div class="lead-badge">${ICON.bubble}<span>${entries.length} שיחות</span></div>`:''}
       ${label}
-      ${latestBody?`<div class="lead-preview">${esc(latestBody)}</div>`:''}
+      ${previewHtml}
     </div>
     ${l.entryDate?`<div class="lead-entry-date" title="תאריך כניסה למערכת">${esc(l.entryDate)}</div>`:`<div class="lead-entry-date" style="color:var(--green);border-color:var(--green)" title="ליד חדש">חדש</div>`}
     <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
@@ -2040,13 +2166,61 @@ function addNote(idx,name){
   openModal(name);
 }
 // Tapping the phone button inside the call-summary modal — fires a tel:
-// to the current lead and marks the call. Used by users who arrived at the
-// modal via a reminder notification.
+// to the current lead and marks the call. The note-modal STAYS OPEN
+// underneath so when the user finishes the call (or returns from the
+// phone app), they're back on the summary modal ready to type notes.
 function callCurrentLead(){
   if(!currentLead || !currentLead.phone){ showToast('אין מספר טלפון','err'); return; }
   markCalled(currentLead.index);
+  // Remember which lead we called so we can re-open the note-modal
+  // for that exact lead when focus returns from the dialer.
+  _recentlyCalledLead = currentLead;
+  _recentlyCalledAt = Date.now();
+  // Suppress popstate / visibilitychange noise while the OS dialer
+  // is taking over the screen.
+  _suppressPopstate = true;
+  setTimeout(()=>{ _suppressPopstate = false; }, 4000);
   window.location.href='tel:'+currentLead.phone.replace(/[^0-9+]/g,'');
+  // Re-assert the modal is open right after dial — some platforms
+  // briefly hide our page then bring us back.
+  setTimeout(()=>{
+    if(!modalOpen) return;
+    const nm = document.getElementById('note-modal');
+    if(nm && !nm.classList.contains('open')) nm.classList.add('open');
+  }, 500);
 }
+
+// Track the most recently dialed lead so we can re-open the call-summary
+// modal automatically when focus returns from the dialer.
+let _recentlyCalledLead = null;
+let _recentlyCalledAt = 0;
+
+/* When the app regains focus shortly after a call was placed, reopen
+   the call-summary modal for that lead. This implements: "after I dial,
+   the dialer takes over; when the OS hands control back, I want to be
+   right inside the call-summary again — not on the leads list". */
+function _maybeReopenCallSummary(){
+  if(!_recentlyCalledLead) return;
+  const elapsed = Date.now() - _recentlyCalledAt;
+  // 5 minutes window — long enough for a real call, short enough that
+  // an unrelated re-focus an hour later won't pop the modal.
+  if(elapsed > 5 * 60 * 1000){
+    _recentlyCalledLead = null;
+    return;
+  }
+  // Only re-open if we don't already have the modal open.
+  if(modalOpen) return;
+  // Re-open for the specific lead that was called.
+  currentLead = _recentlyCalledLead;
+  openModal(_recentlyCalledLead.name || '');
+  // Clear so we don't re-open again on every focus.
+  _recentlyCalledLead = null;
+}
+window.addEventListener('focus', _maybeReopenCallSummary);
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden) _maybeReopenCallSummary();
+});
+window.addEventListener('pageshow', _maybeReopenCallSummary);
 
 /* "לא נענו" button inside the call-summary modal. Closes the modal
    (saving any draft) and flags AE=TRUE for the current lead. */
@@ -2133,6 +2307,12 @@ function _attachNoteScrollLock(){
 
   const onStart = (e)=>{
     if(!modalOpen){ return; }
+    // If the calendar overlay is open ON TOP of the note modal, defer
+    // all touch handling to the calendar's own handlers — the note
+    // modal's lock must NOT close anything while the user is in the
+    // calendar.
+    const calOpen = document.getElementById('calendar-modal');
+    if(calOpen && calOpen.style.display === 'flex') return;
     if(!e.touches || !e.touches[0]) return;
     startY = e.touches[0].clientY;
     // If the touch started inside the textarea AND it overflows, allow
@@ -2146,6 +2326,9 @@ function _attachNoteScrollLock(){
 
   const onMove = (e)=>{
     if(!modalOpen) return;
+    // Calendar overlay open? Bail — let the calendar own the gestures.
+    const calOpen = document.getElementById('calendar-modal');
+    if(calOpen && calOpen.style.display === 'flex') return;
     if(!e.touches || !e.touches[0]) return;
     const dy = e.touches[0].clientY - startY;
     // Allow native scrolling inside the textarea (when it actually scrolls)
@@ -2169,6 +2352,8 @@ function _attachNoteScrollLock(){
   // Wheel: also block scrolling on desktop / mouse wheel.
   const onWheel = (e)=>{
     if(!modalOpen) return;
+    const calOpen = document.getElementById('calendar-modal');
+    if(calOpen && calOpen.style.display === 'flex') return;
     if(textarea && textarea.contains(e.target)){
       const canScroll = textarea.scrollHeight > textarea.clientHeight;
       if(canScroll) return; // let the textarea scroll normally
@@ -2340,13 +2525,20 @@ function openCalendarOverlay(){
   _calMonth = {y: today.getFullYear(), m: today.getMonth()};
   _calSelected = _calFmtDay(today);
   document.getElementById('calendar-modal').style.display = 'flex';
-  history.pushState({page:'calendar'}, '');
+  // Don't push a separate history entry — this lets us close the
+  // calendar without triggering popstate (which would also close
+  // whatever modal is underneath, like the call-summary note-modal).
+  // The user closes via tap on backdrop, diagonal swipe, or "סגירה" button.
   _calRender();
   _calLoadMonth(_calMonth.y, _calMonth.m);
 }
 function closeCalendarOverlay(){
   document.getElementById('calendar-modal').style.display = 'none';
-  if(history.state && history.state.page === 'calendar') popHistorySilently();
+  // Intentionally NOT calling history.back() / popHistorySilently here.
+  // The calendar didn't add its own history entry, so closing it must
+  // not pop anything — otherwise it would also close the note-modal
+  // (call-summary) that sits underneath, which is exactly what the
+  // user complained about.
 }
 
 function _calFmtDay(d){
@@ -2364,7 +2556,8 @@ function _calNiceTime(iso){
   return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 const _CAL_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-const _CAL_HEB_WEEKDAYS = ['א','ב','ג','ד','ה','ו','ש'];
+// Shown days: Sunday..Friday (no Saturday). Index 0..5 = Sun..Fri.
+const _CAL_HEB_WEEKDAYS = ['א','ב','ג','ד','ה','ו'];
 const _CAL_HEB_WEEKDAYS_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
 function calNavMonth(delta){
@@ -2390,34 +2583,33 @@ function _calRender(){
   document.getElementById('cal-month-label').textContent = _CAL_HEB_MONTHS[m] + ' ' + y;
   document.getElementById('cal-day-label').textContent = '';
 
-  // Build the month grid: 6 rows × 7 columns (Sun..Sat). Some leading
-  // days come from the previous month, trailing from next.
+  // Build the month grid SKIPPING Saturday entirely (Israeli weekend
+  // rest day). 6 columns instead of 7 (Sun..Fri).
+  // Saturday events are silently merged into Friday for visibility.
   const first = new Date(y, m, 1);
-  const startWeekday = first.getDay();        // 0 = Sun
+  const startWeekdayRaw = first.getDay();       // 0=Sun, 6=Sat
+  // If month starts on Saturday, treat as Sunday-of-next-week for grid alignment.
+  const startWeekday = startWeekdayRaw === 6 ? 0 : startWeekdayRaw;
   const daysInThisMonth = new Date(y, m+1, 0).getDate();
   const daysInPrevMonth = new Date(y, m, 0).getDate();
   const today = _calFmtDay(new Date());
 
-  // Header row: weekday names
+  // Header row: weekday names — Sun..Fri only (6 columns)
   let html = _CAL_HEB_WEEKDAYS.map(d => `<div class="cal-day-weekday">${d}</div>`).join('');
 
-  // 42 cells (6 weeks * 7)
-  for(let i = 0; i < 42; i++){
-    let cy = y, cm = m, cd;
-    if(i < startWeekday){
-      cm = m - 1;
-      if(cm < 0){ cm = 11; cy = y - 1; }
-      cd = daysInPrevMonth - (startWeekday - 1 - i);
-    } else if(i - startWeekday >= daysInThisMonth){
-      cm = m + 1;
-      if(cm > 11){ cm = 0; cy = y + 1; }
-      cd = i - startWeekday - daysInThisMonth + 1;
-    } else {
-      cd = i - startWeekday + 1;
-    }
-    const date = new Date(cy, cm, cd);
-    const key  = _calFmtDay(date);
-    const isOutside = (cm !== m);
+  // We render 6 weeks × 6 columns = 36 cells, walking actual dates
+  // and skipping Saturdays.
+  let cellsRendered = 0;
+  let cy = y, cm = m;
+  // Find the first cell's date — go back from m/1 by startWeekday days
+  let cur = new Date(y, m, 1 - startWeekday);
+  // If we landed on a Saturday, advance one day
+  if(cur.getDay() === 6) cur.setDate(cur.getDate() + 1);
+
+  while(cellsRendered < 36){
+    if(cur.getDay() === 6){ cur.setDate(cur.getDate()+1); continue; }  // skip Saturday
+    const key = _calFmtDay(cur);
+    const isOutside = (cur.getMonth() !== m);
     const isToday   = (key === today);
     const isSel     = (key === _calSelected);
     const events = _calEventsByDay[key] || [];
@@ -2426,10 +2618,12 @@ function _calRender(){
     if(isOutside) cls.push('outside');
     if(isToday)   cls.push('today');
     if(isSel)     cls.push('selected');
-    html += `<div class="${cls.join(' ')}" data-cal-day="${key}" data-cal-y="${cy}" data-cal-m="${cm}">
-      <span class="cal-day-num">${cd}</span>
+    html += `<div class="${cls.join(' ')}" data-cal-day="${key}" data-cal-y="${cur.getFullYear()}" data-cal-m="${cur.getMonth()}">
+      <span class="cal-day-num">${cur.getDate()}</span>
       ${dots ? `<div class="cal-day-dots">${dots}</div>` : ''}
     </div>`;
+    cur.setDate(cur.getDate()+1);
+    cellsRendered++;
   }
   document.getElementById('cal-month-grid').innerHTML = html;
 
@@ -2438,13 +2632,26 @@ function _calRender(){
 }
 function _calRenderDay(){
   if(!_calSelected) return;
-  const events = (_calEventsByDay[_calSelected] || [])
+  const allEvents = (_calEventsByDay[_calSelected] || [])
     .slice()
     .sort((a,b) => (a._sort||0) - (b._sort||0));
   const [yy, mm, dd] = _calSelected.split('-').map(Number);
   const date = new Date(yy, mm-1, dd);
   const wd = _CAL_HEB_WEEKDAYS_FULL[date.getDay()];
   document.getElementById('cal-selected-label').textContent = `יום ${wd}, ${dd}/${mm}/${yy}`;
+
+  // Filter: hide events that end before 8:00 AM. Keep all-day events.
+  // Also hide events on Saturday entirely (we don't show Saturday in
+  // the grid, but a multi-day event might span into it).
+  const events = allEvents.filter(ev => {
+    if(date.getDay() === 6) return false;  // Saturday — hidden
+    const startStr = (ev.start && (ev.start.dateTime||ev.start.date)) || '';
+    const endStr   = (ev.end   && (ev.end.dateTime  ||ev.end.date  )) || startStr;
+    if(startStr.length === 10) return true;  // all-day → keep
+    const endHour = new Date(endStr).getHours() + (new Date(endStr).getMinutes()/60);
+    return endHour > 8;  // event ends after 8:00 → keep
+  });
+
   document.getElementById('cal-event-count').textContent = events.length ? `(${events.length} אירועים)` : '';
 
   const list = document.getElementById('cal-events-list');
@@ -2452,17 +2659,61 @@ function _calRenderDay(){
     list.innerHTML = '<div class="cal-empty">אין אירועים ביום זה — פנוי</div>';
     return;
   }
-  list.innerHTML = events.map(ev => {
-    const startT = _calNiceTime(ev.start && (ev.start.dateTime||ev.start.date));
-    const endT   = _calNiceTime(ev.end   && (ev.end.dateTime  ||ev.end.date));
-    const time = startT ? (endT ? startT+' – '+endT : startT) : 'יום שלם';
-    return `
-      <div class="cal-evt">
-        <div class="cal-evt-time">${esc(time)}</div>
-        <div class="cal-evt-title">${esc(ev.summary || '(ללא שם)')}</div>
-        ${ev.location ? `<div class="cal-evt-loc">${esc(ev.location)}</div>` : ''}
+
+  // Build a clear time-grid layout. Hours from 8:00 to 22:00, each hour
+  // is one row. Events are placed by their start hour.
+  const HOUR_START = 8;
+  const HOUR_END = 22;
+  const allDay = events.filter(ev => {
+    const s = ev.start && (ev.start.dateTime||ev.start.date);
+    return !s || s.length === 10;
+  });
+  const timed = events.filter(ev => {
+    const s = ev.start && (ev.start.dateTime||ev.start.date);
+    return s && s.length !== 10;
+  });
+
+  let html = '';
+  if(allDay.length){
+    html += '<div class="cal-allday-section">' +
+      allDay.map(ev => `
+        <div class="cal-evt cal-evt-allday">
+          <div class="cal-evt-time">יום שלם</div>
+          <div class="cal-evt-title">${esc(ev.summary || '(ללא שם)')}</div>
+          ${ev.location ? `<div class="cal-evt-loc">${esc(ev.location)}</div>` : ''}
+        </div>`).join('') + '</div>';
+  }
+
+  // Group timed events by hour
+  html += '<div class="cal-hourgrid">';
+  for(let h = HOUR_START; h <= HOUR_END; h++){
+    const hourEvents = timed.filter(ev => {
+      const startD = new Date(ev.start.dateTime || ev.start.date);
+      return startD.getHours() === h;
+    });
+    const isCurrent = (date.toDateString() === new Date().toDateString())
+      && new Date().getHours() === h;
+    html += `
+      <div class="cal-hour-row${isCurrent?' cal-hour-now':''}">
+        <div class="cal-hour-label">${String(h).padStart(2,'0')}:00</div>
+        <div class="cal-hour-content">
+          ${hourEvents.length ? hourEvents.map(ev => {
+            const startT = _calNiceTime(ev.start.dateTime || ev.start.date);
+            const endT   = _calNiceTime(ev.end && (ev.end.dateTime || ev.end.date));
+            const time = endT ? startT+' – '+endT : startT;
+            return `
+              <div class="cal-evt">
+                <div class="cal-evt-time">${esc(time)}</div>
+                <div class="cal-evt-title">${esc(ev.summary || '(ללא שם)')}</div>
+                ${ev.location ? `<div class="cal-evt-loc">${esc(ev.location)}</div>` : ''}
+              </div>`;
+          }).join('') : ''}
+        </div>
       </div>`;
-  }).join('');
+  }
+  html += '</div>';
+
+  list.innerHTML = html;
 }
 
 /* Fetch events for an entire month from Google Calendar API. We cache
@@ -2602,9 +2853,13 @@ function _calRetry(){
   _calLoadMonth(_calMonth.y, _calMonth.m);
 }
 
-// Click handler: choose a day, or close on backdrop tap
+// Click handler: choose a day, or close on backdrop tap.
+// We stop propagation so the click doesn't bubble down to handlers
+// that might think the user clicked outside the call-summary modal.
 document.addEventListener('click', function(e){
   if(e.target && e.target.id === 'calendar-backdrop'){
+    e.stopPropagation();
+    e.preventDefault();
     closeCalendarOverlay();
     return;
   }
@@ -2613,7 +2868,6 @@ document.addEventListener('click', function(e){
     const k = day.getAttribute('data-cal-day');
     if(k){
       _calSelected = k;
-      // If the user clicked an outside-month day, navigate to that month
       const cy = parseInt(day.getAttribute('data-cal-y'), 10);
       const cm = parseInt(day.getAttribute('data-cal-m'), 10);
       if(!isNaN(cy) && !isNaN(cm) && (cy !== _calMonth.y || cm !== _calMonth.m)){
@@ -2625,15 +2879,14 @@ document.addEventListener('click', function(e){
   }
 });
 
-// Diagonal swipe to close. Detect a swipe of >40px in any direction
-// while NOT scrolling the events list.
+// Diagonal-up-right swipe to close. Only closes when the gesture
+// moves UP and to the RIGHT (towards the top-right corner) — this
+// avoids accidentally closing on regular scroll attempts.
 (function attachCalendarSwipe(){
   const modal = document.getElementById('calendar-modal');
   if(!modal) return;
   let sx = 0, sy = 0, tracking = false;
   modal.addEventListener('touchstart', e => {
-    // Don't track swipes that begin inside the events list (so the
-    // user can scroll through events).
     if(e.target && e.target.closest && e.target.closest('#cal-events-list')) return;
     if(e.target && e.target.closest && e.target.closest('#cal-month-grid')) return;
     sx = e.touches[0].clientX;
@@ -2646,8 +2899,11 @@ document.addEventListener('click', function(e){
     const ch = e.changedTouches[0];
     const dx = ch.clientX - sx;
     const dy = ch.clientY - sy;
-    // Diagonal: both axes moved more than 40px
-    if(Math.abs(dx) > 40 && Math.abs(dy) > 40){
+    // Diagonal UP-RIGHT (toward the top-right corner):
+    //   dx > 40 AND dy < -40  (positive X = right in LTR coords;
+    //   negative Y = up). Both must exceed the threshold so this is
+    //   a clear, intentional gesture and not random noise.
+    if(dx > 40 && dy < -40){
       closeCalendarOverlay();
     }
   }, {passive:true});
