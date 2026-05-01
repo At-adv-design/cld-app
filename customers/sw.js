@@ -1,12 +1,16 @@
-// Service worker for the CUSTOMER app
-const CACHE_NAME = 'at-customer-v24';
+// Service worker for the CUSTOMER app — aggressive auto-update.
+const CACHE_NAME = 'at-customer-v26';
 const ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
   '../logo.png',
   '../icon.png'
 ];
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -17,43 +21,64 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      )
-    )
+    Promise.all([
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      ),
+      self.clients.claim(),
+    ])
   );
-  self.clients.claim();
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
-});
+function isLiveDataHost(url) {
+  return (
+    url.includes('googleapis.com') ||
+    url.includes('script.google.com') ||
+    url.includes('google.com/oauth') ||
+    url.includes('accounts.google.com')
+  );
+}
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = req.url;
-  // Network-first for HTML/JS so updates pick up quickly
-  if (req.mode === 'navigate' ||
-      (req.headers.get('accept') || '').includes('text/html') ||
-      /\.(html|js)(\?|$)/.test(url)) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(req).then((m) => m || caches.match('./index.html')))
-    );
+
+  if (isLiveDataHost(url)) {
+    event.respondWith(fetch(req));
     return;
   }
-  // Cache-first for static assets (logo, icon, manifest)
+
+  const isHtml = req.mode === 'navigate' ||
+                 (req.headers.get('accept') || '').includes('text/html') ||
+                 url.endsWith('/') || url.endsWith('/index.html');
+  if (isHtml) {
+    event.respondWith((async () => {
+      try {
+        const u = new URL(req.url);
+        u.searchParams.set('_sw', Date.now().toString(36));
+        const fresh = await fetch(u.toString(), {cache:'no-store'});
+        if (fresh && fresh.ok) {
+          const copy = fresh.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+          return fresh;
+        }
+      } catch(_) {}
+      const cached = await caches.match(req);
+      return cached || caches.match('./index.html');
+    })());
+    return;
+  }
+
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-      return res;
-    }).catch(() => cached))
+    caches.match(req).then((cached) => {
+      const fetcher = fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => cached);
+      return cached || fetcher;
+    })
   );
 });
