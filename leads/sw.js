@@ -1,16 +1,18 @@
-// Service worker for the LEADS app
-// IMPORTANT: bumping the cache name forces a refresh on every device.
-const CACHE_NAME = 'at-leads-v67';
+// Service worker for the LEADS app — aggressive auto-update.
+// Strategy:
+//   - Bump CACHE_NAME on every release. Old caches are wiped on activate.
+//   - HTML: network-first with cache-bust. New code shows up immediately
+//     after a refresh — never serve stale HTML from cache.
+//   - Static assets (icons, manifest): cache-first but updated in the background.
+//   - On message {type:'SKIP_WAITING'} we activate immediately.
+//   - clients.claim() in activate so the new SW takes over open tabs.
+const CACHE_NAME = 'at-leads-v71';
 const ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
   '../logo.png',
   '../icon.png'
 ];
 
-// Listen for SKIP_WAITING messages from the page so a new SW activates
-// without waiting for all tabs to close.
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -21,26 +23,23 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
   );
+  // Activate immediately — don't wait for old tabs to close
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      )
-    )
+    Promise.all([
+      // Wipe every cache that isn't the current one
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      ),
+      // Take control of any already-loaded tabs immediately
+      self.clients.claim(),
+    ])
   );
-  self.clients.claim();
 });
 
-// When the user taps a reminder notification we open (or focus) the app.
-// "התקשר" action: open tel: DIRECTLY via clients.openWindow — this is what
-// reliably triggers the Android dialer from a notification. After the dialer
-// hand-off, we also send a postMessage so when the user returns to the app
-// after the call, the call-summary modal is already open with the action
-// buttons (continue/meeting/reminder/remove).
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
@@ -49,8 +48,6 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'call' && phone) {
     event.waitUntil((async () => {
-      // Tell the app to pre-open the call-summary modal so it's ready when
-      // the user finishes the call. Do this BEFORE the tel: hand-off.
       try {
         const wins = await clients.matchAll({type:'window', includeUncontrolled:true});
         for (const c of wins) {
@@ -60,13 +57,10 @@ self.addEventListener('notificationclick', (event) => {
           }
         }
       } catch(_){}
-      // Now launch the dialer. clients.openWindow with a tel: URL is the only
-      // reliable path from a service worker notificationclick on Android.
       try { await clients.openWindow('tel:' + phone); } catch(_){}
     })());
     return;
   }
-  // Default click (or "open" action) → focus / open the app on this lead
   event.waitUntil(
     clients.matchAll({type:'window', includeUncontrolled:true}).then((wins) => {
       for (const client of wins) {
@@ -81,7 +75,6 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Hosts whose responses must NEVER be cached — always fetch fresh from the network.
 function isLiveDataHost(url) {
   return (
     url.includes('googleapis.com') ||
@@ -95,32 +88,50 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = req.url;
 
-  // 1) Live data — bypass cache entirely. Always go to the network.
+  // Live data — never cache
   if (isLiveDataHost(url)) {
     event.respondWith(fetch(req));
     return;
   }
 
-  // 2) HTML navigations — network-first so code updates are picked up quickly.
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
+  // HTML / navigation — ALWAYS network-first with cache-bust query.
+  // We append a unique parameter to the URL so the browser's HTTP cache
+  // can't return a stale version. If the network fails, fall back to
+  // the cached copy.
+  const isHtml = req.mode === 'navigate' ||
+                 (req.headers.get('accept') || '').includes('text/html') ||
+                 url.endsWith('/') || url.endsWith('/index.html');
+  if (isHtml) {
+    event.respondWith((async () => {
+      try {
+        // Build a cache-busted URL: foo.html?_sw=12345
+        const u = new URL(req.url);
+        u.searchParams.set('_sw', Date.now().toString(36));
+        const fresh = await fetch(u.toString(), {cache:'no-store'});
+        if (fresh && fresh.ok) {
+          // Cache a copy WITHOUT the cache-bust param so future cache.match works.
+          const copy = fresh.clone();
           caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(req).then((m) => m || caches.match('./index.html')))
-    );
+          return fresh;
+        }
+      } catch(_) {}
+      const cached = await caches.match(req);
+      return cached || caches.match('./index.html');
+    })());
     return;
   }
 
-  // 3) Static assets (logo, icon, manifest) — cache-first.
+  // Other static assets — cache-first, update in background
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-      return res;
-    }).catch(() => cached))
+    caches.match(req).then((cached) => {
+      const fetcher = fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => cached);
+      return cached || fetcher;
+    })
   );
 });
