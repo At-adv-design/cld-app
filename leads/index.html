@@ -183,7 +183,6 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .loc-continue{color:#2563eb;background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.25);}
 .loc-meeting{color:#7c3aed;background:rgba(124,58,237,0.08);border-color:rgba(124,58,237,0.25);}
 .loc-reminder{color:#d97706;background:rgba(217,119,6,0.08);border-color:rgba(217,119,6,0.25);}
-.loc-continue-sub{color:#0891b2;background:rgba(8,145,178,0.08);border-color:rgba(8,145,178,0.25);}
 .loc-noanswer{color:#dc2626;background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.25);}
 .loc-removed{color:#6b7280;background:rgba(107,114,128,0.08);border-color:rgba(107,114,128,0.25);}
 .lead-preview{font-size:12px;color:#555;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
@@ -401,7 +400,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="lead-count">טוען...</span>
-      <span title="גרסה" style="font-size:9px;color:var(--green);font-weight:700;padding:0 4px;font-family:monospace">v82</span>
+      <span title="גרסה" style="font-size:9px;color:var(--green);font-weight:700;padding:0 4px;font-family:monospace">v83</span>
       <button class="hdr-btn" onclick="loadLeads()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
       </button>
@@ -1024,6 +1023,21 @@ function setOnlineBadge(state,msg){
 
 // When network or visibility comes back — try to flush the queue and reload.
 window.addEventListener('online',()=>{ setOnlineBadge('online'); ensureFreshToken(); flushQueue(); maybeReload(); });
+
+/* When the search bar has focus and the user touches anywhere outside
+   it (e.g. a lead card), close the keyboard automatically by blurring
+   the search input. Without this, on mobile the keyboard stays up,
+   covers the lower half of the screen, and hides the undo toast. */
+document.addEventListener('touchstart', (e) => {
+  const search = document.getElementById('search');
+  if(!search) return;
+  // Only act if the search is currently focused
+  if(document.activeElement !== search) return;
+  // If the touch is on the search bar itself (or its container), let it be.
+  if(search.contains(e.target) || e.target === search) return;
+  // Close keyboard
+  search.blur();
+}, {passive:true, capture:true});
 window.addEventListener('offline',()=>setOnlineBadge('offline'));
 // Refresh on focus/visibility too — every time the user comes back to the app,
 // we make sure the token is fresh before any call.
@@ -1136,7 +1150,7 @@ window.addEventListener('load',()=>{
   // When the user visits the page and their localStorage version
   // doesn't match, we wipe ALL caches and reload — this is the
   // bulletproof way to kick out a stuck old SW. Once per upgrade.
-  const APP_VERSION = 'v82';
+  const APP_VERSION = 'v83';
   if('serviceWorker' in navigator){
     const stored = localStorage.getItem('app_version');
     if(stored !== APP_VERSION){
@@ -1792,20 +1806,20 @@ function renderLeadCard(l,kind){
 }
 
 /* Build location badges for a lead — shows which tab + sub-tab the
-   lead currently lives in. So if a lead is in "המשך" → "לא נענו", we
-   render two badges: one for "המשך" and one for "לא נענו". */
+   lead currently lives in. So if a lead is in "המשך" → "פגישה", we
+   render two badges: "המשך" and "פגישה". When the lead is just in
+   the plain "המשך" sub-tab, we don't add a redundant second badge. */
 function _locationBadges(l){
   const out = [];
   if(l.status === STATUS_CONTINUE){
     out.push('<span class="loc-badge loc-continue">המשך</span>');
     if(l.lastSubTab === 'meeting')      out.push('<span class="loc-badge loc-meeting">פגישה</span>');
     else if(l.lastSubTab === 'reminder') out.push('<span class="loc-badge loc-reminder">תזכורת</span>');
-    else if(l.lastSubTab === 'continue') out.push('<span class="loc-badge loc-continue-sub">להמשך טיפול</span>');
+    // No extra badge for the plain "continue" sub-tab — it's redundant.
   } else if(l.status === STATUS_REMOVED){
     out.push('<span class="loc-badge loc-removed">הוסר</span>');
   }
-  // No-answer is a separate flag — can co-exist with continue status,
-  // but practically only lives inside the noAnswer sub-tab.
+  // No-answer is a separate flag — can co-exist with continue status.
   if(l.noAnswer){
     out.push('<span class="loc-badge loc-noanswer">לא נענו</span>');
   }
@@ -2214,6 +2228,13 @@ function _undoSetLeadStatus(idx, prevStatus, prevMovedAt){
 let _undoToastTimer = null;
 let _undoToastHandler = null;
 function showUndoToast(message, onUndo){
+  // Close the keyboard if open — we want the user to see the toast
+  // immediately, not have it hidden under the keyboard.
+  try{
+    const search = document.getElementById('search');
+    if(search && document.activeElement === search) search.blur();
+  }catch(_){}
+
   // Hide any plain toast that's currently showing — the undo toast is
   // strictly more useful (still tells you what happened, plus offers
   // an undo).
@@ -2229,7 +2250,7 @@ function showUndoToast(message, onUndo){
   // Reset cssText every time so older inline styles don't linger
   host.style.cssText = `
     position:fixed;left:50%;
-    bottom:calc(70px + env(safe-area-inset-bottom));
+    top:calc(56px + env(safe-area-inset-top));
     transform:translateX(-50%);
     background:#3a3a48;color:#fff;
     padding:0;
