@@ -2121,61 +2121,99 @@ function filterLeads(){
   const q=document.getElementById('search').value.toLowerCase();
   const match=l=>l.name.toLowerCase().includes(q)||l.phone.includes(q)||l.note.toLowerCase().includes(q);
 
-  // Special "no-answer" leads are excluded from the regular active/continue tabs
-  // and shown only in the dedicated no-answer sub-tab inside the continue view.
   // ─── search semantics ─────────────────────────────────────────────
-  // - When the search box has text, results are aggregated across every
-  //   tab except "removed" — so finding a lead works regardless of which
-  //   tab they currently sit in.
-  // - In the "removed" tab, search only looks at removed leads.
+  // The "active" (לידים) tab searches across EVERY tab and EVERY
+  // sub-tab — so the user can always find any lead from there.
+  // Any other tab searches ONLY its own scope (its tab + its current
+  // sub-tab). This way each tab/sub-tab is self-contained.
   const searching = q.trim().length > 0;
-  const removedOnlySearch = (currentTab === 'removed') && searching;
 
-  const active = allLeads.filter(l =>
-    (!l.status || l.status===STATUS_ACTIVE) && !l.noAnswer && match(l)
-  );
-  // All "continue"-status leads (excluding the "no-answer" set, which
-  // is decided by the AE flag, not by status). We split them by the
-  // "lastSubTab" marker computed in loadLeads — the lead appears in
-  // exactly one of the 4 sub-tabs based on the most recent action.
+  // ── ACTIVE TAB: when searching, show all matches regardless of
+  // status/noAnswer/sub-tab. Otherwise normal active filter. ──
+  let active;
+  if(searching && currentTab === 'active'){
+    // Cross-tab search: show every matching lead (excluding removed,
+    // since those are intentionally hidden until you go to that tab)
+    active = allLeads.filter(l => match(l) && l.status !== STATUS_REMOVED);
+  } else {
+    active = allLeads.filter(l =>
+      (!l.status || l.status===STATUS_ACTIVE) && !l.noAnswer && match(l)
+    );
+  }
+
+  // ── CONTINUE / MEETING / REMINDER / NOANSWER ──
+  // Each of these is its own scope. When searching from one of these,
+  // only that scope is searched. When searching from "active", these
+  // remain showing their normal contents (the active tab handles the
+  // global search alone).
   const allCont = allLeads.filter(l =>
-    l.status===STATUS_CONTINUE && !l.noAnswer && match(l)
-  );
-  const cont     = allCont.filter(l => l.lastSubTab === 'continue' || !l.lastSubTab);
-  const meeting  = allCont.filter(l => l.lastSubTab === 'meeting');
-  const reminder = allCont.filter(l => l.lastSubTab === 'reminder');
-  // No-answer is independent of status — driven by the AE TRUE/FALSE flag.
-  const noAnsw = allLeads.filter(l =>
-    l.noAnswer && match(l)
-  ).sort((a,b) => (b.noAnswerTs||0) - (a.noAnswerTs||0));
-  const rem = allLeads.filter(l =>
-    l.status===STATUS_REMOVED && !l.noAnswer && match(l)
+    l.status===STATUS_CONTINUE && !l.noAnswer
   );
 
-  // When searching from any tab except "removed", the active/continue/
-  // no-answer lists all show the search hits, so the user finds the lead
-  // wherever it lives. In "removed" the search only filters removed leads.
-  if(searching && !removedOnlySearch){
-    // Aggregate all non-removed matches into the visible list of the
-    // current tab so the user sees them without switching tabs.
-    // (Each tab still gets its own native list when not searching.)
+  // Decide whether to apply the search query to each list. The rule:
+  //   - If we're on a continue sub-tab AND searching → only that sub-tab matches
+  //   - If we're on active AND searching → don't apply search to other sub-tabs
+  //     (active tab already shows all matches above)
+  //   - If we're not searching → all sub-tabs show their natural contents
+  const applyMatchTo = (subtab) => {
+    if(!searching) return true;  // no search → keep everything
+    if(currentTab === 'active') return true;  // we don't filter other lists here
+    if(currentTab === 'continue' && _continueSubtab === subtab) return false;  // we'll filter below
+    return true;  // not the focused sub-tab — keep as-is
+  };
+
+  const cont     = allCont.filter(l => (l.lastSubTab === 'continue' || !l.lastSubTab) && (applyMatchTo('continue') ? true : match(l)));
+  const meeting  = allCont.filter(l => l.lastSubTab === 'meeting'  && (applyMatchTo('meeting')  ? true : match(l)));
+  const reminder = allCont.filter(l => l.lastSubTab === 'reminder' && (applyMatchTo('reminder') ? true : match(l)));
+  // For non-search render, also apply match (since user might still have a query):
+  // simplify the logic: if searching but not in active tab, ONLY the focused sub-tab gets filtered
+  let contFinal     = (searching && currentTab === 'continue' && _continueSubtab === 'continue') ? cont.filter(match)     : cont;
+  let meetingFinal  = (searching && currentTab === 'continue' && _continueSubtab === 'meeting')  ? meeting.filter(match)  : meeting;
+  let reminderFinal = (searching && currentTab === 'continue' && _continueSubtab === 'reminder') ? reminder.filter(match) : reminder;
+  // When in active tab with no search, normal continue contents (no match needed).
+  // When in active tab WITH search, the active list already shows everything;
+  // here we want continue/meeting/reminder to remain "default" — but we still
+  // apply match to keep them honest only on the active tab. Default to no-match-filter.
+  if(currentTab === 'active' && searching){
+    // the user is searching from "active", they want a global view.
+    // The other tabs continue to show their natural contents (no match filter).
+    contFinal = cont; meetingFinal = meeting; reminderFinal = reminder;
+  }
+
+  // No-answer: same scoping rule
+  let noAnsw = allLeads.filter(l => l.noAnswer)
+    .sort((a,b) => (b.noAnswerTs||0) - (a.noAnswerTs||0));
+  if(searching){
+    if(currentTab === 'continue' && _continueSubtab === 'noanswer'){
+      noAnsw = noAnsw.filter(match);
+    } else if(currentTab === 'active'){
+      // Active tab handles search globally — leave noAnsw unfiltered
+    } else {
+      // we're somewhere else (e.g. removed); leave noAnsw alone
+    }
+  }
+
+  // Removed: only searched when actually on that tab
+  let rem = allLeads.filter(l => l.status===STATUS_REMOVED && !l.noAnswer);
+  if(searching && currentTab === 'removed'){
+    rem = rem.filter(match);
   }
 
   renderLeads(active);
-  renderContinue(cont);
-  renderMeeting(meeting);
-  renderReminder(reminder);
+  renderContinue(contFinal);
+  renderMeeting(meetingFinal);
+  renderReminder(reminderFinal);
   renderRemoved(rem);
   renderNoAnswer(noAnsw);
   // Update the per-sub-tab pill counters
   const setCnt = (id, n)=>{ const el=document.getElementById(id); if(el) el.textContent = n ? '('+n+')' : ''; };
-  setCnt('subtab-continue-count', cont.length);
-  setCnt('subtab-meeting-count',  meeting.length);
-  setCnt('subtab-reminder-count', reminder.length);
+  setCnt('subtab-continue-count', contFinal.length);
+  setCnt('subtab-meeting-count',  meetingFinal.length);
+  setCnt('subtab-reminder-count', reminderFinal.length);
   setCnt('subtab-noanswer-count', noAnsw.length);
   // Header counter — depends on which sub-tab is showing inside "המשך"
   const headerCount = currentTab !== 'continue' ? ({active:active.length, removed:rem.length}[currentTab] || 0)
-    : ({continue:cont.length, meeting:meeting.length, reminder:reminder.length, noanswer:noAnsw.length}[_continueSubtab] || cont.length);
+    : ({continue:contFinal.length, meeting:meetingFinal.length, reminder:reminderFinal.length, noanswer:noAnsw.length}[_continueSubtab] || contFinal.length);
   document.getElementById('lead-count').textContent = headerCount;
 }
 
@@ -3412,6 +3450,20 @@ async function saveMeeting(){
     // Both flows fire the same webhook. The "type" field lets Make route the
     // payload to the right branch (Calendar event "פגישה" vs "תזכורת",
     // optionally WhatsApp for meetings only, etc).
+    // Build full ISO datetime strings — Google Calendar's API needs
+    // start/end in ISO 8601 format (e.g. "2026-05-01T10:00:00+03:00").
+    // We send both raw fields (date / startTime / endTime) and the
+    // pre-built ISO strings so Make can use whichever it prefers without
+    // needing a date-format formula module.
+    const tzOffsetMin = -new Date().getTimezoneOffset();
+    const tzSign = tzOffsetMin >= 0 ? '+' : '-';
+    const tzHH = String(Math.floor(Math.abs(tzOffsetMin)/60)).padStart(2,'0');
+    const tzMM = String(Math.abs(tzOffsetMin)%60).padStart(2,'0');
+    const tz = `${tzSign}${tzHH}:${tzMM}`;
+    const isoDate = `${yyyy}-${mmP}-${ddP}`;
+    const startIso = `${isoDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00${tz}`;
+    const endIso   = `${isoDate}T${endTime}:00${tz}`;
+
     const payload={
       type:_isReminderMode?'reminder':'meeting',
       rowNum,
@@ -3419,7 +3471,12 @@ async function saveMeeting(){
       phone:lead.phone||'',
       date:`${ddP}/${mmP}/${yyyy}`,
       startTime:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`,
-      endTime:`${endTime}:00`
+      endTime:`${endTime}:00`,
+      // ISO 8601 — drop these straight into Google Calendar's "Start" /
+      // "End" fields in your Make scenario and you're done.
+      start:startIso,
+      end:endIso,
+      timezone:'Asia/Jerusalem'
     };
     if(_isReminderMode){
       showToast(`תזכורת נקבעה ${ddP}/${mmP}/${yyP} ${startTime}`,'ok');
@@ -3441,6 +3498,33 @@ async function saveMeeting(){
     } else {
       showToast(`פגישה נקבעה ${ddP}/${mmP}/${yyP} ${startTime}–${endTime}`,'ok');
     }
+
+    // Add a meeting/reminder entry to the lead's notes (column C) so
+    // it shows up both on the lead card preview AND in the call-summary
+    // viewer. The user wanted this synergy: every meeting/reminder
+    // creates a record visible right where they look.
+    const noteLabel = _isReminderMode ? 'תזכורת' : 'פגישה';
+    const noteEl = document.getElementById('reminder-note');
+    const reminderNoteText = (noteEl && _isReminderMode) ? (noteEl.value||'').trim() : '';
+    const noteBody = `${noteLabel} נקבעה ל-${ddP}/${mmP}/${yyP} ${startTime}–${endTime}` +
+                     (reminderNoteText ? ` | ${reminderNoteText}` : '');
+    const newEntry = getTS() + '\n' + noteBody;
+    const prevNote = lead ? (lead.note || '') : '';
+    const combinedNote = prevNote ? newEntry + '\n\n' + prevNote : newEntry;
+    if(lead) lead.note = combinedNote;
+    // Persist to column C
+    const noteUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/C${rowNum}?valueInputOption=RAW`;
+    const noteOpts = {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[combinedNote]]})};
+    apiFetch(noteUrl, noteOpts).catch(()=>enqueueWrite(noteUrl, noteOpts, 'תיעוד פגישה'));
+
+    // Also add an audit-log entry so the meta log stays consistent
+    appendMetaLog(rowNum, _isReminderMode
+      ? `תזכורת נקבעה ל-${ddP}/${mmP}/${yyP} ${startTime}`
+      : `פגישה נקבעה ל-${ddP}/${mmP}/${yyP} ${startTime}–${endTime}`);
+
+    // Re-render so the new note shows up on the card preview immediately
+    filterLeads();
+
     fireMeetingWebhook(payload);
   }catch(e){
     showToast(e.message,'err');
