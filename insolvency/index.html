@@ -758,6 +758,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </svg>
       כניסה עם Google
     </button>
+    <button onclick="['lt','lte','lp','ln','le','ie'].forEach(k=>localStorage.removeItem(k));doLogin();" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline">כניסה עם חשבון אחר</button>
   </div>
 </div>
 
@@ -1635,8 +1636,7 @@ function silentReauth(){
     iframe.style.display='none';
     const url='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
       client_id:CLIENT_ID,redirect_uri:REDIRECT,response_type:'token',
-      scope:SCOPES,prompt:'none',
-      login_hint:userEmail||localStorage.getItem('ie')||''
+      scope:SCOPES,prompt:'none'
     });
     let settled=false;
     const finish=(ok)=>{
