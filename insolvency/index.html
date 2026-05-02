@@ -31,6 +31,14 @@ button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
 [data-theme="dark"] img[alt*="טל"]{
   filter:invert(.94) hue-rotate(180deg) brightness(.95);
 }
+/* All icon buttons in dark mode → white icons */
+[data-theme="dark"] .hdr-btn svg,
+[data-theme="dark"] .log-btn svg,
+[data-theme="dark"] .card-icon-btn svg,
+[data-theme="dark"] .cust-folder-icon svg,
+[data-theme="dark"] button svg { color:#fff; }
+[data-theme="dark"] .hdr-btn,
+[data-theme="dark"] .log-btn { color:#fff; }
 
 :root{
   --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#FDECEC;--red-border:#f5c0c0;
