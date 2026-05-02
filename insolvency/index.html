@@ -2105,6 +2105,8 @@ function parseClient(row,rowNum){
   // CT — boolean flag (TRUE/FALSE) — controls whether the customer's
   // login is enabled. When FALSE the customer can't sign in.
   const customerActive = (g(C_CT)||'').toString().toUpperCase().trim()==='TRUE';
+  // EC — stage flag: '' | 'pre_order' | 'commercial'
+  const clientStage = (g(C_EC_STAGE)||'').toString().trim().toLowerCase();
   // CU/CV/CW hold JSON arrays of requirement objects. Parse defensively —
   // the cell may have been edited by hand. Empty → empty list.
   function parseReqList(raw){
@@ -2282,7 +2284,7 @@ function parseClient(row,rowNum){
     monthlyAmount:monthlyNum,
     currentPayment,
     missedPayments,
-    inCollection, collectReminder};
+    inCollection, collectReminder, clientStage};
 }
 
 function parseDate(s){
@@ -3309,6 +3311,7 @@ function openCustomerArea(rowNum){
     username: c.customerUsername||'',
     password: c.customerPassword||'',
     active:   c.customerActive===true,
+    stage:    c.clientStage||'',
     reportDocs: JSON.parse(JSON.stringify(c.reportDocs||[])),
     supplDocs:  JSON.parse(JSON.stringify(c.supplDocs ||[])),
     infoQs:     JSON.parse(JSON.stringify(c.infoQs    ||[])),
@@ -3630,6 +3633,20 @@ function renderCustomerArea(){
   const credsBadge = _custState.active ? '<span style="color:var(--green);font-weight:700">פעיל</span>' : '<span style="color:var(--muted)">לא פעיל</span>';
 
   body.innerHTML = `
+    <!-- Stage selector -->
+    <div style="display:flex;gap:8px;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center;">שלב:</span>
+      ${['','pre_order','commercial'].map(v => {
+        const labels = {'':'רגיל','pre_order':'צו פתיחה','commercial':'מסחרי'};
+        const colors = {'':'var(--muted)','pre_order':'var(--blue)','commercial':'var(--orange)'};
+        const sel = (_custState.stage||'')=== v;
+        return `<button onclick="setClientStage(${_custState.rowNum},'${v}')"
+          style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;border:1.5px solid ${colors[v]};
+          background:${sel?colors[v]:'transparent'};color:${sel?'#fff':colors[v]};transition:.15s">
+          ${labels[v]}
+        </button>`;
+      }).join('')}
+    </div>
     ${_custState.pendingLoading ? `
       <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
         טוען קבצים ממתינים…
@@ -4631,6 +4648,23 @@ function saveCustomerReqs(listKey, debounce=false){
   };
   if(debounce){ _custSaveTimers[listKey]=setTimeout(doSave, 700); }
   else { doSave(); }
+}
+
+async function setClientStage(rowNum, stage){
+  if(!_custState || _custState.rowNum !== rowNum) return;
+  _custState.stage = stage;
+  // Update local allClients cache
+  const c = allClients.find(x => x.rowNum === rowNum);
+  if(c) c.clientStage = stage;
+  renderCustomerArea();
+  // Write to sheet — column EC
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EC${rowNum}?valueInputOption=RAW`;
+  try{
+    await apiFetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({values:[[stage]]})});
+    showToast(stage === 'pre_order' ? 'שלב: צו פתיחה' : stage === 'commercial' ? 'שלב: מסחרי' : 'שלב: רגיל', 'ok');
+  }catch(e){
+    showToast(e.message||'שגיאה','err');
+  }
 }
 
 async function saveCustomerCreds(){
