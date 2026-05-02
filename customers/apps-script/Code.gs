@@ -131,13 +131,39 @@ function handleGetRequests(body){
   const sheet = _sheet();
   const row = sheet.getRange(t.rowNum, 1, 1, COL.CY_QUEST).getValues()[0];
   const stage = (row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
+
+  const reports = _parseList(row[COL.CU_REPORTS-1]);
+  const docs    = _parseList(row[COL.CV_DOCS-1]);
+  const info    = _parseList(row[COL.CW_INFO-1]);
+
+  const pending = [], rejections = [];
+  const _collect = (list, category) => {
+    list.forEach(req => {
+      const rn = req.reportNum || null;
+      if(req.status === 'uploaded' && Array.isArray(req.files)){
+        req.files.forEach(f => pending.push({
+          reqId: req.id, reqText: req.text||'', category, reportNum: rn,
+          fileId: f.id, name: f.name, url: f.url, ts: f.ts
+        }));
+      }
+      if(req.status === 'rejected'){
+        rejections.push({
+          reqId: req.id, reqText: req.text||'', category, reportNum: rn,
+          reason: req.rejectionReason||'', ts: req.rejectedAt||0
+        });
+      }
+    });
+  };
+  _collect(reports, 'reports');
+  _collect(docs,    'docs');
+  _collect(info,    'info');
+
   return {
-    reports: _parseList(row[COL.CU_REPORTS-1]),
-    docs:    _parseList(row[COL.CV_DOCS-1]),
-    info:    _parseList(row[COL.CW_INFO-1]),
+    reports, docs, info,
     name:    row[COL.NAME-1] || '',
     stage:   stage,
     questionnaire: _parseObj(row[COL.CY_QUEST-1]),
+    pending, rejections,
   };
 }
 

@@ -1419,7 +1419,7 @@ function buildFilePillPending(p){
     <div class="file-pill" data-file-id="${esc(p.fileId)}">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <a class="nm" href="${esc(p.url)}" target="_blank" rel="noopener" ${openAttr}>${esc(p.name)}</a>
-      <button class="rm" onclick="removeFile('${esc(p.fileId)}')" title="הסר">✕</button>
+      <button class="rm" onclick="removeFile('${esc(p.fileId)}','${esc(p.category||'')}','${esc(p.reqId||'')}');" title="הסר">✕</button>
     </div>`;
 }
 
@@ -1645,13 +1645,12 @@ async function imagesToPdf(imageBlobs){
   const out = await doc.save();
   return new Blob([out], {type:'application/pdf'});
 }
-function removeFile(fileId){
+function removeFile(fileId, category, reqId){
   if(!confirm('להסיר את הקובץ?')) return;
-  // OPTIMISTIC: remove from local pending list + re-render
   dataPending = (dataPending||[]).filter(p => p.fileId !== fileId);
   render();
   toast('הקובץ הוסר', 'success');
-  api('removeFile',{token:currentUser.token, fileId})
+  api('removeFile',{token:currentUser.token, fileId, category: category||'docs', reqId: reqId||''})
     .catch(err => toast('שגיאה בהסרה: '+(err.message||''), 'error'));
 }
 
