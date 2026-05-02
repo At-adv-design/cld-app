@@ -3926,6 +3926,8 @@ async function saveMeeting(){
       });
     } else {
       showToast(`פגישה נקבעה ${ddP}/${mmP}/${yyP} ${startTime}–${endTime}`,'ok');
+      // שליחת אישור מיידי ללקוח דרך Green API
+      _sendMeetingConfirmation(lead.name||'', lead.phone||'', `${ddP}/${mmP}/${yyyy}`, startTime);
     }
 
     // Add a meeting/reminder entry to the lead's notes (column C) so
@@ -4171,6 +4173,26 @@ function showToast(msg,kind){
    ========================= */
 const REMINDERS_KEY='at_reminders';
 const REMINDERS_LEAD_TO_FOCUS_KEY='at_reminders_focus';
+
+// ── שליחת אישור פגישה מיידי דרך Green API ────────────────────────────────
+async function _sendMeetingConfirmation(name, phone, dateStr, timeStr){
+  if(!phone) return;
+  const p = phone.replace(/\D/g,'');
+  const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const [d,m,y] = dateStr.split('/').map(Number);
+  const dow = new Date(y,m-1,d).getDay();
+  const msg = `◇ שלום ${name},\nנקבעה לך פגישה עם עורך דין אבי טל\nיום ${days[dow]} ${dateStr} בשעה ${timeStr}.\nכתובת: שדרות העצמאות 7, כפר סבא (קניון ערים).\nלאישור/שינוי: 04-8251453`;
+  try{
+    const resp = await fetch(
+      'https://api.green-api.com/waInstance7103130952/sendMessage/8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0',
+      { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({chatId:`${intl}@c.us`, message:msg}) }
+    );
+    const r = await resp.json();
+    if(r.idMessage) console.log('WA sent:', r.idMessage);
+  }catch(e){ console.warn('WA send failed:', e); }
+}
 
 function loadReminders(){
   try{ return JSON.parse(localStorage.getItem(REMINDERS_KEY)||'[]'); }
