@@ -6,30 +6,31 @@
  *   - Execute as: Me (your email)
  *   - Who has access: Anyone
  *
- * Copy the Web App URL and paste it into the customer app's
- * CONFIG.API_URL (in customers/index.html).
- *
  * Endpoints (POST with JSON body, "action" field):
- *   - login       { username, password }
- *   - getRequests { token }
- *   - uploadFile  { token, category, reqId, reportNum?, filename, mimeType, dataBase64 }
- *   - submitAnswer{ token, reqId, answer }
- *   - removeFile  { token, category, reqId, fileId }
+ *   - login              { username, password }
+ *   - getRequests        { token }
+ *   - uploadFile         { token, category, reqId, reportNum?, filename, mimeType, dataBase64 }
+ *   - submitAnswer       { token, reqId, answer }
+ *   - removeFile         { token, category, reqId, fileId }
+ *   - saveQuestionnaire  { token, data }           ← NEW
+ *   - getQuestionnaire   { token }                 ← NEW
  */
 
 // ─── CONFIG ─────────────────────────────────────────────────────────
 const SHEET_ID = '1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
-const DRIVE_ROOT_ID = '1RitBIq8HXTVymhalA34HS4BRyfOzT6lq'; // חדלפ folder
+const DRIVE_ROOT_ID = '1RitBIq8HXTVymhalA34HS4BRyfOzT6lq';
 
-// 1-based column indexes (W=23 etc)
+// 1-based column indexes
 const COL = {
-  NAME:      23,  // W — client name
-  CR_USER:   96,  // CR — username (national ID)
-  CS_PASS:   97,  // CS — password
-  CT_ACTIVE: 98,  // CT — TRUE/FALSE
-  CU_REPORTS:99,  // CU — JSON list (reports docs)
-  CV_DOCS:  100,  // CV — JSON list (supplemental docs)
-  CW_INFO:  101,  // CW — JSON list (info questions)
+  NAME:           23,   // W
+  CR_USER:        96,   // CR — username
+  CS_PASS:        97,   // CS — password
+  CT_ACTIVE:      98,   // CT — TRUE/FALSE
+  CU_REPORTS:     99,   // CU — JSON (reports docs)
+  CV_DOCS:       100,   // CV — JSON (supplemental docs)
+  CW_INFO:       101,   // CW — JSON (info questions)
+  CX_STAGE:      133,   // EC (0-based 132) — stage: '' | 'pre_order' | 'commercial'
+  CY_QUEST:      134,   // ED (0-based 133) — questionnaire JSON (form 45 data)
 };
 
 // ─── HTTP entrypoints ────────────────────────────────────────────────
@@ -38,11 +39,13 @@ function doPost(e){
     const body = JSON.parse(e.postData.contents);
     const action = body.action;
     let result;
-    if(action === 'login')         result = handleLogin(body);
-    else if(action === 'getRequests')  result = handleGetRequests(body);
-    else if(action === 'uploadFile')   result = handleUploadFile(body);
-    else if(action === 'submitAnswer') result = handleSubmitAnswer(body);
-    else if(action === 'removeFile')   result = handleRemoveFile(body);
+    if     (action === 'login')             result = handleLogin(body);
+    else if(action === 'getRequests')       result = handleGetRequests(body);
+    else if(action === 'uploadFile')        result = handleUploadFile(body);
+    else if(action === 'submitAnswer')      result = handleSubmitAnswer(body);
+    else if(action === 'removeFile')        result = handleRemoveFile(body);
+    else if(action === 'saveQuestionnaire') result = handleSaveQuestionnaire(body);
+    else if(action === 'getQuestionnaire')  result = handleGetQuestionnaire(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -63,7 +66,7 @@ function _sheet(){ return SpreadsheetApp.openById(SHEET_ID).getSheets()[0]; }
 function _findRowByCreds(username, password){
   const sheet = _sheet();
   const data = sheet.getDataRange().getValues();
-  for(let i=1; i<data.length; i++){  // skip header
+  for(let i=1; i<data.length; i++){
     const row = data[i];
     const u = (row[COL.CR_USER-1] || '').toString().trim();
     const p = (row[COL.CS_PASS-1] || '').toString().trim();
@@ -77,10 +80,12 @@ function _findRowByCreds(username, password){
 
 function _parseList(raw){
   if(!raw) return [];
-  try{
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v : [];
-  }catch(_){ return []; }
+  try{ const v = JSON.parse(raw); return Array.isArray(v) ? v : []; }catch(_){ return []; }
+}
+
+function _parseObj(raw){
+  if(!raw) return null;
+  try{ return JSON.parse(raw); }catch(_){ return null; }
 }
 
 function _ensureFolder(parent, name){
@@ -106,13 +111,15 @@ function handleLogin(body){
   if(!username || !password) throw new Error('הזן שם משתמש וסיסמה');
   const found = _findRowByCreds(username, password);
   if(!found) throw new Error('שם משתמש או סיסמה שגויים, או שחיבור לקוח לא הופעל');
-  const name = found.row[COL.NAME-1] || '';
+  const name  = found.row[COL.NAME-1] || '';
+  const stage = (found.row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
   return {
     user: {
-      rowNum: found.rowNum,
-      name: name.toString(),
+      rowNum:   found.rowNum,
+      name:     name.toString(),
       username: username.trim(),
-      token: _makeToken(found.rowNum, username),
+      token:    _makeToken(found.rowNum, username),
+      stage:    stage,   // '' | 'pre_order' | 'commercial'
     }
   };
 }
@@ -122,12 +129,15 @@ function handleGetRequests(body){
   const t = _verifyToken(body.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
   const sheet = _sheet();
-  const row = sheet.getRange(t.rowNum, 1, 1, COL.CW_INFO).getValues()[0];
+  const row = sheet.getRange(t.rowNum, 1, 1, COL.CY_QUEST).getValues()[0];
+  const stage = (row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
   return {
     reports: _parseList(row[COL.CU_REPORTS-1]),
     docs:    _parseList(row[COL.CV_DOCS-1]),
     info:    _parseList(row[COL.CW_INFO-1]),
-    name:    row[COL.NAME-1] || ''
+    name:    row[COL.NAME-1] || '',
+    stage:   stage,
+    questionnaire: _parseObj(row[COL.CY_QUEST-1]),
   };
 }
 
@@ -138,10 +148,9 @@ function handleUploadFile(p){
   const sheet = _sheet();
   const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
 
-  // Walk: חדלפ → [client] → מסמכים שהתקבלו מהלקוח → (category subdir)
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
-  const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
+  const inboxFolder  = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
   let target;
   if(p.category === 'reports'){
     const reportsRoot = _ensureFolder(inboxFolder, 'מסמכי דוחות');
@@ -151,50 +160,55 @@ function handleUploadFile(p){
     target = _ensureFolder(docsRoot, 'השלמה נוספת');
   } else if(p.category === 'info'){
     target = _ensureFolder(inboxFolder, 'השלמת פרטים');
+  } else if(p.category === 'pre_order_docs'){
+    const poRoot = _ensureFolder(inboxFolder, 'מסמכי צו פתיחה');
+    target = poRoot;
   } else {
     throw new Error('קטגוריה לא תקינה');
   }
 
-  // Save the file
+  // Filename with timestamp: ddmmyyHHMMSS_original.ext
+  const now = new Date();
+  const pad2 = n => String(n).padStart(2,'0');
+  const ts = pad2(now.getDate()) + pad2(now.getMonth()+1) + String(now.getFullYear()).slice(-2)
+           + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds());
+  const origName = p.filename || 'file';
+  const stampedName = ts + '_' + origName;
+
   const blob = Utilities.newBlob(
     Utilities.base64Decode(p.dataBase64),
     p.mimeType || 'application/octet-stream',
-    p.filename || 'file'
+    stampedName
   );
   const file = target.createFile(blob);
 
-  // Update the requirement entry in the sheet
-  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO};
-  const colIdx = colMap[p.category];
+  // Update requirement entry in sheet
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const colIdx = colMap[p.category] || COL.CV_DOCS;
   const cell = sheet.getRange(t.rowNum, colIdx);
   const list = _parseList(cell.getValue());
-  const req = list.find(r => r.id === p.reqId);
+  const req  = list.find(r => r.id === p.reqId);
   if(req){
     if(!req.files) req.files = [];
-    req.files.push({
-      id: file.getId(),
-      name: file.getName(),
-      url: file.getUrl(),
-      ts: Date.now(),
-    });
+    req.files.push({ id: file.getId(), name: stampedName, url: file.getUrl(), ts: Date.now() });
     if(req.status === 'pending' || req.status === 'rejected') req.status = 'uploaded';
     cell.setValue(JSON.stringify(list));
   }
 
-  return { fileId: file.getId(), fileUrl: file.getUrl(), fileName: file.getName() };
+  return { fileId: file.getId(), fileUrl: file.getUrl(), fileName: stampedName };
 }
 
-// ─── Action: submitAnswer (info questions) ───────────────────────────
+// ─── Action: submitAnswer ────────────────────────────────────────────
 function handleSubmitAnswer(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
   const sheet = _sheet();
-  const cell = sheet.getRange(t.rowNum, COL.CW_INFO);
-  const list = _parseList(cell.getValue());
-  const req = list.find(r => r.id === p.reqId);
+  const cell  = sheet.getRange(t.rowNum, COL.CW_INFO);
+  const list  = _parseList(cell.getValue());
+  const req   = list.find(r => r.id === p.reqId);
   if(!req) throw new Error('פריט לא נמצא');
-  req.answer = String(p.answer || '');
-  req.status = 'uploaded';
+  req.answer     = String(p.answer || '');
+  req.status     = 'uploaded';
   req.answeredAt = Date.now();
   cell.setValue(JSON.stringify(list));
   return {ok: true};
@@ -206,9 +220,9 @@ function handleRemoveFile(p){
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
   const sheet = _sheet();
   const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO};
-  const cell = sheet.getRange(t.rowNum, colMap[p.category]);
-  const list = _parseList(cell.getValue());
-  const req = list.find(r => r.id === p.reqId);
+  const cell   = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
+  const list   = _parseList(cell.getValue());
+  const req    = list.find(r => r.id === p.reqId);
   if(!req || !req.files) return {ok:true};
   const idx = req.files.findIndex(f => f.id === p.fileId);
   if(idx >= 0){
@@ -218,4 +232,24 @@ function handleRemoveFile(p){
     cell.setValue(JSON.stringify(list));
   }
   return {ok: true};
+}
+
+// ─── Action: saveQuestionnaire ───────────────────────────────────────
+function handleSaveQuestionnaire(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!p.data || typeof p.data !== 'object') throw new Error('נתוני שאלון חסרים');
+  p.data._savedAt = new Date().toISOString();
+  const sheet = _sheet();
+  sheet.getRange(t.rowNum, COL.CY_QUEST).setValue(JSON.stringify(p.data));
+  return {ok: true};
+}
+
+// ─── Action: getQuestionnaire ────────────────────────────────────────
+function handleGetQuestionnaire(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sheet = _sheet();
+  const raw = sheet.getRange(t.rowNum, COL.CY_QUEST).getValue();
+  return { data: _parseObj(raw) };
 }
