@@ -378,7 +378,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
   position:fixed;
   top:calc(2px + env(safe-area-inset-top));
   right:4px;
-  font-size:9px;color:var(--green);font-weight:700;
+  font-size:9px;color:var(--muted);font-weight:700;
   font-family:monospace;
   padding:1px 4px;
   background:rgba(255,255,255,0.85);
@@ -411,6 +411,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 <div id="app" style="display:none">
   <div class="header">
     <div class="hdr-right">
+      <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;pointer-events:none;user-select:none;">חדלפ</div>
       <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
       <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
       <span class="hdr-count" id="lead-count">טוען...</span>
@@ -1804,7 +1805,7 @@ function renderLeadCard(l,kind){
 
   return `<div class="lead-row-wrap">
     ${actionsHtml}
-    <div class="call-dots">${renderCallDots(l.callCount||0)}${l.lastCallTs?`<div class="last-call-ts">${esc(l.lastCallTs)}</div>`:''}</div>
+    <div class="call-dots">${renderCallDots(l.callCount||0)}${l.callCount>0?`<button class="hdr-btn" style="width:14px;height:14px;font-size:8px;opacity:.5;margin-inline-start:2px;" onclick="event.stopPropagation();resetCallDisplay(${l.index})" title="אפס תצוגה">↺</button>`:''} ${l.lastCallTs?`<div class="last-call-ts">${esc(l.lastCallTs)}</div>`:''}</div>
     <div class="lead-row" onclick="toggleExpand(${l.index})">
     <div class="lead-info">
       <div class="lead-name">${esc(l.name)}</div>
@@ -2079,6 +2080,12 @@ function initSwipe(wrap,idx,kind){
   wrap.addEventListener('touchstart',onStart,{passive:true});
   wrap.addEventListener('touchmove',onMove,{passive:false});
   wrap.addEventListener('touchend',onEnd);
+  // Blur the search input when a swipe starts — otherwise the keyboard stays
+  // up and intercepts touch events, breaking swipe on search results.
+  wrap.addEventListener('touchstart', ()=>{
+    const s = document.getElementById('search');
+    if(s && document.activeElement === s) s.blur();
+  }, {passive:true});
 }
 
 /* Write TRUE/FALSE to column AE for a lead. When TRUE, the lead is
@@ -2473,6 +2480,15 @@ function restoreLead(idx){
 /* =========================
    CALLER MARK — writes to column W (append user tag on EVERY call)
    ========================= */
+/* Reset call display (dots) — visual only, does not write to sheet */
+function resetCallDisplay(idx){
+  const lead = allLeads.find(l => l.index === idx);
+  if(!lead) return;
+  lead._displayCallCount = 0;   // local override
+  lead.callCount = 0;
+  filterLeads();
+}
+
 async function markCalled(idx){
   const tag=getUserTag().toLowerCase();
   if(!tag)return;
