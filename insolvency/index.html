@@ -5559,6 +5559,15 @@ async function confirmDatePicker(){
   showToast(selDay?'נשמר':'נמחק','ok');
   apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,label));
   setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
+  // Auto-open Google Calendar for meeting-date columns
+  if(selDay && selMonth && selYear && (colLetter==='BV'||colLetter==='Y'||colLetter==='AE')){
+    const client = allClients.find(x=>x.rowNum===rowNum);
+    const nm = client ? client.name : '';
+    const pad = n=>String(n).padStart(2,'0');
+    const ds = `${selYear}${pad(selMonth)}${pad(selDay)}`;
+    const title = encodeURIComponent((label||'פגישה')+(nm?` — ${nm}`:''));
+    window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&dates=${ds}/${ds}&text=${title}`,'_blank');
+  }
 }
 
 // Wrapper used by all section "edit date" buttons. Now opens the visual

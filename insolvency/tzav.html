@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<title>צו פתיחה — אבי טל ושות׳</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f4f4f8;--white:#fff;--text:#1a1a2e;--muted:#888;--border:#e0e0e8;
+  --slate:#3a3a48;--green:#1a7f4b;--red:#c0392b;--blue:#1a5f9e;
+  --card-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;gap:20px;}
+.login-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:32px 24px;width:100%;max-width:320px;display:flex;flex-direction:column;align-items:center;gap:18px;box-shadow:var(--card-shadow);}
+.login-title{font-size:16px;font-weight:700;color:var(--slate);}
+.login-sub{font-size:13px;color:var(--muted);margin-top:2px;text-align:center;}
+.google-btn{display:flex;align-items:center;gap:10px;background:var(--white);border:1.5px solid var(--border);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text);width:100%;justify-content:center;}
+.google-btn:hover{background:#f5f5f5;}
+.switch-btn{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline;}
+
+header{background:var(--slate);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+header h1{font-size:15px;font-weight:700;}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+.avatar{width:30px;height:30px;border-radius:50%;background:#fff3;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;overflow:hidden;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+
+.toolbar{background:var(--white);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;gap:8px;align-items:center;}
+.search-box{flex:1;border:1.5px solid var(--border);border-radius:6px;padding:7px 10px;font-family:inherit;font-size:14px;background:var(--bg);}
+.count-badge{font-size:12px;color:var(--muted);white-space:nowrap;}
+
+.list{padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+.card{background:var(--white);border-radius:10px;box-shadow:var(--card-shadow);overflow:hidden;border:1px solid var(--border);}
+.card-head{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.card-avatar{width:38px;height:38px;border-radius:50%;background:var(--slate);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.card-info{flex:1;min-width:0;}
+.card-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-sub{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;}
+.card-chevron{color:var(--muted);font-size:18px;transition:transform .2s;}
+.card.open .card-chevron{transform:rotate(180deg);}
+
+.card-body{display:none;padding:0 14px 14px;border-top:1px solid var(--border);}
+.card.open .card-body{display:block;}
+.field-row{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.field-row:last-child{border-bottom:none;}
+.field-label{color:var(--muted);flex-shrink:0;min-width:110px;}
+.field-val{font-weight:600;flex:1;word-break:break-word;}
+.actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.btn{padding:8px 14px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;}
+.btn-wa{background:#25d366;color:#fff;}
+.btn-quest{background:var(--blue);color:#fff;}
+.btn-notes{background:var(--slate);color:#fff;}
+.notes-area{margin-top:10px;display:none;}
+.notes-area.open{display:block;}
+.notes-box{width:100%;min-height:80px;border:1.5px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:13px;resize:vertical;}
+.btn-save-note{margin-top:6px;background:var(--green);color:#fff;}
+
+.quest-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.quest-modal.open{display:flex;}
+.quest-sheet{background:var(--white);width:100%;max-width:600px;max-height:85vh;border-radius:16px 16px 0 0;overflow-y:auto;padding:16px;}
+.quest-sheet h2{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;}
+.quest-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);}
+.qrow{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.qrow:last-child{border-bottom:none;}
+.qlabel{color:var(--muted);min-width:130px;flex-shrink:0;}
+.qval{font-weight:600;flex:1;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+
+#app{display:none;}
+#spinner{display:none;text-align:center;padding:40px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;">
+    <div style="text-align:center">
+      <div class="login-title">עובד — צו פתיחת הליכים</div>
+      <div class="login-sub">לקוחות בשלב הכנת בקשה</div>
+    </div>
+    <button class="google-btn" onclick="doLogin()">
+      <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      כניסה עם Google
+    </button>
+    <button class="switch-btn" onclick="doLoginFresh()">כניסה עם חשבון אחר</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>צו פתיחה</h1>
+    <div class="hdr-right">
+      <span id="conn-err" style="display:none;font-size:11px;background:#c0392b;padding:2px 8px;border-radius:4px;">שגיאה</span>
+      <div class="avatar" id="avatar" onclick="doLogout()" title="יציאה">?</div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input class="search-box" type="search" id="search" placeholder="חיפוש לקוח..." oninput="renderList()">
+    <span class="count-badge" id="count-badge"></span>
+  </div>
+
+  <div id="spinner">טוען…</div>
+  <div class="list" id="client-list"></div>
+  <div id="empty-state" class="empty-state" style="display:none">
+    <div style="font-size:32px;margin-bottom:8px;">📋</div>
+    <div>אין לקוחות בשלב צו פתיחה</div>
+  </div>
+</div>
+
+<!-- Questionnaire modal -->
+<div class="quest-modal" id="quest-modal" onclick="if(event.target===this)closeQuest()">
+  <div class="quest-sheet">
+    <h2><span id="quest-title">שאלון</span><button class="quest-close" onclick="closeQuest()">×</button></h2>
+    <div id="quest-content"></div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID  = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const API_KEY    = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
+const SHEET_ID   = '1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
+const SCOPES     = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const REDIRECT   = location.href.split('#')[0].split('?')[0];
+const CUST_API   = 'https://script.google.com/macros/s/AKfycbyw2h2n6TNprU2JCNtX8VOLB01eSoFbc8v3KfUbTWAZ3J4r4APnWy3uQ0yWjq6vlXjXaA/exec';
+
+// Column indices (0-based)
+const C_NAME=22, C_PHONE=21, C_TZ=64, C_BL=63, C_BN=65, C_BV=73, C_EC=132;
+const C_CR=95, C_CS=96; // customer username/password
+
+let accessToken='', clients=[], openNotes={};
+
+/* ── Auth ─────────────────────────────────────────────────────────────── */
+function g(k){ return localStorage.getItem(k)||''; }
+function s(k,v){ localStorage.setItem(k,v); }
+
+window.addEventListener('load', ()=>{
+  const hash = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+  if(hash.access_token){
+    accessToken = hash.access_token;
+    s('tz_lt', accessToken);
+    s('tz_lte', String(Date.now() + (parseInt(hash.expires_in||3600)-120)*1000));
+    history.replaceState(null,'',location.pathname);
+    init();
+    return;
+  }
+  const tok=g('tz_lt'), exp=parseInt(g('tz_lte')||'0');
+  if(tok && Date.now()<exp){ accessToken=tok; init(); return; }
+  document.getElementById('login-screen').style.display='flex';
+});
+
+function doLogin(){
+  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+    client_id:CLIENT_ID, redirect_uri:REDIRECT, response_type:'token',
+    scope:SCOPES, prompt:'select_account'
+  });
+}
+function doLoginFresh(){
+  ['tz_lt','tz_lte','tz_le','tz_ln'].forEach(k=>localStorage.removeItem(k));
+  doLogin();
+}
+function doLogout(){
+  ['tz_lt','tz_lte','tz_le','tz_ln'].forEach(k=>localStorage.removeItem(k));
+  accessToken=''; clients=[];
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+function apiFetch(url, opts={}){
+  if(!opts.headers) opts.headers={};
+  opts.headers['Authorization']='Bearer '+accessToken;
+  return fetch(url, opts).then(r=>{
+    if(!r.ok) return r.text().then(t=>{throw new Error(t);});
+    return r.json();
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────────── */
+async function init(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('spinner').style.display='block';
+
+  // Get user profile
+  try{
+    const u = await apiFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+    const av = document.getElementById('avatar');
+    if(u.picture){ av.innerHTML=`<img src="${u.picture}">`; }
+    else { av.textContent=(u.name||'?')[0]; }
+  }catch(_){}
+
+  await loadClients();
+}
+
+async function loadClients(){
+  document.getElementById('spinner').style.display='block';
+  document.getElementById('client-list').innerHTML='';
+  try{
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:EE?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const data = await res.json();
+    const rows = (data.values||[]).slice(1); // skip header
+    const g = (row,i) => (row[i]||'').toString().trim();
+
+    clients = rows
+      .map((row,i)=>({
+        rowNum: i+2,
+        name:   g(row,C_NAME),
+        phone:  g(row,C_PHONE),
+        tz:     g(row,C_TZ),
+        orderDate: g(row,C_BL),
+        caseNum:   g(row,C_BN),
+        meetingDate: g(row,C_BV),
+        stage:  g(row,C_EC).toLowerCase(),
+        custUser: g(row,C_CR),
+        custPass: g(row,C_CS),
+      }))
+      .filter(c => c.name && c.stage === 'pre_order');
+
+    document.getElementById('spinner').style.display='none';
+    renderList();
+  }catch(e){
+    document.getElementById('spinner').style.display='none';
+    document.getElementById('conn-err').style.display='';
+    document.getElementById('conn-err').textContent='שגיאת טעינה';
+    console.error(e);
+  }
+}
+
+/* ── Render ──────────────────────────────────────────────────────────── */
+function renderList(){
+  const q = (document.getElementById('search').value||'').trim().toLowerCase();
+  const filtered = q ? clients.filter(c=>
+    c.name.toLowerCase().includes(q)||c.phone.includes(q)||c.tz.includes(q)
+  ) : clients;
+
+  document.getElementById('count-badge').textContent = `${filtered.length} לקוחות`;
+  const list = document.getElementById('client-list');
+
+  if(!filtered.length){
+    list.innerHTML='';
+    document.getElementById('empty-state').style.display='';
+    return;
+  }
+  document.getElementById('empty-state').style.display='none';
+
+  list.innerHTML = filtered.map(c=>{
+    const initials = c.name.split(' ').map(w=>w[0]||'').slice(0,2).join('');
+    return `
+    <div class="card" id="card-${c.rowNum}">
+      <div class="card-head" onclick="toggleCard(${c.rowNum})">
+        <div class="card-avatar">${initials}</div>
+        <div class="card-info">
+          <div class="card-name">${c.name}</div>
+          <div class="card-sub">
+            <span>${c.phone||'—'}</span>
+            ${c.meetingDate?`<span>📅 ${c.meetingDate}</span>`:''}
+            ${c.caseNum?`<span>תיק: ${c.caseNum}</span>`:''}
+          </div>
+        </div>
+        <span class="card-chevron">⌄</span>
+      </div>
+      <div class="card-body">
+        <div class="field-row"><span class="field-label">ת.ז</span><span class="field-val">${c.tz||'—'}</span></div>
+        <div class="field-row"><span class="field-label">טלפון</span><span class="field-val">${c.phone||'—'}</span></div>
+        <div class="field-row"><span class="field-label">תאריך צו</span><span class="field-val">${c.orderDate||'—'}</span></div>
+        <div class="field-row"><span class="field-label">מועד דיון</span><span class="field-val">${c.meetingDate||'—'}</span></div>
+        <div class="field-row"><span class="field-label">מס׳ תיק</span><span class="field-val">${c.caseNum||'—'}</span></div>
+        <div class="actions">
+          ${c.phone?`<button class="btn btn-wa" onclick="sendWA('${c.phone}','${c.name}')">📱 WhatsApp</button>`:''}
+          ${c.custUser?`<button class="btn btn-quest" onclick="loadQuest(${c.rowNum})">📋 שאלון</button>`:''}
+          <button class="btn btn-notes" onclick="toggleNotes(${c.rowNum})">📝 הערות</button>
+          <button class="btn" style="background:var(--bg);border:1px solid var(--border)" onclick="loadClients()">🔄</button>
+        </div>
+        <div class="notes-area" id="notes-${c.rowNum}">
+          <textarea class="notes-box" id="notebox-${c.rowNum}" placeholder="הוסף הערה..."></textarea>
+          <button class="btn btn-save-note" onclick="saveNote(${c.rowNum})">שמור הערה</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(rowNum){
+  const card = document.getElementById('card-'+rowNum);
+  card.classList.toggle('open');
+}
+
+function toggleNotes(rowNum){
+  const na = document.getElementById('notes-'+rowNum);
+  na.classList.toggle('open');
+}
+
+function sendWA(phone, name){
+  const p = phone.replace(/\D/g,'');
+  const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
+  const msg = encodeURIComponent(`שלום ${name}, `);
+  window.open(`https://wa.me/${intl}?text=${msg}`,'_blank');
+}
+
+/* ── Questionnaire ──────────────────────────────────────────────────── */
+async function loadQuest(rowNum){
+  const c = clients.find(x=>x.rowNum===rowNum);
+  if(!c||!c.custUser||!c.custPass) return;
+  document.getElementById('quest-title').textContent = `שאלון — ${c.name}`;
+  document.getElementById('quest-content').innerHTML = '<div style="text-align:center;padding:20px;color:#888">טוען...</div>';
+  document.getElementById('quest-modal').classList.add('open');
+  try{
+    const loginRes = await fetch(CUST_API+'?action=login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:c.custUser, password:c.custPass})
+    }).then(r=>r.json());
+    if(!loginRes.ok) throw new Error('לא נמצא');
+    const dataRes = await fetch(CUST_API+'?action=getRequests', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({token:loginRes.token})
+    }).then(r=>r.json());
+    renderQuest(dataRes.questionnaire||{});
+  }catch(e){
+    document.getElementById('quest-content').innerHTML=`<div style="text-align:center;padding:20px;color:#c0392b">שגיאה: ${e.message}</div>`;
+  }
+}
+
+function renderQuest(q){
+  if(!q||!Object.keys(q).length){
+    document.getElementById('quest-content').innerHTML='<div style="text-align:center;padding:20px;color:#888">השאלון טרם מולא</div>';
+    return;
+  }
+  const fields = [
+    ['שם משפחה','last_name'],['שם פרטי','first_name'],['ת.ז','id'],['תאריך לידה','dob'],
+    ['מין','gender'],['מצב משפחתי','marital'],['טלפון','phone'],['דוא"ל','email'],
+    ['כתובת','address'],['זכויות דיור','apt_rights'],['מקצוע','occupation'],
+    ['מעסיק','employer'],['שכר נטו','salary_net'],['שכר ברוטו','salary_gross'],
+    ['ב"ז מעסיק','spouse_employer'],['שכר ב"ז נטו','spouse_salary_net'],
+    ['קצבת ילדים','child_allowance'],['קצבת נכות','disability'],
+    ['שכ"ד','rent'],['ארנונה','arnona'],['חשמל','electric'],['מים','water'],
+    ['מזון','food'],['ביגוד','clothing'],['תחבורה','transport'],['חינוך','education'],
+  ];
+  let html = fields.filter(([,k])=>q['q_'+k]).map(([label,k])=>
+    `<div class="qrow"><span class="qlabel">${label}</span><span class="qval">${q['q_'+k]}</span></div>`
+  ).join('');
+
+  // Creditors
+  if(q.creditors && q.creditors.length){
+    html += '<div style="font-weight:700;font-size:13px;margin:10px 0 4px">נושים</div>';
+    q.creditors.forEach((cr,i)=>{
+      html += `<div class="qrow"><span class="qlabel">נושה ${i+1}</span><span class="qval">${cr.bank||''} ${cr.type||''} ₪${cr.amount||''}</span></div>`;
+    });
+  }
+  document.getElementById('quest-content').innerHTML = html||'<div style="text-align:center;padding:20px;color:#888">אין נתונים</div>';
+}
+
+function closeQuest(){
+  document.getElementById('quest-modal').classList.remove('open');
+}
+
+/* ── Notes ──────────────────────────────────────────────────────────── */
+async function saveNote(rowNum){
+  const box = document.getElementById('notebox-'+rowNum);
+  const note = (box.value||'').trim();
+  if(!note) return;
+  const now = new Date().toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const existing = (document.querySelector(`#card-${rowNum} .field-row .field-val[data-notes]`)||{}).textContent||'';
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/X${rowNum}?valueInputOption=USER_ENTERED`;
+  const newNote = `${now}: ${note}`;
+  try{
+    await apiFetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newNote]]})});
+    box.value='';
+    box.placeholder='נשמר ✓';
+    setTimeout(()=>box.placeholder='הוסף הערה...',2000);
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+</script>
+</body>
+</html>
