@@ -620,6 +620,7 @@ input,textarea,button{font-family:inherit;}
         <button class="hdr-inquiry-btn" id="inquiry-open-btn" onclick="openInquiryModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>שלח פניה</button>
         <button class="hdr-collapse-btn" id="collapse-all-btn" onclick="collapseAll()" title="סגור הכל">סגור הכל</button>
       </div>
+      <button onclick="openMeetingRequestModal()" style="background:var(--slate);color:#fff;border:none;border-radius:4px;padding:0 12px;height:32px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">📅 קבע פגישה</button>
       <button class="hdr-btn" onclick="loadData()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
       </button>
@@ -877,6 +878,27 @@ input,textarea,button{font-family:inherit;}
 <span id="app-version-tag" title="גרסה">v3</span>
 
 <!-- questionnaire is inside .content above -->
+
+<!-- MEETING REQUEST MODAL -->
+<div id="meeting-request-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:350;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeMeetingRequestModal()">
+  <div style="background:var(--white);width:100%;max-width:480px;padding:20px 16px 24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">בקשת פגישה</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">בחר סוג פגישה ונחזור אליך לתיאום</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <button onclick="sendMeetingRequest('פרונטלית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span style="font-size:24px">🤝</span>
+        <span>פרונטלית</span>
+        <span style="font-size:10px;color:var(--muted);font-weight:400">במשרד</span>
+      </button>
+      <button onclick="sendMeetingRequest('טלפונית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span style="font-size:24px">📞</span>
+        <span>טלפונית</span>
+        <span style="font-size:10px;color:var(--muted);font-weight:400">שיחת טלפון</span>
+      </button>
+    </div>
+    <button onclick="closeMeetingRequestModal()" style="width:100%;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted);">ביטול</button>
+  </div>
+</div>
 
 <!-- INQUIRY MODAL -->
 <div id="inquiry-modal" onclick="if(event.target===this)closeInquiryModal()">
@@ -1703,6 +1725,24 @@ function _inquiryContext(){
   return 'כללי';
 }
 let _inquiryContextOverride = null;
+function openMeetingRequestModal(){
+  document.getElementById('meeting-request-modal').style.display='flex';
+}
+function closeMeetingRequestModal(){
+  document.getElementById('meeting-request-modal').style.display='none';
+}
+async function sendMeetingRequest(type){
+  closeMeetingRequestModal();
+  if(!currentUser||!currentUser.token){ toast('יש להתחבר תחילה','error'); return; }
+  const msg = `בקשת פגישה ${type}`;
+  try{
+    await api('sendInquiry',{token:currentUser.token, context:'בקשת פגישה', message:msg});
+    toast(`✅ הבקשה נשלחה — ${type}`, 'ok');
+  }catch(e){
+    toast(e.message||'שגיאה בשליחה','error');
+  }
+}
+
 function openInquiryModal(contextOverride){
   _inquiryContextOverride = contextOverride || null;
   const ctx = contextOverride || _inquiryContext();
