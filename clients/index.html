@@ -839,12 +839,12 @@ input,textarea,button{font-family:inherit;}
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="section-pending" id="docs-pending" style="display:none"></span>
-          <button onclick="event.stopPropagation();openInquiryModal('השלמת מסמכים')" class="hdr-inquiry-btn" style="font-size:11px;padding:2px 8px;height:auto">פניה</button>
           <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
       <div class="section-body">
         <div class="req-list" id="docs-list"></div>
+        <button onclick="openInquiryModal('השלמת מסמכים')" class="hdr-inquiry-btn" style="width:100%;margin-top:8px;font-size:12px;justify-content:center">שלח פניה בעניין מסמכים</button>
       </div>
     </div>
 
@@ -862,12 +862,12 @@ input,textarea,button{font-family:inherit;}
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="section-pending" id="info-pending" style="display:none"></span>
-          <button onclick="event.stopPropagation();openInquiryModal('השלמת פרטים')" class="hdr-inquiry-btn" style="font-size:11px;padding:2px 8px;height:auto">פניה</button>
           <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
       <div class="section-body">
         <div class="req-list" id="info-list"></div>
+        <button onclick="openInquiryModal('השלמת פרטים')" class="hdr-inquiry-btn" style="width:100%;margin-top:8px;font-size:12px;justify-content:center">שלח פניה בעניין פרטים</button>
       </div>
     </div>
 
@@ -980,6 +980,8 @@ async function doLogin(){
   try{
     const res=await api('login',{username:u,password:p});
     currentUser=res.user;
+    clientStage=(res.user&&res.user.stage)||'';
+    currentUser.stage=clientStage;
     saveSession(currentUser);
     showApp();
     await loadData();
@@ -1036,7 +1038,10 @@ async function loadData(silent){
     dataPending       = Array.isArray(res.pending)       ? res.pending       : [];
     dataRejections    = Array.isArray(res.rejections)    ? res.rejections    : [];
     // Stage and questionnaire
-    if(res.stage !== undefined) clientStage = res.stage || '';
+    if(res.stage !== undefined){
+      clientStage = res.stage || '';
+      if(currentUser){ currentUser.stage=clientStage; saveSession(currentUser); }
+    }
     if(res.questionnaire) questData = res.questionnaire;
     if(res.name){
       currentUser.name=res.name;
@@ -1948,6 +1953,7 @@ async function init(){
   const sess=loadSession();
   if(sess && sess.token){
     currentUser=sess;
+    clientStage=sess.stage||'';
     showApp();
     await loadData();
   }

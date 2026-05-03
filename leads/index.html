@@ -4009,7 +4009,8 @@ async function saveMeeting(){
     // Re-render so the new note shows up on the card preview immediately
     filterLeads();
 
-    fireMeetingWebhook(payload);
+    // Only fire webhook for meetings — reminders are local-only (no WhatsApp, no Calendar)
+    if(!_isReminderMode) fireMeetingWebhook(payload);
   }catch(e){
     showToast(e.message,'err');
   }
