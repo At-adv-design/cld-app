@@ -1119,7 +1119,7 @@ setInterval(()=>{ if(navigator.onLine && accessToken) flushQueue(); },30000);
 // expired" error mid-action.
 setInterval(()=>{
   if(!navigator.onLine || !accessToken) return;
-  const exp = parseInt(localStorage.getItem('ite')||'0');
+  const exp = parseInt(localStorage.getItem('lte')||'0');
   const tenMinutes = 10 * 60 * 1000;
   if(exp && (exp - Date.now()) < tenMinutes){
     silentReauth().catch(()=>{});
