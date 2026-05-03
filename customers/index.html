@@ -1225,6 +1225,8 @@ function _renderReportRow(info, todayMs, isCurrent){
       סגור דוח
     </button>` : '';
 
+  const inquiryBtn = `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num}')" title="שלח פניה בעניין דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--slate,#6c7a8d);background:transparent;color:var(--slate,#6c7a8d);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">פניה</button>`;
+
   return `
     <div class="${cls.join(' ')}" onclick="openReport(${info.num})">
       <div class="num">${info.num}</div>
@@ -1240,6 +1242,7 @@ function _renderReportRow(info, todayMs, isCurrent){
         ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
         <span class="badge">${badge}</span>
         ${closeBtn}
+        ${inquiryBtn}
       </div>
     </div>`;
 }
@@ -1264,6 +1267,12 @@ document.addEventListener('click', function(e){
 });
 
 function openReport(num){
+  // Toggle: clicking the same open report closes it (one sub-card at a time)
+  if(currentReportNum === num){
+    currentReportNum = null;
+    renderReports();
+    return;
+  }
   currentReportNum=num;
   history.pushState({page:'report',num},'');
   renderReports();
@@ -1651,8 +1660,10 @@ function _inquiryContext(){
   if(sectionState.questionnaire)return 'שאלון';
   return 'כללי';
 }
-function openInquiryModal(){
-  const ctx = _inquiryContext();
+let _inquiryContextOverride = null;
+function openInquiryModal(contextOverride){
+  _inquiryContextOverride = contextOverride || null;
+  const ctx = contextOverride || _inquiryContext();
   $('inquiry-title').textContent = 'פניה בעניין — ' + ctx;
   $('inquiry-text').value = '';
   $('inquiry-send-btn').disabled = false;
@@ -1665,7 +1676,7 @@ function closeInquiryModal(){
 async function sendInquiry(){
   const msg = ($('inquiry-text').value || '').trim();
   if(!msg){ toast('יש לכתוב הודעה לפני השליחה', 'error'); return; }
-  const ctx = _inquiryContext();
+  const ctx = _inquiryContextOverride || _inquiryContext();
   const clientName = (currentUser && currentUser.name) ? currentUser.name : 'לקוח';
   const fullMsg = 'פניה מ' + clientName + ' בעניין ' + ctx + ':\n' + msg;
   const btn = $('inquiry-send-btn');
