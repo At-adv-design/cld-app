@@ -3894,7 +3894,10 @@ function _renderReportDocsSectionsBody(){
         </div>
         <div class="report-doc-body">
           ${_renderReportReqList(num)}
-          <button class="req-add-btn" onclick="addReportReqRow(${num})" style="margin-top:6px">+ הוסף שדה</button>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            <button class="req-add-btn" onclick="addReportReqRow(${num})">+ הוסף שדה</button>
+            <button onclick="openReportSheet(${num})" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>טופס דוח ${num}</button>
+          </div>
         </div>
       </div>`;
   };
@@ -7450,6 +7453,24 @@ document.addEventListener('click', function(e){
 </div>
 
 <script>
+/* ── Report Sheet ───────────────────────────────────────────────── */
+async function openReportSheet(reportNum){
+  const c = allClients.find(x=>x.rowNum===(_custState&&_custState.rowNum));
+  const clientName = c ? c.name : '';
+  // Try to find sheet in Drive via search API
+  try{
+    const q = encodeURIComponent(`name contains 'דוח ${reportNum}' and mimeType='application/vnd.google-apps.spreadsheet' and fullText contains '${clientName}'`);
+    const res = await apiFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,webViewLink)&pageSize=5`);
+    if(res.files && res.files.length){
+      window.open(res.files[0].webViewLink,'_blank');
+      return;
+    }
+  }catch(_){}
+  // Fallback: open Drive root folder search
+  const search = encodeURIComponent(`${clientName} דוח ${reportNum}`);
+  window.open(`https://drive.google.com/drive/search?q=${search}`,'_blank');
+}
+
 /* ── Help Desk / Inquiries ───────────────────────────────────────── */
 function _allInquiries(){
   const out = [];
