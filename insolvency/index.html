@@ -894,7 +894,6 @@ body.focus-mode-active{overflow:hidden;}
                (right edge in RTL = margin-inline-start:auto). Uses the same
                neutral white chip style as the other filter chips. -->
           <div class="chip" id="collection-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">גבייה</div>
-          <div class="chip" id="potential-chip" onclick="togglePotentialMode()" style="margin-inline-start:4px">פוטנציאליים</div>
         </div>
       </div>
       <div class="filter-row">
@@ -902,6 +901,7 @@ body.focus-mode-active{overflow:hidden;}
         <div class="chip active" id="fd-all" onclick="setF('docs','all')">הכל</div>
         <div class="chip red" id="fd-urgent" onclick="setF('docs','urgent')" data-icon="fire">דחוף</div>
         <div class="chip orange" id="fd-warning" onclick="setF('docs','warning')">בטיפול</div>
+        <div class="chip" id="potential-chip" onclick="togglePotentialMode()" style="margin-inline-start:auto">פוטנציאליים</div>
       </div>
       <div class="filter-row">
         <span class="filter-label">אישורי מסירה:</span>
@@ -1636,7 +1636,7 @@ const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleuserco
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
 // Potential clients sheet — run tools/create_potential_sheet.py to create and update this ID
-let POTENTIAL_SHEET_ID = localStorage.getItem('at_potential_sheet_id') || '';
+let POTENTIAL_SHEET_ID = localStorage.getItem('at_potential_sheet_id') || '1UNN3eJts5Wv3G_pL_R6gFMQ1ppxeGLZCbMctMTe3tzQ';
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/calendar';
 const REDIRECT=location.origin+location.pathname;
 const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
@@ -2640,12 +2640,14 @@ function togglePotentialMode(){
   _potentialMode = !_potentialMode;
   const chip = document.getElementById('potential-chip');
   if(chip) chip.classList.toggle('active', _potentialMode);
-  // Hide/show filters and collection chip
+  // In potential mode hide the other filter chips (except docs row which hosts potential chip)
   const collChip = document.getElementById('collection-chip');
   if(collChip) collChip.style.display = _potentialMode ? 'none' : '';
-  const fw = document.querySelector('.filters-wrap');
-  if(fw) fw.style.display = _potentialMode ? 'none' : '';
-  // Reload from correct sheet
+  // Hide non-docs filter rows
+  document.querySelectorAll('.filter-row').forEach(r => {
+    if(r.contains(document.getElementById('fd-all'))) return; // keep docs row
+    r.style.display = _potentialMode ? 'none' : '';
+  });
   if(_potentialMode && collectionMode) toggleCollectionView();
   loadData();
 }
@@ -8039,12 +8041,12 @@ function openInquiriesPanel(){
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(iq.context)}</div>
         <div style="font-size:13px;margin-bottom:10px;white-space:pre-wrap">${esc(iq.message)}</div>
-        ${(iq.slots&&iq.slots.length)?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${iq.slots.map(s=>`<span style="padding:3px 8px;background:#f0f4ff;border:1px solid #c7d6f7;color:#3a5ba0;border-radius:4px;font-size:11px;font-weight:700">📅 ${s.date} ${s.time}</span>`).join('')}</div>`:''}
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" class="wa-btn" style="flex:1;min-width:90px;text-align:center;padding:7px;background:#25d366;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px">${ICON.whatsapp} הגב</a>`:''}
-          ${waPhone?`<a href="https://wa.me/${waPhone}" target="_blank" class="phone-btn" style="flex:1;min-width:80px;text-align:center;padding:7px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px">${ICON.phone} שיחה</a>`:''}
-          ${(iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה'))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','',_iqSlotsMap[${JSON.stringify(iq.id)}]||[])" style="flex:1;min-width:80px;padding:7px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
-          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:80px;padding:7px;background:var(--slate);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">${ICON.check} טופל</button>
+        ${(iq.slots&&iq.slots.length)?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${iq.slots.map(s=>`<span style="padding:3px 8px;background:var(--blue-bg,#f0f4ff);border:1px solid var(--blue-border,#c7d6f7);color:var(--blue);border-radius:4px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${s.date} ${s.time}</span>`).join('')}</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" style="flex:1;min-width:80px;padding:6px 8px;background:#25d366;color:#fff;border-radius:4px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px">${ICON.whatsapp} הגב</a>`:''}
+          ${waPhone?`<a href="https://wa.me/${waPhone}" target="_blank" style="flex:1;min-width:80px;padding:6px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px">${ICON.phone} שיחה</a>`:''}
+          ${(iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה'))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','',_iqSlotsMap[${JSON.stringify(iq.id)}]||[])" style="flex:1;min-width:80px;padding:6px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
+          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:80px;padding:6px 8px;background:var(--slate);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-family:inherit">${ICON.checkCircle} טופל</button>
         </div>
       </div>`;
     }).join('');

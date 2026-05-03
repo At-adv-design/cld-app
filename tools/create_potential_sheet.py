@@ -35,7 +35,7 @@ if existing:
     print(f'Sheet already exists: {sid}')
 else:
     body = {
-        'properties': {'title': 'לקוחות פוטנציאליים', 'locale': 'he_IL'},
+        'properties': {'title': 'לקוחות פוטנציאליים'},
         'sheets': [{'properties': {'title': 'לקוחות', 'rightToLeft': True}}]
     }
     ss = sheets.spreadsheets().create(body=body, fields='spreadsheetId').execute()
@@ -47,11 +47,12 @@ else:
     print(f'Created new sheet: {sid}')
 
     # Write header row
-    header_row = [''] * 140
+    # Build header row — max col used is EF (1-based 136, 0-based 135)
+    header_row = [''] * 136
     header_row[0]   = 'מספר'
-    header_row[21]  = 'טלפון'       # V (0-based 21) = phone
-    header_row[22]  = 'שם'           # W (0-based 22) = name
     header_row[2]   = 'תז'
+    header_row[21]  = 'טלפון'       # V
+    header_row[22]  = 'שם'           # W
     header_row[95]  = 'שם משתמש'   # CR
     header_row[96]  = 'סיסמה'       # CS
     header_row[97]  = 'פעיל'        # CT
@@ -60,7 +61,7 @@ else:
     header_row[135] = 'פניות'       # EF
     sheets.spreadsheets().values().update(
         spreadsheetId=sid,
-        range='לקוחות!A1:EF1',
+        range="'לקוחות'!A1:EF1",
         valueInputOption='RAW',
         body={'values': [header_row]}
     ).execute()
