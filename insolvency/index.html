@@ -7791,9 +7791,10 @@ function openInquiriesPanel(){
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(iq.context)}</div>
         <div style="font-size:13px;margin-bottom:10px;white-space:pre-wrap">${esc(iq.message)}</div>
-        <div style="display:flex;gap:8px">
-          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" style="flex:1;text-align:center;padding:7px;background:#25d366;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">📱 הגב ב-WhatsApp</a>`:''}
-          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;padding:7px;background:var(--slate);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✓ סמן כטופל</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" style="flex:1;min-width:120px;text-align:center;padding:7px;background:#25d366;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">📱 הגב ב-WhatsApp</a>`:''}
+          ${(iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה'))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','')" style="flex:1;min-width:100px;padding:7px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
+          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:100px;padding:7px;background:var(--slate);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✓ סמן כטופל</button>
         </div>
       </div>`;
     }).join('');
