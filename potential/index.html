@@ -1,0 +1,2359 @@
+﻿<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#3a3a48">
+<title>הרשמה — אבי טל ושות׳</title>
+<!-- screen capture prevention + image drag/save lock -->
+<style>:root{-webkit-user-select:none;user-select:none;}
+img{pointer-events:none;-webkit-user-drag:none;user-drag:none;}
+</style>
+<!-- version badge -->
+<style>
+#app-version-tag{position:fixed;top:calc(2px + env(safe-area-inset-top));right:4px;font-size:9px;color:#888;font-weight:700;font-family:monospace;padding:1px 4px;background:rgba(255,255,255,0.85);border-radius:2px;pointer-events:none;z-index:10000;}
+[data-theme="dark"] .hdr-btn svg,
+[data-theme="dark"] button svg { color:#fff; }
+/* Questionnaire styles */
+.quest-section{margin:0 0 12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.quest-section-head{background:var(--slate);color:#fff;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.quest-section-body{padding:12px 14px;display:none;}
+.quest-section.open .quest-section-body{display:block;}
+.quest-field{margin-bottom:12px;}
+.quest-field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+.quest-field input,.quest-field select,.quest-field textarea{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;background:#fff;color:var(--text);}
+.quest-field textarea{min-height:60px;resize:vertical;}
+.quest-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.quest-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.quest-creditor{background:#fff8f0;border:1px solid #fde8c8;border-radius:6px;padding:10px;margin-bottom:8px;}
+.quest-creditor-title{font-size:12px;font-weight:700;color:#c77b1e;margin-bottom:8px;display:flex;justify-content:space-between;}
+.quest-add-btn{border:1.5px dashed var(--border);background:transparent;color:var(--muted);border-radius:6px;padding:6px;width:100%;font-size:12px;cursor:pointer;margin-bottom:8px;}
+.quest-save-bar{background:var(--green);color:#fff;border:none;border-radius:8px;padding:12px;width:100%;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;}
+.quest-saved-badge{background:var(--green-bg);color:var(--green);border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;text-align:center;margin-top:6px;display:none;}
+</style>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="../icon.png"/>
+<link rel="apple-touch-icon" href="../icon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- pdf-lib for converting images to PDF and merging multiple images
+     into a single PDF before upload. Loaded async so it doesn't block
+     the initial render. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" defer></script>
+<style>
+:root{
+  --bg:#FAF9F5;
+  --white:#FFFFFF;
+  --text:#1A1A28;
+  --muted:#6B6B7A;
+  --slate:#3A3A48;
+  --border:#E5E2D8;
+  --border-strong:#C9C5B8;
+  --red:#8B2020;
+  --red-bg:#FBEEEC;
+  --red-border:#E8C4BF;
+  --green:#2F8550;
+  --green-bg:#EBF3EE;
+  --orange:#C77B1E;
+  --orange-bg:#FBF1E1;
+  --blue:#3A5BB0;
+  --blue-bg:#EDF1FA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+button,input,textarea,select,.section-head,.req-card,.report-row,.file-pill{
+  -webkit-user-select:none;user-select:none;
+}
+input,textarea{-webkit-user-select:text;user-select:text;}
+html,body{height:100%;}
+body{
+  font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;-webkit-font-smoothing:antialiased;
+  font-size:14px;line-height:1.5;
+  overscroll-behavior:none;
+}
+input,textarea,button{font-family:inherit;}
+
+#login-screen{
+  position:fixed;inset:0;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+  padding-top:calc(20px + env(safe-area-inset-top));
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  z-index:100;
+}
+.login-box{
+  width:100%;max-width:380px;
+  background:transparent;
+  border:none;
+  padding:28px 24px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.login-logo{
+  width:180px;max-width:100%;
+  height:auto;align-self:center;
+  margin-bottom:6px;object-fit:contain;
+  display:block;
+  mix-blend-mode:multiply;
+}
+.login-title{font-size:18px;font-weight:700;text-align:center;color:var(--text);}
+.login-sub{font-size:13px;color:var(--muted);text-align:center;margin-top:-6px;margin-bottom:6px;}
+.login-field{display:flex;flex-direction:column;gap:5px;}
+.login-field label{font-size:12px;font-weight:600;color:var(--slate);}
+.login-field input{
+  padding:11px 12px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:0;
+  font-size:15px;color:var(--text);
+  outline:none;
+}
+.login-field input:focus{border-color:var(--slate);}
+.login-btn{
+  margin-top:6px;padding:12px;
+  background:var(--slate);color:#fff;border:none;
+  font-size:14px;font-weight:600;cursor:pointer;
+}
+.login-btn:active{transform:scale(.98);}
+.login-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.login-error{
+  font-size:12px;color:var(--red);background:var(--red-bg);
+  border:1px solid var(--red-border);padding:8px 10px;
+  display:none;
+}
+.login-error.show{display:block;}
+
+#app{display:none;flex-direction:column;min-height:100vh;}
+#app.shown{display:flex;}
+/* HEADER — matches insolvency app exactly */
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.hdr-name{
+  font-size:13px;color:var(--text);font-weight:600;
+  background:var(--bg);border:1px solid var(--border);
+  padding:0 12px;height:32px;display:inline-flex;align-items:center;
+  flex-shrink:0;max-width:46vw;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hdr-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  padding:0;width:32px;height:32px;font-size:13px;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.hdr-btn:active{background:var(--border);}
+.hdr-name-wrap{display:flex;flex-direction:column;gap:4px;}
+.hdr-inquiry-btn{
+  background:rgba(26,95,158,0.1);border:1px solid rgba(26,95,158,0.25);color:#1a5f9e;
+  font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;
+  padding:2px 8px;border-radius:10px;height:18px;
+  display:inline-flex;align-items:center;white-space:nowrap;gap:4px;
+  line-height:1;
+}
+.hdr-inquiry-btn:active{background:rgba(26,95,158,0.2);}
+.hdr-collapse-btn{
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;
+  padding:2px 8px;border-radius:10px;height:18px;
+  display:inline-flex;align-items:center;white-space:nowrap;
+  line-height:1;
+}
+.hdr-collapse-btn:active{background:var(--border);}
+
+/* ─── INQUIRY MODAL ─── */
+#inquiry-modal{
+  position:fixed;inset:0;z-index:9000;
+  background:rgba(0,0,0,.45);
+  display:none;align-items:flex-end;justify-content:center;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#inquiry-modal.open{display:flex;}
+.inquiry-sheet{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px 12px 0 0;width:100%;max-width:540px;
+  padding:20px 16px 24px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.inquiry-title{font-size:14px;font-weight:700;color:var(--text);}
+.inquiry-textarea{
+  width:100%;min-height:100px;resize:vertical;
+  border:1.5px solid var(--border);border-radius:8px;
+  padding:10px 12px;font-family:inherit;font-size:14px;
+  color:var(--text);background:var(--bg);
+}
+.inquiry-textarea:focus{outline:none;border-color:var(--slate);}
+.inquiry-actions{display:flex;gap:8px;}
+.inquiry-send-btn{
+  flex:1;background:var(--slate);color:#fff;border:none;
+  border-radius:8px;padding:11px;font-size:14px;font-weight:700;
+  font-family:inherit;cursor:pointer;
+}
+.inquiry-send-btn:active{opacity:.85;}
+.inquiry-send-btn:disabled{opacity:.55;cursor:not-allowed;}
+.inquiry-cancel-btn{
+  background:var(--bg);color:var(--muted);border:1px solid var(--border);
+  border-radius:8px;padding:11px 16px;font-size:14px;font-weight:600;
+  font-family:inherit;cursor:pointer;
+}
+.inquiry-cancel-btn:active{background:var(--border);}
+.avatar{
+  width:32px;height:32px;border-radius:4px;
+  background:var(--slate);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;color:#fff;cursor:pointer;
+  overflow:hidden;flex-shrink:0;
+}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+.header-logo{
+  height:80px;object-fit:contain;
+  pointer-events:none;
+}
+
+.content{flex:1;padding:14px;padding-bottom:calc(40px + env(safe-area-inset-bottom));}
+
+.section{
+  background:var(--white);
+  border:1px solid var(--border);
+  margin-bottom:12px;
+}
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:13px 14px;cursor:pointer;
+  background:var(--white);
+  transition:background .12s;
+  -webkit-tap-highlight-color:rgba(58,58,72,.12);
+  user-select:none;
+  -webkit-user-select:none;
+  position:relative;
+  z-index:2;
+}
+.section-head *{pointer-events:none !important;}
+.section-head:active{background:var(--bg);}
+.section-head .left{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
+.section-icon{
+  width:28px;height:28px;flex-shrink:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--slate);
+}
+.section-icon svg{width:16px;height:16px;}
+.section-title{font-size:14px;font-weight:700;color:var(--text);}
+.section-title,.hdr-name{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;}
+.section-meta{font-size:11px;color:var(--muted);font-weight:500;}
+.section-chev{
+  width:18px;height:18px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.section.open .section-chev{transform:rotate(180deg);}
+.section-body{display:none;border-top:1px solid var(--border);padding:12px 14px;}
+.section.open .section-body{display:block;}
+.section-pending{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--orange);padding:2px 7px;
+}
+
+.reports-list{display:flex;flex-direction:column;gap:8px;}
+.report-row{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 12px;
+  background:var(--white);
+  border:1px solid var(--border);
+  cursor:pointer;
+}
+.report-row:active{background:var(--bg);}
+.report-row.locked{
+  background:var(--bg);opacity:.7;cursor:not-allowed;
+}
+.report-row.done{
+  background:var(--green-bg);border-color:#C9DFD0;
+}
+.report-row .num{
+  width:28px;height:28px;flex-shrink:0;
+  background:var(--slate);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;
+}
+.report-row.locked .num{background:var(--border-strong);}
+.report-row.done .num{background:var(--green);}
+.report-row .info{flex:1;min-width:0;}
+.report-row .info .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+.report-row .pills{
+  display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end;
+}
+.report-row .badge{
+  font-size:10px;font-weight:700;padding:3px 8px;white-space:nowrap;
+}
+.report-row.locked .badge{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.report-row.done .badge{background:var(--green);color:#fff;}
+.report-row.active .badge{background:var(--slate);color:#fff;}
+.report-pending-pill{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--orange);padding:2px 7px;
+}
+.report-rejected-pill{
+  font-size:10px;font-weight:700;color:#fff;
+  background:var(--red);padding:2px 7px;
+}
+
+/* ── Reports groups: past / current / future ──
+   Past + future are collapsible; tapping the header expands the group.
+   The current report sits between them, always visible. */
+.reports-group{
+  background:var(--white);border:1px solid var(--border);
+}
+.reports-group-head{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:rgba(58,58,72,.12);
+}
+.reports-group-head *{pointer-events:none;}
+.reports-group-head:active{background:var(--bg);}
+.reports-group-title{
+  flex:1;font-size:13px;font-weight:700;color:var(--slate);
+}
+.reports-group-count{
+  font-size:11px;font-weight:600;color:var(--muted);
+  background:var(--bg);padding:2px 8px;
+}
+.reports-group-chev{
+  width:16px;height:16px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.reports-group.open .reports-group-chev{transform:rotate(180deg);}
+.reports-group-body{
+  display:none;padding:10px;
+  background:var(--bg);
+  border-top:1px solid var(--border);
+  flex-direction:column;gap:8px;
+}
+.reports-group.open .reports-group-body{display:flex;}
+
+.reports-current{
+  /* The current report stands out a bit visually so the user knows
+     where to focus. Slight shadow + emphasized border. */
+  position:relative;
+}
+.reports-current .report-row.is-current{
+  border-color:var(--slate);
+  box-shadow:0 2px 8px rgba(58,58,72,.08);
+}
+
+/* Excel icon — small stroked-line icon in the title row */
+.report-row .info .ttl{
+  display:flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:600;color:var(--text);
+}
+.report-row .info .ttl > span:first-child{flex:1;}
+.report-excel-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;flex-shrink:0;
+  background:var(--bg);border:1px solid var(--border);
+  color:var(--green);text-decoration:none;
+  transition:background .12s, transform .12s;
+}
+.report-excel-btn:active{transform:scale(.9);background:var(--white);}
+.report-excel-btn svg{width:14px;height:14px;}
+.report-close-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;font-size:11px;font-weight:600;
+  background:#e8e8ec;color:#555;border:1px solid #ccc;
+  border-radius:4px;cursor:pointer;
+  transition:background .12s;
+}
+.report-close-btn:active{background:#d0d0d6;}
+.docs-month-filter{
+  display:flex;gap:6px;padding:0 0 10px;flex-wrap:wrap;
+}
+.docs-month-pill{
+  padding:4px 12px;font-size:12px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:20px;
+  background:var(--white);color:var(--muted);cursor:pointer;
+  transition:background .12s, border-color .12s, color .12s;
+}
+.docs-month-pill.active{
+  background:var(--slate);color:#fff;border-color:var(--slate);
+}
+.docs-month-pill:active{opacity:.8;}
+/* The clickable approved-row variant — visual hint that it opens a viewer */
+.approved-row.clickable{cursor:pointer;}
+.approved-row.clickable:active{background:rgba(0,0,0,.04);}
+.ar-url-hint{font-size:11px;color:var(--green);font-weight:600;margin-top:2px;}
+
+.req-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.req-list:first-child{margin-top:0;}
+.req-card{
+  background:var(--white);
+  border:1px solid var(--border);
+  padding:12px;
+}
+.req-card.approved{background:var(--green-bg);border-color:#C9DFD0;}
+.req-card.pending{background:var(--orange-bg);border-color:#E8D8B5;}
+.req-card.rejected{background:var(--red-bg);border-color:var(--red-border);}
+.req-text{font-size:13px;font-weight:600;color:var(--text);line-height:1.45;word-break:break-word;}
+.req-status-pill{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 8px;margin-top:6px;color:#fff;
+}
+.req-status-pill.uploaded{background:var(--orange);}
+.req-status-pill.approved{background:var(--green);}
+.req-status-pill.rejected{background:var(--red);}
+.reject-reason{
+  margin-top:8px;padding:8px 10px;
+  background:#fff;border:1px solid var(--red-border);
+  font-size:12px;color:#5C2520;line-height:1.4;word-break:break-word;
+}
+.reject-reason strong{color:var(--red);}
+
+.file-pills{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.file-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 9px;
+  background:var(--white);
+  border:1px solid var(--border);
+  font-size:12px;color:var(--text);
+  text-decoration:none;
+}
+.file-pill .ico{width:16px;height:16px;color:var(--slate);flex-shrink:0;}
+.file-pill .nm{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none;}
+.file-pill .rm{
+  background:transparent;border:none;cursor:pointer;
+  padding:2px 6px;font-size:13px;color:var(--muted);
+}
+.file-pill .rm:active{color:var(--red);}
+.file-pill.approved{background:var(--green-bg);border-color:#C9DFD0;}
+
+/* Approved file — name on its own line, URL clickable on the next line */
+.approved-row{
+  padding:7px 9px;
+  background:var(--green-bg);border:1px solid #C9DFD0;
+  display:flex;flex-direction:column;gap:3px;
+}
+.ar-name{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:var(--text);
+}
+.ar-name svg.ar-ico{width:14px;height:14px;color:var(--green);flex-shrink:0;}
+.ar-name span{flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ar-url{
+  font-size:10px;color:var(--blue);text-decoration:underline;
+  word-break:break-all;line-height:1.3;
+}
+
+.upload-btn{
+  margin-top:10px;width:100%;
+  padding:10px 12px;
+  background:var(--white);color:var(--slate);
+  border:1px dashed var(--slate);
+  font-size:13px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.upload-btn:active{background:var(--bg);}
+.upload-btn svg{width:15px;height:15px;}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.answer-area{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+.answer-area textarea{
+  width:100%;min-height:70px;padding:9px 10px;
+  background:var(--bg);border:1px solid var(--border);border-radius:0;
+  font-size:13px;color:var(--text);resize:vertical;outline:none;
+}
+.answer-area textarea:focus{border-color:var(--slate);}
+.answer-saved{
+  font-size:12px;color:var(--text);background:var(--white);
+  border:1px solid var(--border);padding:8px 10px;
+  white-space:pre-wrap;word-break:break-word;line-height:1.45;
+  margin-top:8px;
+}
+.answer-row{display:flex;gap:8px;}
+.answer-row button{
+  padding:8px 14px;background:var(--slate);color:#fff;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;
+}
+.answer-row button:active{transform:scale(.97);}
+.answer-row button:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── Q&A cards (CW info questions) ──────────────────────────
+   Each question is a card with a chevron. Closed = question +
+   status pill on the side. Open = textarea + save button.
+   Visual mirrors the original `req-card` look (which the user
+   preferred). */
+.qa-card{
+  background:var(--white);
+  border:1px solid var(--border);
+  padding:12px;
+  margin-bottom:10px;
+}
+.qa-card.has-answer{background:var(--green-bg);border-color:#C9DFD0;}
+.qa-head{
+  display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+  /* No padding here — the .qa-card already has padding. */
+}
+.qa-q{
+  flex:1;min-width:0;
+  font-size:13px;font-weight:600;color:var(--text);
+  line-height:1.45;word-break:break-word;
+}
+.qa-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;
+  margin-top:1px;
+}
+.qa-status-pill{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 8px;color:#fff;white-space:nowrap;
+}
+.qa-status-pill.answered{background:var(--green);}
+.qa-status-pill.empty{background:var(--orange);}
+.qa-chev{
+  width:16px;height:16px;color:var(--muted);
+  transition:transform .15s ease;flex-shrink:0;
+}
+.qa-card.open .qa-chev{transform:rotate(180deg);}
+.qa-body{
+  display:none;
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.qa-card.has-answer .qa-body{border-top-color:#C9DFD0;}
+.qa-card.open .qa-body{display:flex;flex-direction:column;gap:8px;}
+.qa-body textarea{
+  width:100%;min-height:80px;padding:9px 10px;
+  background:var(--white);border:1px solid var(--border);border-radius:0;
+  font-size:13px;color:var(--text);resize:vertical;outline:none;
+  font-family:inherit;
+}
+.qa-card.has-answer .qa-body textarea{border-color:#C9DFD0;}
+.qa-body textarea:focus{border-color:var(--slate);}
+.qa-actions{display:flex;justify-content:flex-end;}
+.qa-actions button{
+  padding:8px 16px;background:var(--slate);color:#fff;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.qa-actions button:active{transform:scale(.97);}
+.qa-actions button:disabled{opacity:.5;cursor:not-allowed;}
+
+.empty{padding:18px 12px;text-align:center;color:var(--muted);font-size:12px;}
+
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(255,255,255,.7);
+  display:none;align-items:center;justify-content:center;
+  z-index:200;
+}
+.loading-overlay.shown{display:flex;}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--border);
+  border-top-color:var(--slate);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--slate);color:#fff;
+  padding:10px 16px;font-size:13px;font-weight:500;
+  z-index:300;opacity:0;transition:opacity .2s, transform .2s;
+  pointer-events:none;max-width:90vw;text-align:center;
+}
+.toast.shown{opacity:1;transform:translateX(-50%) translateY(-4px);}
+.toast.error{background:var(--red);}
+.toast.success{background:var(--green);}
+
+.report-detail{display:none;flex-direction:column;}
+.report-detail.shown{display:flex;}
+.report-detail-head{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--bg);
+  border:1px solid var(--border);margin-bottom:10px;
+}
+.report-detail-head .back{
+  background:var(--white);border:1px solid var(--border);
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--slate);
+}
+.report-detail-head .back:active{background:var(--border);}
+.report-detail-head .back svg{width:16px;height:16px;}
+.report-detail-head .ttl{font-size:14px;font-weight:700;}
+.report-detail-head .dt{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <img src="../logo.png?v=3" alt="אבי טל ושות׳" class="login-logo" draggable="false">
+    <div class="login-title">הרשמה ראשונית</div>
+    <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:8px">הזן מספר ת.ז וסיסמה שתרצה — אם מופיעה בפעם ראשונה תרשם אוטומטית</div>
+    <div class="login-sub">אבי טל ושות׳ — משרד עורכי דין</div>
+    <div id="login-error" class="login-error"></div>
+    <div class="login-field">
+      <label for="username">תעודת זהות</label>
+      <input type="tel" id="username" inputmode="numeric" pattern="[0-9]*" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label for="password">סיסמה</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">כניסה / הרשמה</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="hdr-right">
+      <div class="hdr-name-wrap">
+        <span class="hdr-name" id="topbar-name"></span>
+        <button class="hdr-inquiry-btn" id="inquiry-open-btn" onclick="openInquiryModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>שלח פניה</button>
+        <button class="hdr-collapse-btn" id="collapse-all-btn" onclick="collapseAll()" title="סגור הכל">סגור הכל</button>
+      </div>
+      <button onclick="openMeetingRequestModal()" class="hdr-btn" title="קבע פגישה" style="color:var(--slate)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14" stroke-width="2.5"/><line x1="12" y1="14" x2="12" y2="14" stroke-width="2.5"/></svg>
+      </button>
+      <button class="hdr-btn" onclick="loadData()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="doLogout()" title="יציאה"></div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" class="header-logo" draggable="false" onerror="this.style.display='none'">
+  </div>
+  <div class="content">
+
+    <!-- QUESTIONNAIRE (pre_order stage) — moved here so it renders first in the content flow -->
+    <div id="sec-questionnaire" class="section" style="display:none">
+      <div class="section-head" data-section-key="questionnaire">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <div>
+            <div class="section-title">שאלון — בקשת צו פתיחת הליכים</div>
+            <div class="section-meta" id="quest-meta">מלא את כל הפרטים</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div id="quest-body">
+
+          <!-- פרטים אישיים -->
+          <div class="quest-section open">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>א — פרטים אישיים</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-row">
+                <div class="quest-field"><label>שם משפחה</label><input id="q_last_name" placeholder=""></div>
+                <div class="quest-field"><label>שם פרטי</label><input id="q_first_name" placeholder=""></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>תעודת זהות</label><input id="q_id" inputmode="numeric" placeholder="9 ספרות"></div>
+                <div class="quest-field"><label>תאריך לידה</label><input id="q_dob" type="date"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>מין</label>
+                  <select id="q_gender"><option value="">בחר...</option><option>זכר</option><option>נקבה</option></select></div>
+                <div class="quest-field"><label>מצב משפחתי</label>
+                  <select id="q_marital"><option value="">בחר...</option><option>רווק</option><option>רווקה</option><option>נשוי</option><option>נשואה</option><option>גרוש</option><option>גרושה</option><option>אלמן</option><option>אלמנה</option></select></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>ארץ לידה</label><input id="q_birth_country" placeholder="ישראל / אחר"></div>
+                <div class="quest-field"><label>תאריך עליה (אם לא נולדת בישראל)</label><input id="q_aliya_date" type="date"></div>
+              </div>
+              <div class="quest-field"><label>כתובת מגורים</label><input id="q_address" placeholder="רחוב, מספר, עיר"></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>מיקוד</label><input id="q_zip" inputmode="numeric"></div>
+                <div class="quest-field"><label>מספר חדרים</label><input id="q_apt_rooms" inputmode="decimal"></div>
+              </div>
+              <div class="quest-field"><label>זכויות בדירה</label>
+                <select id="q_apt_rights"><option value="">בחר...</option><option>שוכר</option><option>בעלות מלאה</option><option>בעלות חלקית</option><option>גר עם הורים</option></select></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>טלפון נייד</label><input id="q_phone" type="tel"></div>
+                <div class="quest-field"><label>דוא"ל</label><input id="q_email" type="email"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- בן/בת זוג -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>בן / בת זוג</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-row">
+                <div class="quest-field"><label>שם משפחה</label><input id="q_spouse_last"></div>
+                <div class="quest-field"><label>שם פרטי</label><input id="q_spouse_first"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>תעודת זהות</label><input id="q_spouse_id" inputmode="numeric"></div>
+                <div class="quest-field"><label>תאריך לידה</label><input id="q_spouse_dob" type="date"></div>
+              </div>
+              <div class="quest-field"><label>טלפון</label><input id="q_spouse_phone" type="tel"></div>
+            </div>
+          </div>
+
+          <!-- ילדים -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ילדים קטינים</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div id="q_kids_list"></div>
+              <button class="quest-add-btn" onclick="addQuestKid()">+ הוסף ילד</button>
+            </div>
+          </div>
+
+          <!-- הכנסות -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ב — הכנסות</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-field"><label>מקצוע</label><input id="q_occupation"></div>
+              <div class="quest-field"><label>שם המעסיק</label><input id="q_employer"></div>
+              <div class="quest-field"><label>כתובת מקום עבודה</label><input id="q_work_address"></div>
+              <div class="quest-field"><label>תאריך תחילת עבודה</label><input id="q_work_start" type="date"></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>שכר ברוטו ₪</label><input id="q_salary_gross" inputmode="numeric"></div>
+                <div class="quest-field"><label>שכר נטו ₪</label><input id="q_salary_net" inputmode="numeric"></div>
+              </div>
+              <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+              <div class="quest-field" style="font-size:12px;font-weight:700;color:var(--muted)">בן/בת זוג</div>
+              <div class="quest-field"><label>מעסיק בן/בת זוג</label><input id="q_spouse_employer"></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>שכר ברוטו ₪</label><input id="q_spouse_salary_gross" inputmode="numeric"></div>
+                <div class="quest-field"><label>שכר נטו ₪</label><input id="q_spouse_salary_net" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>קצבת ילדים ₪</label><input id="q_child_allowance" inputmode="numeric"></div>
+                <div class="quest-field"><label>קצבת נכות/זקנה ₪</label><input id="q_disability" inputmode="numeric"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- הוצאות -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ג — הוצאות חודשיות</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-row">
+                <div class="quest-field"><label>שכ"ד ₪</label><input id="q_rent" inputmode="numeric"></div>
+                <div class="quest-field"><label>ארנונה ₪</label><input id="q_arnona" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row3">
+                <div class="quest-field"><label>חשמל ₪</label><input id="q_electric" inputmode="numeric"></div>
+                <div class="quest-field"><label>מים ₪</label><input id="q_water" inputmode="numeric"></div>
+                <div class="quest-field"><label>גז ₪</label><input id="q_gas" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>כלכלה ₪</label><input id="q_food" inputmode="numeric"></div>
+                <div class="quest-field"><label>אחזקת רכב+דלק ₪</label><input id="q_car" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>ביגוד ₪</label><input id="q_clothing" inputmode="numeric"></div>
+                <div class="quest-field"><label>חינוך ₪</label><input id="q_education" inputmode="numeric"></div>
+              </div>
+              <div class="quest-field"><label>הוצאות אחרות (פרט)</label><textarea id="q_other_exp"></textarea></div>
+            </div>
+          </div>
+
+          <!-- נושים -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ד — נושים (חובות)</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div id="q_creditors_list"></div>
+              <button class="quest-add-btn" onclick="addQuestCreditor()">+ הוסף נושה</button>
+            </div>
+          </div>
+
+          <!-- נכסים -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ו — נכסים</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-field"><label>פרטי רכב (לוחית, שנה, יצרן)</label>
+                <textarea id="q_cars" placeholder="לוחית רישוי, שנה, יצרן — שורה לכל רכב"></textarea></div>
+              <div class="quest-field"><label>חשבונות בנק (בנק, סניף, מספר)</label>
+                <textarea id="q_banks" placeholder="שם בנק | סניף | מספר חשבון — שורה לכל חשבון"></textarea></div>
+              <div class="quest-field"><label>האם יש נדל"ן?</label>
+                <select id="q_realestate"><option value="לא">לא</option><option value="כן">כן</option></select></div>
+            </div>
+          </div>
+
+          <div id="quest-saved-badge" class="quest-saved-badge">✅ נשמר בהצלחה</div>
+          <button class="quest-save-bar" onclick="saveQuestionnaire()">שמור שאלון</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="section" id="sec-reports">
+      <div class="section-head" data-section-key="reports">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+          </div>
+          <div>
+            <div class="section-title">דוחות</div>
+            <div class="section-meta" id="reports-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="reports-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="reports-list" id="reports-list"></div>
+        <div class="report-detail" id="report-detail"></div>
+      </div>
+    </div>
+
+    <!-- DOCS (CV) -->
+    <div class="section" id="sec-docs">
+      <div class="section-head" data-section-key="docs">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">השלמת מסמכים</div>
+            <div class="section-meta" id="docs-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="docs-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="docs-list"></div>
+        <button onclick="openInquiryModal('השלמת מסמכים')" class="hdr-inquiry-btn" style="width:100%;margin-top:8px;font-size:12px;justify-content:center">שלח פניה בעניין מסמכים</button>
+      </div>
+    </div>
+
+    <!-- INFO (CW) -->
+    <div class="section" id="sec-info">
+      <div class="section-head" data-section-key="info">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">השלמת פרטים</div>
+            <div class="section-meta" id="info-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="info-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="info-list"></div>
+        <button onclick="openInquiryModal('השלמת פרטים')" class="hdr-inquiry-btn" style="width:100%;margin-top:8px;font-size:12px;justify-content:center">שלח פניה בעניין פרטים</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<span id="app-version-tag" title="גרסה">v3</span>
+
+<!-- questionnaire is inside .content above -->
+
+<!-- MEETING REQUEST MODAL -->
+<div id="meeting-request-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:350;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeMeetingRequestModal()">
+  <div style="background:var(--white);width:100%;max-width:480px;padding:20px 16px 24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));">
+    <!-- Step 1: choose type -->
+    <div id="mtg-step-type">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">בקשת פגישה</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">בחר סוג פגישה</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <button onclick="chooseMeetingType('פרונטלית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <span style="font-size:24px">🤝</span>
+          <span>פרונטלית</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400">במשרד</span>
+        </button>
+        <button onclick="chooseMeetingType('טלפונית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <span style="font-size:24px">📞</span>
+          <span>טלפונית</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400">שיחת טלפון</span>
+        </button>
+      </div>
+      <button onclick="closeMeetingRequestModal()" class="inquiry-cancel-btn" style="width:100%">ביטול</button>
+    </div>
+    <!-- Step 2: choose 3 time slots -->
+    <div id="mtg-step-slots" style="display:none">
+      <div style="font-size:16px;font-weight:700;margin-bottom:2px">בחר מועדים אפשריים</div>
+      <div id="mtg-type-label" style="font-size:12px;color:var(--slate);font-weight:600;margin-bottom:12px"></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">בחר עד 3 מועדים שנוחים לך — נאשר אחד מהם</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">מועד 1</span>
+          <input type="date" id="slot1-date" style="flex:1;padding:7px 8px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)">
+          <select id="slot1-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">מועד 2</span>
+          <input type="date" id="slot2-date" style="flex:1;padding:7px 8px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)">
+          <select id="slot2-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">מועד 3</span>
+          <input type="date" id="slot3-date" style="flex:1;padding:7px 8px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)">
+          <select id="slot3-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
+        </div>
+      </div>
+      <div class="inquiry-actions">
+        <button onclick="submitMeetingSlots()" class="inquiry-send-btn">שלח בקשה</button>
+        <button onclick="backToMeetingType()" class="inquiry-cancel-btn">חזור</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INQUIRY MODAL -->
+<div id="inquiry-modal" onclick="if(event.target===this)closeInquiryModal()">
+  <div class="inquiry-sheet">
+    <div class="inquiry-title" id="inquiry-title">פניה בעניין — כללי</div>
+    <textarea class="inquiry-textarea" id="inquiry-text" placeholder="כתוב את פנייתך כאן..."></textarea>
+    <div class="inquiry-actions">
+      <button class="inquiry-send-btn" id="inquiry-send-btn" onclick="sendInquiry()">שלח</button>
+      <button class="inquiry-cancel-btn" onclick="closeInquiryModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" accept="image/*,application/pdf" multiple style="display:none">
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════
+   CONFIG — paste your deployed Apps Script Web App URL here.
+   ═══════════════════════════════════════════════════════════ */
+const CONFIG = {
+  API_URL: 'PLACEHOLDER_POTENTIAL_API_URL'   // updated by tools/deploy_potential.py
+};
+
+const STORAGE_KEY      = 'at_potential_session_v1';
+const SECTION_STATE_KEY= 'at_customer_sections_v1';
+
+/* STATE */
+let currentUser   = null;   // {rowNum, name, username, token, stage}
+let clientStage   = '';     // '' | 'pre_order' | 'commercial'
+let questData     = {};     // saved questionnaire data
+let questKidCount = 0;
+let questCredCount = 0;
+let dataReports   = [];     // [{num, required:[{id,text}], approved:[{name,url,fileId,reqId,reqText}]}]
+let dataReportInfo= [];     // [{num, dateMs, dateText, status}]
+let dataDocsRequired = [];  // DJ — [{id, text, report:0}] for supplemental docs
+let dataDocsApproved = [];  // DK — [{fileId, name, url, reqId, reqText, approvedAt}]
+let dataInfo      = [];     // CW — [{id, text, status?, answer?, rejectionReason?}]
+let dataPending   = [];     // every uploaded-but-not-yet-approved file across all categories
+let dataRejections= [];     // DL — [{reqId, reqText, reason, ts, category, reportNum}]
+let currentReportNum = null;
+let sectionState  = {reports:false, docs:false, info:false, questionnaire:false};
+let uploadCtx     = null;
+let isLoading     = false;
+
+/* ─── API ─── */
+async function api(action, payload){
+  if(!CONFIG.API_URL) throw new Error('האפליקציה לא מוגדרת — צור קשר עם המשרד');
+  const body = Object.assign({action}, payload || {});
+  let res;
+  try{
+    res = await fetch(CONFIG.API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(body),
+      redirect:'follow'
+    });
+  }catch(_){ throw new Error('אין חיבור לאינטרנט — נסה שוב'); }
+  let json;
+  try{ json = await res.json(); }
+  catch(_){ throw new Error('תגובה לא תקינה מהשרת'); }
+  if(!json.ok) throw new Error(json.error || 'שגיאה לא ידועה');
+  return json;
+}
+
+/* ─── SESSION ─── */
+function saveSession(u){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); }catch(_){} }
+function loadSession(){ try{ const r=localStorage.getItem(STORAGE_KEY); return r?JSON.parse(r):null; }catch(_){ return null; } }
+function clearSession(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(_){} }
+function loadSectionState(){ try{ const r=localStorage.getItem(SECTION_STATE_KEY); if(r) sectionState=Object.assign(sectionState,JSON.parse(r)); }catch(_){} }
+function saveSectionState(){ try{ localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(sectionState)); }catch(_){} }
+
+/* ─── HELPERS ─── */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(s){ return esc(s).replace(/`/g,'&#96;'); }
+function showLoading(on){ isLoading=!!on; $('loading').classList.toggle('shown', !!on); }
+let _toastTimer=null;
+function toast(msg, type){
+  const el=$('toast');
+  el.textContent=msg;
+  el.classList.remove('error','success');
+  if(type) el.classList.add(type);
+  el.classList.add('shown');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('shown'), 2400);
+}
+
+/* ─── LOGIN ─── */
+async function doLogin(){
+  const u=$('username').value.trim();
+  const p=$('password').value.trim();
+  const err=$('login-error');
+  err.classList.remove('show');
+  if(!u||!p){ err.textContent='הזן תעודת זהות וסיסמה'; err.classList.add('show'); return; }
+  $('login-btn').disabled=true;
+  showLoading(true);
+  try{
+    const res=await api('login',{username:u,password:p});
+    currentUser=res.user;
+    clientStage='pre_order';          // always pre_order in potential portal
+    currentUser.stage='pre_order';
+    saveSession(currentUser);
+    showApp();
+    if(res.user&&res.user.isNew) toast('ברוך הבא! חשבון נוצר בהצלחה','success');
+    await loadData();
+  }catch(e){
+    err.textContent=e.message||'שגיאה';
+    err.classList.add('show');
+  }finally{
+    $('login-btn').disabled=false;
+    showLoading(false);
+  }
+}
+function doLogout(){
+  if(!confirm('להתנתק?')) return;
+  clearSession();
+  currentUser=null;
+  dataReports=[]; dataReportInfo=[]; dataDocsRequired=[]; dataDocsApproved=[]; dataInfo=[]; dataPending=[]; dataRejections=[];
+  currentReportNum=null;
+  $('app').classList.remove('shown');
+  $('login-screen').style.display='flex';
+  $('username').value=''; $('password').value='';
+}
+function showApp(){
+  $('login-screen').style.display='none';
+  $('app').classList.add('shown');
+  updateHeaderUser();
+  loadSectionState();
+  applySectionState();
+}
+function updateHeaderUser(){
+  const name = (currentUser && currentUser.name) || '';
+  $('topbar-name').textContent = name;
+  // Compute avatar initials (up to 2 chars from the first words)
+  const av = $('user-avatar');
+  if(av){
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    const initials = parts.length === 0 ? '?' :
+                     parts.length === 1 ? parts[0].slice(0,2) :
+                     parts[0].charAt(0) + parts[parts.length-1].charAt(0);
+    av.textContent = initials;
+  }
+}
+
+/* ─── DATA LOAD ─── */
+async function loadData(silent){
+  if(!currentUser) return;
+  if(!silent) showLoading(true);
+  try{
+    const res=await api('getRequests',{token:currentUser.token});
+    dataReports       = Array.isArray(res.reports)       ? res.reports       : [];
+    dataReportInfo    = Array.isArray(res.reportInfo)    ? res.reportInfo    : [];
+    dataDocsRequired  = Array.isArray(res.docsRequired)  ? res.docsRequired  : [];
+    dataDocsApproved  = Array.isArray(res.docsApproved)  ? res.docsApproved  : [];
+    dataInfo          = Array.isArray(res.info)          ? res.info          : [];
+    dataPending       = Array.isArray(res.pending)       ? res.pending       : [];
+    dataRejections    = Array.isArray(res.rejections)    ? res.rejections    : [];
+    // Stage and questionnaire
+    if(res.stage !== undefined){
+      clientStage = 'pre_order';   // always pre_order in potential portal
+      if(currentUser){ currentUser.stage=clientStage; saveSession(currentUser); }
+    }
+    if(res.questionnaire) questData = res.questionnaire;
+    if(res.name){
+      currentUser.name=res.name;
+      $('topbar-name').textContent=res.name;
+      saveSession(currentUser);
+    }
+    applyStageVisibility();
+    render();
+  }catch(e){
+    if(/פג תוקף/.test(e.message)){
+      doLogout();
+      toast('פג תוקף הכניסה — התחבר מחדש', 'error');
+      return;
+    }
+    if(!silent) toast(e.message||'שגיאה בטעינה', 'error');
+  }finally{
+    if(!silent) showLoading(false);
+  }
+}
+
+/* ─── PENDING LOOKUPS ─── */
+function pendingCountFor(category, reportNum){
+  return dataPending.filter(p =>
+    p.category===category && p.status==='uploaded' &&
+    (reportNum==null || (p.reportNum||null)===reportNum)
+  ).length;
+}
+/* Look up the rejection record for a given reqId, if any. */
+function rejectionFor(reqId){
+  if(!reqId) return null;
+  return dataRejections.find(r => r.reqId === reqId) || null;
+}
+function rejectionCountFor(category, reportNum){
+  return dataRejections.filter(r =>
+    r.category===category &&
+    (reportNum==null || (r.reportNum||null)===reportNum)
+  ).length;
+}
+
+/* ─── STAGE VISIBILITY ─── */
+function applyStageVisibility(){
+  const isPreOrder   = clientStage === 'pre_order';
+  const isCommercial = clientStage === 'commercial';
+  const hasStage     = isPreOrder || isCommercial;
+  // reports: hidden when pre_order OR commercial
+  $('sec-reports').style.display = hasStage ? 'none' : '';
+  // docs + info: always visible (all stages)
+  $('sec-docs').style.display  = '';
+  $('sec-info').style.display  = '';
+  // questionnaire: only in pre_order
+  $('sec-questionnaire').style.display = isPreOrder ? '' : 'none';
+  if(isPreOrder && questData && Object.keys(questData).length){
+    fillQuestForm(questData);
+    $('quest-meta').textContent = 'שמור ב-' + (questData._savedAt ? new Date(questData._savedAt).toLocaleDateString('he') : '');
+  }
+}
+
+/* ─── RENDER ─── */
+function render(){ renderReports(); renderDocs(); renderInfo(); }
+
+/* ─── REPORTS — past/current/future grouping ────────────────
+   Visual model:
+   - Past reports → collapsed under a "דוחות עבר" header.
+     If no past reports exist, the header doesn't render at all.
+   - Current report → always visible, full size, in the middle.
+   - Future reports → collapsed under "דוחות עתידיים".
+     If no future reports exist, the header doesn't render.
+   The lawyer/customer can tap each header to expand/collapse.
+   The current report is the one with the largest dateMs <= today;
+   if no report is due yet, the earliest one is treated as current.
+   Both headers' open/closed state persists during the session. */
+let _reportsGroupOpen = {past:false, future:false};
+
+function renderReports(){
+  const list=$('reports-list');
+  const detail=$('report-detail');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const todayMs=today.getTime();
+
+  // Identify the active (current) report.
+  let activeIdx = -1;
+  for(let i = 0; i < dataReportInfo.length; i++){
+    const dms = dataReportInfo[i].dateMs || 0;
+    if(!dms) continue;
+    if(dms <= todayMs){
+      if(activeIdx < 0 || dms > (dataReportInfo[activeIdx].dateMs||0)) activeIdx = i;
+    }
+  }
+  if(activeIdx < 0){
+    // No report is due yet — pick the earliest by date.
+    let bestMs = Infinity;
+    for(let i = 0; i < dataReportInfo.length; i++){
+      const dms = dataReportInfo[i].dateMs;
+      if(dms && dms < bestMs){ bestMs = dms; activeIdx = i; }
+    }
+    if(activeIdx < 0) activeIdx = 0;
+  }
+
+  // Split into past / current / future
+  const past = [], future = [];
+  let current = null;
+  for(let i = 0; i < dataReportInfo.length; i++){
+    if(i === activeIdx) current = dataReportInfo[i];
+    else if(i < activeIdx) past.push(dataReportInfo[i]);
+    else future.push(dataReportInfo[i]);
+  }
+
+  let html = '';
+
+  // PAST group — only render if there's at least one past report
+  if(past.length){
+    html += `
+      <div class="reports-group ${_reportsGroupOpen.past?'open':''}" data-rg="past">
+        <div class="reports-group-head" data-rg-toggle="past">
+          <span class="reports-group-title">דוחות עבר</span>
+          <span class="reports-group-count">${past.length}</span>
+          <svg class="reports-group-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="reports-group-body">
+          ${past.map(info => _renderReportRow(info, todayMs)).join('')}
+        </div>
+      </div>`;
+  }
+
+  // CURRENT — always full and visible
+  if(current){
+    html += `<div class="reports-current">${_renderReportRow(current, todayMs, true)}</div>`;
+  }
+
+  // FUTURE group
+  if(future.length){
+    html += `
+      <div class="reports-group ${_reportsGroupOpen.future?'open':''}" data-rg="future">
+        <div class="reports-group-head" data-rg-toggle="future">
+          <span class="reports-group-title">דוחות עתידיים</span>
+          <span class="reports-group-count">${future.length}</span>
+          <svg class="reports-group-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="reports-group-body">
+          ${future.map(info => _renderReportRow(info, todayMs)).join('')}
+        </div>
+      </div>`;
+  }
+
+  list.innerHTML = html || '<div class="empty">אין דוחות זמינים</div>';
+
+  const total=dataReportInfo.length;
+  const done =dataReportInfo.filter(r=>r.status).length;
+  $('reports-meta').textContent=total?`${done} מתוך ${total} בוצעו`:'אין נתונים';
+
+  const totalPending=pendingCountFor('reports', null);
+  const pEl=$('reports-pending');
+  if(totalPending){ pEl.textContent=totalPending+' ממתינים'; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+
+  if(currentReportNum!==null){
+    list.style.display='none';
+    detail.classList.add('shown');
+    renderReportDetail();
+  } else {
+    list.style.display='flex';
+    detail.classList.remove('shown');
+    detail.innerHTML='';
+  }
+}
+
+/* Render a single report row. `isCurrent` makes it visually prominent. */
+function _renderReportRow(info, todayMs, isCurrent){
+  const r = dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
+  const isDone = !!info.status;
+  // A report is locked when it has been signed/closed — indicated by any
+  // requirement carrying locked:true, OR when the report itself is marked done.
+  const isLocked = isDone || (r.required||[]).some(req=>req.locked===true);
+  const reqCount = (r.required||[]).length;
+  const pendingC = dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num).length;
+  const rejC = dataRejections.filter(rj=>rj.category==='reports'&&(rj.reportNum||null)===info.num).length;
+
+  const cls = ['report-row'];
+  if(isLocked) cls.push('locked');
+  if(isDone) cls.push('done');
+  else cls.push('active');
+  if(isCurrent) cls.push('is-current');
+
+  const badge = isLocked ? 'נסגר' : (isDone ? esc(info.status) : (isCurrent ? 'להגשה' : 'טרם'));
+
+  const meta=[];
+  if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
+  if(reqCount)      meta.push(reqCount+' פריטים נדרשים');
+
+  const excelUrl = _reportExcelUrl(info.num);
+  const excelBtn = excelUrl ? `
+    <a class="report-excel-btn" href="${esc(excelUrl)}" target="_blank" rel="noopener" title="פתח קובץ אקסל לדוח" onclick="event.stopPropagation()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="13" x2="15" y2="19"/>
+        <line x1="15" y1="13" x2="9" y2="19"/>
+      </svg>
+    </a>` : '';
+
+  const approvedCount = (r.approved||[]).length;
+  // If locked: replace close button with a "נסגר ✓" label (disabled)
+  const closeBtn = isLocked
+    ? `<span class="report-close-btn" style="opacity:.45;cursor:not-allowed;pointer-events:none;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border:1px solid var(--border);">🔒 נסגר ✓</span>`
+    : (!isDone && approvedCount > 0) ? `
+    <button class="report-close-btn" onclick="event.stopPropagation();openSignModal(${info.num})" title="סגור דוח">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:middle"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      סגור דוח
+    </button>` : '';
+
+  const inquiryBtn = `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num}')" title="שלח פניה בעניין דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--slate,#6c7a8d);background:transparent;color:var(--slate,#6c7a8d);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">פניה</button>`;
+
+  // If locked: show "הגש דוח" greyed out (disabled, non-clickable)
+  const submitBtn = isLocked
+    ? (isCurrent ? `<button class="report-inquiry-btn" disabled style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:not-allowed;font-family:inherit;font-weight:600;white-space:nowrap;opacity:.45">הגש דוח</button>` : '')
+    : (!isDone && isCurrent) ? `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num} — בקשת הגשה')" title="הגש דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--green,#2F8550);background:rgba(47,133,80,0.08);color:var(--green,#2F8550);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">הגש דוח</button>` : '';
+
+  const lockBadge = isLocked ? `<span style="font-size:12px;margin-inline-end:2px" title="דוח נסגר">🔒</span>` : '';
+
+  return `
+    <div class="${cls.join(' ')}" onclick="openReport(${info.num})">
+      <div class="num">${info.num}</div>
+      <div class="info">
+        <div class="ttl">
+          <span>${lockBadge}דוח ${info.num}</span>
+          ${excelBtn}
+        </div>
+        <div class="dt">${meta.join(' • ')||'&nbsp;'}</div>
+      </div>
+      <div class="pills">
+        ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
+        ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
+        <span class="badge">${badge}</span>
+        ${submitBtn}
+        ${closeBtn}
+        ${inquiryBtn}
+      </div>
+    </div>`;
+}
+
+/* Look up the per-report Excel-file URL from data populated by Apps Script. */
+function _reportExcelUrl(num){
+  const info = dataReportInfo.find(x => x.num === num);
+  return (info && info.excelUrl) ? info.excelUrl : null;
+}
+
+/* Toggle past/future group via event delegation. */
+function _toggleReportsGroup(name){
+  _reportsGroupOpen[name] = !_reportsGroupOpen[name];
+  const grp = document.querySelector(`.reports-group[data-rg="${name}"]`);
+  if(grp) grp.classList.toggle('open', !!_reportsGroupOpen[name]);
+}
+document.addEventListener('click', function(e){
+  const head = e.target && e.target.closest && e.target.closest('[data-rg-toggle]');
+  if(!head) return;
+  const name = head.getAttribute('data-rg-toggle');
+  if(name === 'past' || name === 'future') _toggleReportsGroup(name);
+});
+
+function openReport(num){
+  // Toggle: clicking the same open report closes it (one sub-card at a time)
+  if(currentReportNum === num){
+    currentReportNum = null;
+    renderReports();
+    return;
+  }
+  currentReportNum=num;
+  history.pushState({page:'report',num},'');
+  renderReports();
+  setTimeout(()=>$('sec-reports').scrollIntoView({behavior:'smooth',block:'start'}), 30);
+}
+function closeReport(){
+  currentReportNum=null;
+  renderReports();
+}
+
+function renderReportDetail(){
+  const num=currentReportNum;
+  const info=dataReportInfo.find(x=>x.num===num)||{};
+  const r=dataReports.find(x=>x.num===num)||{required:[],approved:[]};
+  const required=r.required||[];
+  const approved=r.approved||[];
+  const pendingHere=dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===num);
+
+  const cards=required.map(req=>buildReqCard({
+    category:'reports',
+    reportNum:num,
+    reqId:req.id,
+    reqText:req.text,
+    approved:approved.filter(a=>a.reqId===req.id),
+    pending:pendingHere.filter(p=>p.reqId===req.id),
+    rejection: rejectionFor(req.id),
+  })).join('');
+
+  // Orphan pending uploads (uploaded against an old/removed requirement)
+  const orphans=pendingHere.filter(p=>!required.some(req=>req.id===p.reqId));
+  const orphansHtml=orphans.length?`
+    <div class="req-card pending">
+      <div class="req-text">קבצים נוספים שהעלית</div>
+      <div class="file-pills">
+        ${orphans.map(p=>buildFilePillPending(p)).join('')}
+      </div>
+    </div>`:'';
+
+  // Approved files that don't match any current requirement
+  const orphanApproved=approved.filter(a=>!required.some(req=>req.id===a.reqId));
+  const orphanApprovedHtml=orphanApproved.length?`
+    <div class="req-card approved">
+      <div class="req-text">קבצים שאושרו</div>
+      <div class="file-pills">${orphanApproved.map(a=>buildFilePillApproved(a)).join('')}</div>
+    </div>`:'';
+
+  $('report-detail').innerHTML=`
+    <div class="report-detail-head">
+      <button class="back" onclick="closeReport()" title="חזרה">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <div style="flex:1">
+        <div class="ttl">דוח ${num}</div>
+        ${info.dateText?`<div class="dt">תאריך: ${esc(info.dateText)}</div>`:''}
+      </div>
+    </div>
+    <div class="req-list">
+      ${cards||'<div class="empty">לא נדרשו מסמכים לדוח זה</div>'}
+      ${orphansHtml}
+      ${orphanApprovedHtml}
+    </div>`;
+}
+
+/* DOCS — supplemental documents
+   Required list comes from DJ (one line per requirement).
+   Approved files come from DK.
+   Pending uploads come from dataPending (category='docs').
+*/
+let _docsMonthFilter = 0; // 0=all, 1=month1, 2=month2
+function setDocsMonthFilter(val){
+  _docsMonthFilter = val;
+  renderDocs();
+}
+
+function renderDocs(){
+  const list=$('docs-list');
+  const allRequired = dataDocsRequired || [];
+  const approved = dataDocsApproved || [];
+
+  // Check if any requirement has a month field — if so show filter pills
+  const hasMonths = allRequired.some(req => req.month === 1 || req.month === 2);
+
+  // Apply month filter
+  const required = (_docsMonthFilter === 0 || !hasMonths)
+    ? allRequired
+    : allRequired.filter(req => !req.month || req.month === _docsMonthFilter);
+
+  // Build filter pills HTML
+  const filterPillsHtml = hasMonths ? `
+    <div class="docs-month-filter">
+      <button class="docs-month-pill${_docsMonthFilter===0?' active':''}" onclick="setDocsMonthFilter(0)">הכל</button>
+      <button class="docs-month-pill${_docsMonthFilter===1?' active':''}" onclick="setDocsMonthFilter(1)">חודש 1</button>
+      <button class="docs-month-pill${_docsMonthFilter===2?' active':''}" onclick="setDocsMonthFilter(2)">חודש 2</button>
+    </div>` : '';
+
+  const cards = required.map(req => {
+    return buildReqCard({
+      category:'docs',
+      reportNum:null,
+      reqId:req.id,
+      reqText:req.text,
+      approved: approved.filter(a => a.reqId === req.id),
+      pending : dataPending.filter(p => p.category==='docs' && p.reqId === req.id),
+      rejection: rejectionFor(req.id),
+    });
+  }).join('');
+
+  // Orphan approved (approved files for requirements that no longer exist)
+  // Use allRequired so orphan detection isn't affected by the month filter
+  const orphanApproved = approved.filter(a => !allRequired.some(req => req.id === a.reqId));
+  const orphanApprovedHtml = orphanApproved.length ? `
+    <div class="req-card approved">
+      <div class="req-text">קבצים שאושרו</div>
+      <div class="file-pills">${orphanApproved.map(a => buildFilePillApproved(a)).join('')}</div>
+    </div>` : '';
+
+  // Orphan pending — only show when filter is "all" to avoid confusion
+  const orphanPending = (_docsMonthFilter === 0) ? dataPending.filter(p =>
+    p.category==='docs' && !allRequired.some(req => req.id === p.reqId)
+  ) : [];
+  const orphanPendingHtml = orphanPending.length ? `
+    <div class="req-card pending">
+      <div class="req-text">קבצים נוספים שהעלית</div>
+      <div class="file-pills">${orphanPending.map(p => buildFilePillPending(p)).join('')}</div>
+    </div>` : '';
+
+  list.innerHTML = filterPillsHtml + ((cards + orphanPendingHtml + orphanApprovedHtml) ||
+    '<div class="empty">אין מסמכים נדרשים</div>');
+
+  const totalReq = allRequired.length;
+  const approvedReqs = allRequired.filter(req => approved.some(a => a.reqId === req.id)).length;
+  $('docs-meta').textContent = totalReq ? `${approvedReqs} מתוך ${totalReq} אושרו` : 'אין נתונים';
+
+  const pendingCount = pendingCountFor('docs', null);
+  const pEl = $('docs-pending');
+  if(pendingCount){ pEl.textContent = pendingCount+' ממתינים'; pEl.style.display = 'inline-block'; }
+  else pEl.style.display = 'none';
+}
+
+/* INFO (CW) */
+/* INFO (CW) — Q&A pairs.
+   Each question is rendered as a collapsible card. The chevron toggles
+   open/closed; opening reveals the answer textarea + a save button.
+   Both customer and lawyer can update answers anytime — no
+   approve/reject status here. */
+function renderInfo(){
+  const list=$('info-list');
+  const cards=(dataInfo||[]).map(q=>{
+    const id = q.id || '';
+    const text = q.question || q.text || '';   // tolerate both fields
+    const answer = q.answer || '';
+    const isOpen = !!_infoOpen[id];
+    const hasAnswer = !!answer.trim();
+    return `
+      <div class="qa-card ${isOpen?'open':''} ${hasAnswer?'has-answer':''}">
+        <div class="qa-head" onclick="toggleInfo('${escAttr(id)}')">
+          <div class="qa-q">${esc(text)}</div>
+          <div class="qa-meta">
+            ${hasAnswer
+              ? '<span class="qa-status-pill answered">ענית</span>'
+              : '<span class="qa-status-pill empty">ממתין לתשובה</span>'}
+            <svg class="qa-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="qa-body">
+          <textarea data-info-textarea="${escAttr(id)}" placeholder="כתוב כאן את התשובה…">${esc(answer)}</textarea>
+          <div class="qa-actions">
+            <button onclick="submitAnswer('${escAttr(id)}')">${hasAnswer?'עדכן תשובה':'שלח תשובה'}</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  list.innerHTML=cards||'<div class="empty">אין שאלות לענות עליהן</div>';
+
+  const total=(dataInfo||[]).length;
+  const answered=(dataInfo||[]).filter(q=>(q.answer||'').trim()).length;
+  $('info-meta').textContent=total?`${answered} מתוך ${total} ענו`:'אין נתונים';
+
+  const unanswered = total - answered;
+  const pEl=$('info-pending');
+  if(unanswered){ pEl.textContent='נותרו '+unanswered; pEl.style.display='inline-block'; }
+  else pEl.style.display='none';
+}
+/* Per-question open state. Persist across re-renders, not across reloads. */
+const _infoOpen = {};
+function toggleInfo(id){
+  _infoOpen[id] = !_infoOpen[id];
+  // Toggle just this card without a full re-render so the textarea
+  // doesn't lose any in-progress text.
+  const cards = document.querySelectorAll('.qa-card');
+  cards.forEach(c => {
+    const ta = c.querySelector('textarea[data-info-textarea]');
+    if(ta && ta.getAttribute('data-info-textarea') === id){
+      c.classList.toggle('open', !!_infoOpen[id]);
+      if(_infoOpen[id]){
+        // Auto-focus when opening (without scroll-jump)
+        try{ ta.focus({preventScroll:true}); }catch(_){ ta.focus(); }
+      }
+    }
+  });
+}
+
+/* ─── REQ CARD ─── */
+function buildReqCard(opts){
+  const approved=opts.approved||[];
+  const pending =opts.pending||[];
+  const rejection = opts.rejection || null;
+
+  const hasRejected = !!rejection;
+  const hasPending  = pending.length > 0;
+  const hasApproved = approved.length > 0;
+  const cls = hasPending ? 'pending' :
+              hasRejected ? 'rejected' :
+              hasApproved ? 'approved' : '';
+
+  const approvedHtml=approved.map(a=>buildFilePillApproved(a)).join('');
+  const uploadedHtml=pending.map(p=>buildFilePillPending(p)).join('');
+
+  // Rejection block — file was deleted, but we tell the customer why
+  const rejectionHtml = rejection ? `
+    <div class="reject-reason">
+      <strong>הקובץ נדחה על ידי המשרד.</strong>
+      ${rejection.reason ? '<br>סיבה: ' + esc(rejection.reason) : ''}
+      <br>נא להעלות קובץ מתוקן.
+    </div>` : '';
+
+  let pillHtml='';
+  if(hasPending)       pillHtml='<span class="req-status-pill uploaded">ממתין לאישור</span>';
+  else if(hasApproved) pillHtml='<span class="req-status-pill approved">אושר</span>';
+  else if(hasRejected) pillHtml='<span class="req-status-pill rejected">יש להעלות מחדש</span>';
+
+  // Allow upload unless approved (with no pending and no rejection)
+  const allowUpload=!(hasApproved && !hasPending && !hasRejected);
+
+  const reqTextEnc = String(opts.reqText||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const reqIdEnc   = String(opts.reqId||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  return `
+    <div class="req-card ${cls}">
+      <div class="req-text">${esc(opts.reqText)}</div>
+      ${pillHtml}
+      ${(approvedHtml||uploadedHtml)?`<div class="file-pills">${approvedHtml}${uploadedHtml}</div>`:''}
+      ${rejectionHtml}
+      ${allowUpload?`
+        <button class="upload-btn" onclick="startUpload('${esc(opts.category)}',${opts.reportNum||'null'},'${reqIdEnc}','${reqTextEnc}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          העלאת קובץ
+        </button>`:''}
+    </div>`;
+}
+function buildFilePillApproved(a){
+  // Click on the file opens the in-app PDF/image viewer (if we know the
+  // fileId), falling back to a Drive link otherwise.
+  const fileId = a.fileId || _extractFileIdFromUrl(a.url||'');
+  const onclickAttr = fileId
+    ? `onclick="openInAppViewer('${esc(fileId)}', '${esc(a.name||'')}', '${esc(a.url||'')}')"`
+    : (a.url ? `onclick="window.open('${esc(a.url)}','_blank')"` : '');
+  return `
+    <div class="approved-row clickable" ${onclickAttr}>
+      <div class="ar-name">
+        <svg class="ar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>${esc(a.name||'')}</span>
+      </div>
+      ${a.url?`<div class="ar-url-hint">לחץ לצפייה</div>`:''}
+    </div>`;
+}
+function buildFilePillPending(p){
+  const fileId = p.fileId || _extractFileIdFromUrl(p.url||'');
+  const openAttr = fileId
+    ? `onclick="event.preventDefault();openInAppViewer('${esc(fileId)}', '${esc(p.name||'')}', '${esc(p.url||'')}')"`
+    : `onclick="event.preventDefault()"`;
+  return `
+    <div class="file-pill" data-file-id="${esc(p.fileId)}">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <a class="nm" href="#" ${openAttr}>${esc(p.name)}</a>
+      <button class="rm" onclick="removeFile('${esc(p.fileId)}','${esc(p.category||'')}','${esc(p.reqId||'')}');" title="הסר">✕</button>
+    </div>`;
+}
+
+/* Extract a Drive fileId from a webViewLink-style URL. Used as a
+   fallback when the server didn't return an explicit fileId. */
+function _extractFileIdFromUrl(url){
+  if(!url) return '';
+  const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m1) return m1[1];
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m2) return m2[1];
+  return '';
+}
+
+/* ── In-app file viewer ───────────────────────────────────────
+   Opens a Drive file directly inside the app. Uses Drive's preview
+   URL via iframe for PDFs and images. The customer never has to
+   leave the app or open Drive separately. */
+function openInAppViewer(fileId, fileName, fallbackUrl){
+  if(!fileId){
+    if(fallbackUrl) window.open(fallbackUrl, '_blank');
+    return;
+  }
+  let modal = document.getElementById('inapp-viewer-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'inapp-viewer-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;background:rgba(20,20,28,0.96);flex-direction:column;';
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0">
+        <button onclick="closeInAppViewer()" style="background:var(--bg);border:1px solid var(--border);padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit">✕ סגור</button>
+        <div id="inapp-viewer-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        <a id="inapp-viewer-extlink" href="#" target="_blank" rel="noopener" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:12px;font-family:inherit;color:var(--text);text-decoration:none">פתח בדרייב</a>
+      </div>
+      <iframe id="inapp-viewer-iframe" style="flex:1;border:0;width:100%;background:#1a1a1c"></iframe>
+    `;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('inapp-viewer-name').textContent = fileName || '';
+  document.getElementById('inapp-viewer-extlink').href = fallbackUrl || '#';
+  document.getElementById('inapp-viewer-iframe').src =
+    `https://drive.google.com/file/d/${fileId}/preview`;
+  modal.style.display = 'flex';
+  history.pushState({page:'inapp-viewer'}, '');
+}
+function closeInAppViewer(){
+  const modal = document.getElementById('inapp-viewer-modal');
+  if(modal) modal.style.display = 'none';
+  // Clear iframe src so we don't keep streaming in the background
+  const iframe = document.getElementById('inapp-viewer-iframe');
+  if(iframe) iframe.src = 'about:blank';
+  if(history.state && history.state.page === 'inapp-viewer'){
+    try{ history.back(); }catch(_){}
+  }
+}
+window.addEventListener('popstate', (e) => {
+  const modal = document.getElementById('inapp-viewer-modal');
+  if(modal && modal.style.display === 'flex'){
+    modal.style.display = 'none';
+    const iframe = document.getElementById('inapp-viewer-iframe');
+    if(iframe) iframe.src = 'about:blank';
+  }
+});
+
+/* ─── SECTIONS ─── */
+function collapseAll(){
+  Object.keys(sectionState).forEach(k => sectionState[k] = false);
+  currentReportNum = null;
+  render();
+  requestAnimationFrame(() => applySectionState());
+  saveSectionState();
+}
+function toggleSection(name){
+  const wasOpen = !!sectionState[name];
+  // close all — one card open at a time
+  Object.keys(sectionState).forEach(k => sectionState[k] = false);
+  if(!wasOpen) sectionState[name] = true;
+  requestAnimationFrame(() => applySectionState());
+  saveSectionState();
+}
+function applySectionState(){
+  $('sec-reports').classList.toggle('open',       !!sectionState.reports);
+  $('sec-docs').classList.toggle('open',          !!sectionState.docs);
+  $('sec-info').classList.toggle('open',          !!sectionState.info);
+  const qel = $('sec-questionnaire');
+  if(qel) qel.classList.toggle('open', !!sectionState.questionnaire);
+}
+// Robust click handling: delegated, also catches touchend on iOS where
+// click doesn't always fire on non-button elements.
+function _sectionKeyFromEvent(e){
+  const head = e.target && e.target.closest && e.target.closest('.section-head[data-section-key]');
+  if(!head) return null;
+  return head.getAttribute('data-section-key') || null;
+}
+let _sectionLastToggle = 0;
+function _doSectionToggle(name){
+  const now = Date.now();
+  if(now - _sectionLastToggle < 350) return;  // dedupe rapid double events
+  _sectionLastToggle = now;
+  toggleSection(name);
+}
+document.addEventListener('click', function(e){
+  const k = _sectionKeyFromEvent(e);
+  if(k) _doSectionToggle(k);
+});
+document.addEventListener('touchend', function(e){
+  const k = _sectionKeyFromEvent(e);
+  if(k) _doSectionToggle(k);
+}, {passive:true});
+
+/* ─── INQUIRY ─── */
+function _inquiryContext(){
+  if(sectionState.reports)      return 'דוחות';
+  if(sectionState.docs)         return 'השלמת מסמכים';
+  if(sectionState.info)         return 'השלמת פרטים';
+  if(sectionState.questionnaire)return 'שאלון';
+  return 'כללי';
+}
+let _inquiryContextOverride = null;
+let _meetingType = '';
+const _MTG_TIMES = (()=>{const t=[];for(let h=8;h<=20;h++){t.push(`${String(h).padStart(2,'0')}:00`);if(h<20)t.push(`${String(h).padStart(2,'0')}:30`);}return t;})();
+
+function _populateMtgTimeSelects(){
+  ['slot1-time','slot2-time','slot3-time'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- שעה --</option>' + _MTG_TIMES.map(t=>`<option>${t}</option>`).join('');
+  });
+  // Set default min date to today
+  const today = new Date().toISOString().split('T')[0];
+  ['slot1-date','slot2-date','slot3-date'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.min = today;
+  });
+}
+
+function openMeetingRequestModal(){
+  _populateMtgTimeSelects();
+  document.getElementById('mtg-step-type').style.display='';
+  document.getElementById('mtg-step-slots').style.display='none';
+  document.getElementById('meeting-request-modal').style.display='flex';
+}
+function closeMeetingRequestModal(){
+  document.getElementById('meeting-request-modal').style.display='none';
+}
+function chooseMeetingType(type){
+  _meetingType = type;
+  document.getElementById('mtg-type-label').textContent = type === 'פרונטלית' ? '🤝 פרונטלית — במשרד' : '📞 טלפונית';
+  document.getElementById('mtg-step-type').style.display='none';
+  document.getElementById('mtg-step-slots').style.display='';
+}
+function backToMeetingType(){
+  document.getElementById('mtg-step-type').style.display='';
+  document.getElementById('mtg-step-slots').style.display='none';
+}
+
+function _getSlotVal(dateId, timeId){
+  const d = (document.getElementById(dateId)||{}).value||'';
+  const t = (document.getElementById(timeId)||{}).value||'';
+  if(!d||!t) return null;
+  const [y,m,day] = d.split('-');
+  return { date: `${day}/${m}/${y}`, time: t };
+}
+
+async function submitMeetingSlots(){
+  if(!currentUser||!currentUser.token){ toast('יש להתחבר תחילה','error'); return; }
+  const slots = [
+    _getSlotVal('slot1-date','slot1-time'),
+    _getSlotVal('slot2-date','slot2-time'),
+    _getSlotVal('slot3-date','slot3-time'),
+  ].filter(Boolean);
+  if(!slots.length){ toast('יש לבחור לפחות מועד אחד','error'); return; }
+  const slotsText = slots.map((s,i)=>`${i+1}. ${s.date} ${s.time}`).join('\n');
+  const msg = `בקשת פגישה ${_meetingType}\nמועדים מוצעים:\n${slotsText}`;
+  closeMeetingRequestModal();
+  try{
+    await api('sendInquiry',{
+      token: currentUser.token,
+      context: `בקשת פגישה ${_meetingType}`,
+      message: msg,
+      slots: slots,
+    });
+    toast(`✅ הבקשה נשלחה — נחזור אליך`, 'ok');
+  }catch(e){
+    toast(e.message||'שגיאה בשליחה','error');
+  }
+}
+
+function openInquiryModal(contextOverride){
+  _inquiryContextOverride = contextOverride || null;
+  const ctx = contextOverride || _inquiryContext();
+  $('inquiry-title').textContent = 'פניה בעניין — ' + ctx;
+  $('inquiry-text').value = '';
+  $('inquiry-send-btn').disabled = false;
+  $('inquiry-modal').classList.add('open');
+  setTimeout(()=>$('inquiry-text').focus(), 80);
+}
+function closeInquiryModal(){
+  $('inquiry-modal').classList.remove('open');
+}
+async function sendInquiry(){
+  const msg = ($('inquiry-text').value || '').trim();
+  if(!msg){ toast('יש לכתוב הודעה לפני השליחה', 'error'); return; }
+  const ctx = _inquiryContextOverride || _inquiryContext();
+  const clientName = (currentUser && currentUser.name) ? currentUser.name : 'לקוח';
+  const fullMsg = 'פניה מ' + clientName + ' בעניין ' + ctx + ':\n' + msg;
+  const btn = $('inquiry-send-btn');
+  btn.disabled = true;
+  btn.textContent = 'שולח…';
+  try{
+    const instance = '7103130952';
+    const token    = '8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0';
+    const phone    = '972528713692';
+    const url = `https://api.green-api.com/waInstance${instance}/sendMessage/${token}`;
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chatId: phone + '@c.us', message: fullMsg})
+    });
+    const json = await res.json();
+    if(json.idMessage || res.ok){
+      // Also save to sheet via Apps Script
+      if(currentUser && currentUser.token){
+        api('sendInquiry', {token: currentUser.token, context: ctx, message: msg}).catch(()=>{});
+      }
+      toast('הפניה נשלחה בהצלחה', 'success');
+      closeInquiryModal();
+    } else {
+      throw new Error(json.message || 'שגיאה בשליחה');
+    }
+  } catch(err){
+    toast('שגיאה בשליחת הפניה — נסה שוב', 'error');
+    btn.disabled = false;
+    btn.textContent = 'שלח';
+  }
+}
+
+/* ─── UPLOAD ─── */
+function startUpload(category, reportNum, reqId, reqText){
+  uploadCtx={category, reportNum: reportNum==='null'?null:Number(reportNum), reqId, reqText};
+  const inp=$('file-input');
+  inp.value='';
+  inp.click();
+}
+$('file-input').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length || !uploadCtx) return;
+  const ctx = uploadCtx;
+  uploadCtx = null;
+
+  showLoading(true);
+  try{
+    // Strategy:
+    //  - All-images selection (1 or more) → compress each, then merge
+    //    into a single PDF using pdf-lib. This way every customer-uploaded
+    //    image becomes a viewable PDF with a date-stamped filename.
+    //  - Single PDF → upload as-is (rename only).
+    //  - Mixed (image + PDF, or multiple PDFs) → upload each separately,
+    //    in the order selected.
+    const allImages = files.every(f => (f.type||'').startsWith('image/'));
+    const baseName = (ctx.reqText||'file').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,80) || 'file';
+
+    if(allImages){
+      // Compress each, then build one PDF.
+      const compressed = [];
+      for(const f of files){
+        try{
+          const c = await compressImage(f);
+          compressed.push(c || f);
+        }catch(_){ compressed.push(f); }
+      }
+      const pdfBlob = await imagesToPdf(compressed);
+      if(pdfBlob){
+        const dataBase64 = await blobToBase64(pdfBlob);
+        showLoading(false);
+        toast('הקובץ נשלח — ממתין לאישור', 'success');
+        api('uploadFile',{
+          token:currentUser.token,
+          category:ctx.category,
+          reqId:ctx.reqId,
+          reqText:ctx.reqText,
+          reportNum:ctx.reportNum,
+          filename: baseName + '.pdf',
+          mimeType: 'application/pdf',
+          dataBase64,
+        }).then(()=>loadData(true))
+          .catch(err=>toast('שגיאה בהעלאה: '+(err.message||''),'error'));
+        return;
+      }
+      // pdf-lib not loaded — fall back to uploading each image separately
+    }
+
+    // Multiple files (or pdf-lib unavailable) — upload each independently.
+    showLoading(false);
+    toast(files.length===1 ? 'הקובץ נשלח — ממתין לאישור' : `${files.length} קבצים נשלחו — ממתינים לאישור`, 'success');
+    for(let i=0; i<files.length; i++){
+      const f = files[i];
+      const mime = f.type || 'application/octet-stream';
+      let blob = f;
+      let name = f.name || baseName;
+      if(mime.startsWith('image/')){
+        try{
+          const c = await compressImage(f);
+          if(c){ blob = c; name = baseName + (files.length>1?'_'+(i+1):'') + '.jpg'; }
+        }catch(_){}
+      } else {
+        const ext = (f.name && f.name.match(/\.[^.]+$/) || [''])[0] || '';
+        name = baseName + (files.length>1?'_'+(i+1):'') + ext;
+      }
+      const dataBase64 = await blobToBase64(blob);
+      api('uploadFile',{
+        token:currentUser.token,
+        category:ctx.category,
+        reqId:ctx.reqId,
+        reqText:ctx.reqText,
+        reportNum:ctx.reportNum,
+        filename: name,
+        mimeType: mime.startsWith('image/') ? 'image/jpeg' : mime,
+        dataBase64,
+      }).then(()=>loadData(true))
+        .catch(err=>toast('שגיאה בהעלאה: '+(err.message||''),'error'));
+    }
+  }catch(err){
+    showLoading(false);
+    toast(err.message || 'שגיאה בהעלאה', 'error');
+  }
+});
+
+/* Convert an array of image Blobs/Files into a single PDF Blob using
+   pdf-lib. Returns null only if pdf-lib fails to load (extreme case).
+   Each image gets its own page sized to its dimensions. */
+async function imagesToPdf(imageBlobs){
+  // Wait up to 5s for pdf-lib if it isn't loaded yet (defer + slow net).
+  if(!window.PDFLib){
+    const start = Date.now();
+    while(!window.PDFLib && (Date.now() - start) < 5000){
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  if(!window.PDFLib) return null;
+  const { PDFDocument } = window.PDFLib;
+  const doc = await PDFDocument.create();
+  for(const blob of imageBlobs){
+    const bytes = await blob.arrayBuffer();
+    let img;
+    const type = (blob.type||'').toLowerCase();
+    if(type === 'image/png'){
+      img = await doc.embedPng(bytes);
+    } else {
+      // Treat anything else as JPEG. compressImage() always outputs JPEG.
+      img = await doc.embedJpg(bytes);
+    }
+    const W = img.width, H = img.height;
+    const page = doc.addPage([W, H]);
+    page.drawImage(img, {x:0, y:0, width:W, height:H});
+  }
+  const out = await doc.save();
+  return new Blob([out], {type:'application/pdf'});
+}
+function removeFile(fileId, category, reqId){
+  if(!confirm('להסיר את הקובץ?')) return;
+  dataPending = (dataPending||[]).filter(p => p.fileId !== fileId);
+  render();
+  toast('הקובץ הוסר', 'success');
+  api('removeFile',{token:currentUser.token, fileId, category: category||'docs', reqId: reqId||''})
+    .catch(err => toast('שגיאה בהסרה: '+(err.message||''), 'error'));
+}
+
+/* ─── ANSWER ─── */
+function submitAnswer(reqId){
+  const ta=document.querySelector(`textarea[data-info-textarea="${reqId}"]`);
+  if(!ta) return;
+  const ans=ta.value.trim();
+  if(!ans){ toast('נא הקלד תשובה', 'error'); return; }
+  // OPTIMISTIC: update local state + UI immediately. Don't show a
+  // spinner. Don't wait for Apps Script. The user already sees their
+  // answer saved instantly and can continue working.
+  const q = (dataInfo||[]).find(x => x.id === reqId);
+  if(q){ q.answer = ans; renderInfo(); }
+  toast('נשמר', 'success');
+  // Fire the API call in the background. Errors surface via toast
+  // but don't block the UI.
+  api('submitAnswer',{token:currentUser.token, reqId, answer:ans})
+    .catch(err => toast('שגיאה בשמירה: '+(err.message||''), 'error'));
+}
+
+/* ─── IMAGE COMPRESSION ─── */
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('read failed'));
+    r.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('img failed'));
+      img.onload=()=>{
+        const MAX=1920;
+        let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){
+          if(w>=h){ h=Math.round(h*MAX/w); w=MAX; }
+          else { w=Math.round(w*MAX/h); h=MAX; }
+        }
+        const c=document.createElement('canvas');
+        c.width=w; c.height=h;
+        const ctx=c.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        c.toBlob(b=>resolve(b), 'image/jpeg', 0.82);
+      };
+      img.src=e.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+function blobToBase64(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('read failed'));
+    r.onload=()=>{
+      const s=String(r.result||'');
+      const i=s.indexOf(',');
+      resolve(i>=0?s.slice(i+1):s);
+    };
+    r.readAsDataURL(blob);
+  });
+}
+
+/* ─── HISTORY ─── */
+window.addEventListener('popstate', ()=>{
+  if(currentReportNum!==null){
+    currentReportNum=null;
+    renderReports();
+  }
+});
+
+/* ─── INIT ─── */
+async function init(){
+  const sess=loadSession();
+  if(sess && sess.token){
+    currentUser=sess;
+    clientStage='pre_order'; // always pre_order in potential portal
+    showApp();
+    await loadData();
+  }
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // Force update check immediately, again every 60s, and on visibility change
+      try{ reg.update(); }catch(_){}
+      if(reg.waiting && navigator.serviceWorker.controller){
+        try{ reg.waiting.postMessage({type:'SKIP_WAITING'}); }catch(_){}
+      }
+      setInterval(()=>{ try{ reg.update(); }catch(_){} }, 60*1000);
+      document.addEventListener('visibilitychange', ()=>{
+        if(!document.hidden){ try{ reg.update(); }catch(_){} }
+      });
+      reg.addEventListener('updatefound', ()=>{
+        const newSW = reg.installing;
+        if(!newSW) return;
+        newSW.addEventListener('statechange', ()=>{
+          if(newSW.state === 'installed' && navigator.serviceWorker.controller){
+            try{ newSW.postMessage({type:'SKIP_WAITING'}); }catch(_){}
+          }
+        });
+      });
+    }).catch(()=>{});
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(!sessionStorage.getItem('_swReloaded')){
+        sessionStorage.setItem('_swReloaded','1');
+        location.reload();
+      }
+    });
+  }
+  setInterval(()=>{
+    if(document.visibilityState==='visible' && currentUser && !isLoading){
+      loadData(true);
+    }
+  }, 60000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && currentUser && !isLoading){
+      loadData(true);
+    }
+  });
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && $('login-screen').style.display!=='none'){
+    doLogin();
+  }
+});
+
+init();
+
+/* Keyboard-aware focus: scroll the focused input/textarea into view so
+   it isn't hidden by the on-screen keyboard. */
+(function attachKeyboardScroll(){
+  let scrollTimer = null;
+  function handleFocus(e){
+    const t = e.target;
+    if(!t) return;
+    const tag = t.tagName;
+    if(tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    if(tag === 'INPUT'){
+      const type = (t.type||'').toLowerCase();
+      if(type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit') return;
+    }
+    if(scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(()=>{
+      try{
+        t.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'});
+      }catch(_){
+        try{ t.scrollIntoView(false); }catch(__){}
+      }
+    }, 280);
+  }
+  document.addEventListener('focusin', handleFocus, true);
+})();
+
+/* ═══════════════════════════════════════════════════════════
+   QUESTIONNAIRE
+   ═══════════════════════════════════════════════════════════ */
+function addQuestKid(){
+  questKidCount++;
+  const c = questKidCount;
+  const div = document.createElement('div');
+  div.className = 'quest-creditor';
+  div.id = 'q_kid_' + c;
+  div.innerHTML = `<div class="quest-creditor-title">ילד ${c}
+    <button onclick="document.getElementById('q_kid_${c}').remove()" style="background:none;border:none;color:#c8362a;cursor:pointer;font-size:14px">✕</button></div>
+    <div class="quest-row">
+      <div class="quest-field"><label>שם משפחה</label><input id="q_kid_${c}_last"></div>
+      <div class="quest-field"><label>שם פרטי</label><input id="q_kid_${c}_first"></div>
+    </div>
+    <div class="quest-row">
+      <div class="quest-field"><label>ת.ז</label><input id="q_kid_${c}_id" inputmode="numeric"></div>
+      <div class="quest-field"><label>תאריך לידה</label><input id="q_kid_${c}_dob" type="date"></div>
+    </div>`;
+  document.getElementById('q_kids_list').appendChild(div);
+}
+
+function addQuestCreditor(){
+  questCredCount++;
+  const c = questCredCount;
+  const div = document.createElement('div');
+  div.className = 'quest-creditor';
+  div.id = 'q_cred_' + c;
+  div.innerHTML = `<div class="quest-creditor-title">נושה ${c}
+    <button onclick="document.getElementById('q_cred_${c}').remove()" style="background:none;border:none;color:#c8362a;cursor:pointer;font-size:14px">✕</button></div>
+    <div class="quest-row">
+      <div class="quest-field"><label>שם הנושה</label><input id="q_cred_${c}_name" placeholder="בנק הפועלים..."></div>
+      <div class="quest-field"><label>סוג</label>
+        <select id="q_cred_${c}_type">
+          <option>בנקים</option><option>הלוואה חוץ בנקאית</option><option>תאגידים</option><option>אחר</option>
+        </select></div>
+    </div>
+    <div class="quest-row">
+      <div class="quest-field"><label>סכום ₪</label><input id="q_cred_${c}_amount" inputmode="numeric"></div>
+      <div class="quest-field"><label>מצב</label>
+        <select id="q_cred_${c}_status">
+          <option>טרם ננקטו הליכים</option><option>הוצאה לפועל</option><option>תביעה בבית משפט</option>
+        </select></div>
+    </div>`;
+  document.getElementById('q_creditors_list').appendChild(div);
+}
+
+function _qVal(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function collectQuestData(){
+  const kids = [];
+  document.querySelectorAll('[id^="q_kid_"][id$="_last"]').forEach(el=>{
+    const c = el.id.replace('q_kid_','').replace('_last','');
+    kids.push({
+      last:  _qVal('q_kid_'+c+'_last'),
+      first: _qVal('q_kid_'+c+'_first'),
+      id:    _qVal('q_kid_'+c+'_id'),
+      dob:   _qVal('q_kid_'+c+'_dob'),
+    });
+  });
+  const creditors = [];
+  document.querySelectorAll('[id^="q_cred_"][id$="_name"]').forEach(el=>{
+    const c = el.id.replace('q_cred_','').replace('_name','');
+    creditors.push({
+      name:   _qVal('q_cred_'+c+'_name'),
+      type:   _qVal('q_cred_'+c+'_type'),
+      amount: _qVal('q_cred_'+c+'_amount'),
+      status: _qVal('q_cred_'+c+'_status'),
+    });
+  });
+  return {
+    last_name: _qVal('q_last_name'), first_name: _qVal('q_first_name'),
+    id: _qVal('q_id'), dob: _qVal('q_dob'), gender: _qVal('q_gender'),
+    marital: _qVal('q_marital'), birth_country: _qVal('q_birth_country'),
+    aliya_date: _qVal('q_aliya_date'), address: _qVal('q_address'),
+    zip: _qVal('q_zip'), apt_rooms: _qVal('q_apt_rooms'),
+    apt_rights: _qVal('q_apt_rights'), phone: _qVal('q_phone'), email: _qVal('q_email'),
+    spouse_last: _qVal('q_spouse_last'), spouse_first: _qVal('q_spouse_first'),
+    spouse_id: _qVal('q_spouse_id'), spouse_dob: _qVal('q_spouse_dob'),
+    spouse_phone: _qVal('q_spouse_phone'),
+    children: kids,
+    occupation: _qVal('q_occupation'), employer: _qVal('q_employer'),
+    work_address: _qVal('q_work_address'), work_start: _qVal('q_work_start'),
+    salary_gross: _qVal('q_salary_gross'), salary_net: _qVal('q_salary_net'),
+    spouse_employer: _qVal('q_spouse_employer'),
+    spouse_salary_gross: _qVal('q_spouse_salary_gross'), spouse_salary_net: _qVal('q_spouse_salary_net'),
+    child_allowance: _qVal('q_child_allowance'), disability: _qVal('q_disability'),
+    rent: _qVal('q_rent'), arnona: _qVal('q_arnona'), electric: _qVal('q_electric'),
+    water: _qVal('q_water'), gas: _qVal('q_gas'), food: _qVal('q_food'),
+    car: _qVal('q_car'), clothing: _qVal('q_clothing'), education: _qVal('q_education'),
+    other_exp: _qVal('q_other_exp'),
+    creditors: creditors,
+    cars: _qVal('q_cars'), banks: _qVal('q_banks'), realestate: _qVal('q_realestate'),
+  };
+}
+
+function fillQuestForm(d){
+  if(!d) return;
+  const set = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+  set('q_last_name', d.last_name); set('q_first_name', d.first_name);
+  set('q_id', d.id); set('q_dob', d.dob); set('q_gender', d.gender);
+  set('q_marital', d.marital); set('q_birth_country', d.birth_country);
+  set('q_aliya_date', d.aliya_date); set('q_address', d.address);
+  set('q_zip', d.zip); set('q_apt_rooms', d.apt_rooms); set('q_apt_rights', d.apt_rights);
+  set('q_phone', d.phone); set('q_email', d.email);
+  set('q_spouse_last', d.spouse_last); set('q_spouse_first', d.spouse_first);
+  set('q_spouse_id', d.spouse_id); set('q_spouse_dob', d.spouse_dob); set('q_spouse_phone', d.spouse_phone);
+  set('q_occupation', d.occupation); set('q_employer', d.employer);
+  set('q_work_address', d.work_address); set('q_work_start', d.work_start);
+  set('q_salary_gross', d.salary_gross); set('q_salary_net', d.salary_net);
+  set('q_spouse_employer', d.spouse_employer);
+  set('q_spouse_salary_gross', d.spouse_salary_gross); set('q_spouse_salary_net', d.spouse_salary_net);
+  set('q_child_allowance', d.child_allowance); set('q_disability', d.disability);
+  set('q_rent', d.rent); set('q_arnona', d.arnona); set('q_electric', d.electric);
+  set('q_water', d.water); set('q_gas', d.gas); set('q_food', d.food);
+  set('q_car', d.car); set('q_clothing', d.clothing); set('q_education', d.education);
+  set('q_other_exp', d.other_exp); set('q_cars', d.cars); set('q_banks', d.banks);
+  set('q_realestate', d.realestate);
+  if(Array.isArray(d.children)) d.children.forEach(kid=>{ addQuestKid(); const c=questKidCount;
+    set('q_kid_'+c+'_last',kid.last); set('q_kid_'+c+'_first',kid.first);
+    set('q_kid_'+c+'_id',kid.id); set('q_kid_'+c+'_dob',kid.dob); });
+  if(Array.isArray(d.creditors)) d.creditors.forEach(cr=>{ addQuestCreditor(); const c=questCredCount;
+    set('q_cred_'+c+'_name',cr.name); set('q_cred_'+c+'_type',cr.type);
+    set('q_cred_'+c+'_amount',cr.amount); set('q_cred_'+c+'_status',cr.status); });
+}
+
+async function saveQuestionnaire(){
+  if(!currentUser){ toast('לא מחובר', 'error'); return; }
+  const data = collectQuestData();
+  try{
+    showLoading(true);
+    await api('saveQuestionnaire', {token: currentUser.token, data});
+    questData = data;
+    const badge = $('quest-saved-badge');
+    if(badge){ badge.style.display='block'; setTimeout(()=>badge.style.display='none', 3000); }
+    toast('נשמר בהצלחה', 'success');
+  }catch(e){
+    toast(e.message || 'שגיאה בשמירה', 'error');
+  }finally{
+    showLoading(false);
+  }
+}
+</script>
+
+<!-- Signature modal for report close flow -->
+<div id="sign-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:500px;border-radius:16px 16px 0 0;padding:16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+      <span id="sign-title" style="font-weight:700;font-size:15px">חתימה על דוח</span>
+      <button onclick="closeSignModal()" style="background:none;border:none;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12px;color:#888;margin-bottom:10px">חתום בתיבה למטה לאישור הדוח. לאחר האישור לא יהיה ניתן לשנות מסמכים.</p>
+    <canvas id="sign-canvas" style="border:2px solid #e0e0e0;border-radius:8px;width:100%;height:160px;display:block;touch-action:none;background:#fafafa"></canvas>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="clearSignature()" style="flex:1;padding:10px;background:#f0f0f0;border:none;border-radius:6px;font-size:13px;cursor:pointer">נקה</button>
+      <button onclick="confirmSign()" style="flex:1;padding:10px;background:#1a7f4b;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">אשר וסגור דוח</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _signReportNum = null, _signCtx = null, _signing = false;
+function openSignModal(num){
+  _signReportNum = num;
+  document.getElementById('sign-title').textContent = 'חתימה — אישור דוח ' + num;
+  document.getElementById('sign-modal').style.display = 'flex';
+  const canvas = document.getElementById('sign-canvas');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight || 160;
+  _signCtx = canvas.getContext('2d');
+  _signCtx.strokeStyle = '#1a1a2e';
+  _signCtx.lineWidth = 2.5;
+  _signCtx.lineCap = 'round';
+  _signing = false;
+  canvas.addEventListener('pointerdown', _signStart);
+  canvas.addEventListener('pointermove', _signMove);
+  canvas.addEventListener('pointerup', ()=>_signing=false);
+}
+function _signStart(e){
+  _signing=true;
+  const r=e.target.getBoundingClientRect();
+  _signCtx.beginPath();
+  _signCtx.moveTo(e.clientX-r.left, e.clientY-r.top);
+}
+function _signMove(e){
+  if(!_signing) return;
+  const r=e.target.getBoundingClientRect();
+  _signCtx.lineTo(e.clientX-r.left, e.clientY-r.top);
+  _signCtx.stroke();
+}
+function clearSignature(){ if(_signCtx){ const c=document.getElementById('sign-canvas'); _signCtx.clearRect(0,0,c.width,c.height); }}
+function closeSignModal(){ document.getElementById('sign-modal').style.display='none'; _signReportNum=null; }
+async function confirmSign(){
+  const canvas = document.getElementById('sign-canvas');
+  const sigData = canvas.toDataURL('image/png');
+  if(sigData === canvas.toDataURL('image/png', 0) || !_signReportNum) return;
+  closeSignModal();
+  showLoading(true);
+  try{
+    await api('closeReport', {token: currentUser.token, reportNum: _signReportNum, signature: sigData});
+    toast('הדוח אושר וננעל', 'success');
+    await loadData(true);
+  }catch(e){
+    toast('שגיאה: ' + (e.message||''), 'error');
+  }finally{ showLoading(false); }
+}
+</script>
+</body>
+</html>
