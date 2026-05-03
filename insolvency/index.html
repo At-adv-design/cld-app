@@ -2144,8 +2144,12 @@ function parseClient(row,rowNum){
   const calcCount=reportStatus.filter(s=>s==='overdue').length;
   const overdueCount=ceVal>0?ceVal:calcCount;
 
-  // DOCS
-  const docsList=g(C_DOCS_LIST);
+  // DOCS — derive text from CV JSON (single source of truth).
+  // Fall back to legacy AC text if CV is empty (old clients not yet migrated).
+  const _cvDocsArr = parseReqList(g(C_CV));
+  const docsList = _cvDocsArr.length
+    ? _cvDocsArr.map(r => r.text||'').filter(Boolean).join('\n')
+    : g(C_DOCS_LIST);
   const docsAGRaw=g(C_DOCS_AG);
   // Raw text values for the editable date/days fields in each section.
   // These are what we put into the prompt() calls when the user taps an
@@ -3728,8 +3732,8 @@ function renderCustomerArea(){
     </div>`;
 
   const docsBadge = (() => {
-    const r = (_custState.supplDocsRequired||[]).length;
-    const a = (_custState.supplDocsApproved||[]).length;
+    const r = (_custState.supplDocs||[]).length;
+    const a = (_custState.supplDocs||[]).filter(x=>x.status==='approved').length;
     const p = (_custState.pending||[]).filter(x=>x.category==='docs').length;
     const parts = [];
     if(r) parts.push(r+' דרישות');
@@ -3989,24 +3993,23 @@ document.addEventListener('click', function(e){
   if(!isNaN(num) && typeof toggleReportDocSection === 'function') toggleReportDocSection(num);
 });
 
-/* Render the supplemental-docs editable list (DJ-backed). Same shape as
-   per-report lists: row of editable text + delete + inline pending/approved
-   files attached to that requirement. */
+/* Render the supplemental-docs editable list — CV-backed (single source of truth).
+   The customer portal (customers app) also reads from CV, so edits here are
+   immediately visible to the client. */
 function _renderSupplDocsList(){
-  const required  = _custState.supplDocsRequired || [];
-  const approved  = _custState.supplDocsApproved || [];
+  const required  = _custState.supplDocs || [];   // from CV (JSON)
   const pending   = (_custState.pending||[]).filter(p => p.category === 'docs');
   const rejections= _custState.rejections || [];
 
   if(!required.length){
-    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו דרישות — הקלד שורות בעמודה DJ באקסל או לחץ "+ הוסף שדה".</div>';
+    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו דרישות — ערוך את הרשימה בכרטיס הלקוח.</div>';
   }
 
   const idForReq = r => r.id && !String(r.id).startsWith('tmp-') ? r.id : ('r0-'+_hashReqId(r.text||''));
   return required.map(r => {
     const stableId = idForReq(r);
     const myPending  = pending.filter(p  => p.reqId === stableId);
-    const myApproved = approved.filter(a => a.reqId === stableId);
+    const myApproved = (required.filter(x => x.status === 'approved' && x.id === stableId));
     const myReject   = rejections.find(rj => rj.reqId === stableId);
     return `
       <div class="req-block" data-id="${esc(r.id)}">
@@ -4022,23 +4025,17 @@ function _renderSupplDocsList(){
 
 function updateSupplDocText(id, val){
   if(!_custState) return;
-  const r = (_custState.supplDocsRequired||[]).find(x => x.id === id);
+  const r = (_custState.supplDocs||[]).find(x => x.id === id);
   if(r){ r.text = val; saveSupplDocsList(true); }
 }
 function addSupplDocRow(){
   if(!_custState) return;
-  if(!Array.isArray(_custState.supplDocsRequired)) _custState.supplDocsRequired = [];
-  _custState.supplDocsRequired.push({id:'tmp-'+Math.random().toString(36).slice(2,9), text:'', report:0});
+  if(!Array.isArray(_custState.supplDocs)) _custState.supplDocs = [];
+  _custState.supplDocs.push({id:'req_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text:'', status:'pending'});
   renderCustomerArea();
-  // Focus the new input WITHOUT jumping the page.
-  // The default `.focus()` behavior on mobile scrolls the input into
-  // view, which feels like the page is "jumping". We use the
-  // preventScroll option and explicitly restore scrollTop afterwards.
   setTimeout(()=>{
     const body = document.getElementById('customer-area-body');
     const savedScroll = body ? body.scrollTop : 0;
-    // Find the supplemental docs section's req-blocks (they're the
-    // ones inside .cust-section that are NOT in a per-report card).
     const sections = document.querySelectorAll('.cust-section');
     let targetInputs = [];
     sections.forEach(sec => {
@@ -4057,25 +4054,31 @@ function addSupplDocRow(){
 }
 function removeSupplDocRow(id){
   if(!confirm('למחוק שדה?')) return;
-  _custState.supplDocsRequired = (_custState.supplDocsRequired||[]).filter(r => r.id !== id);
+  _custState.supplDocs = (_custState.supplDocs||[]).filter(r => r.id !== id);
   renderCustomerArea();
   saveSupplDocsList();
 }
 let _supplDocsSaveTimer = null;
 function saveSupplDocsList(debounce=false){
   if(!_custState) return;
-  const required = _custState.supplDocsRequired || [];
-  const text = required.map(r => (r.text||'').trim()).filter(Boolean).join('\n');
+  const docs = _custState.supplDocs || [];
   if(_supplDocsSaveTimer) clearTimeout(_supplDocsSaveTimer);
   const doSave = ()=>{
     _supplDocsSaveTimer = null;
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${COL_DJ}${_custState.rowNum}?valueInputOption=RAW`;
-    const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({values:[[text]]})};
-    apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'דרישות השלמת מסמכים'));
+    // Write to CV as JSON (customer portal source of truth)
+    const cvUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CV${_custState.rowNum}?valueInputOption=RAW`;
+    const cvOpts = {method:'PUT', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({values:[[JSON.stringify(docs)]]})};
+    apiFetch(cvUrl, cvOpts).catch(()=>enqueueWrite(cvUrl, cvOpts, 'מסמכים CV'));
+    // Also write text list to AC for backwards compat
+    const text = docs.map(r => (r.text||'').trim()).filter(Boolean).join('\n');
+    const acUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${_custState.rowNum}?valueInputOption=RAW`;
+    const acOpts = {method:'PUT', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({values:[[text]]})};
+    apiFetch(acUrl, acOpts).catch(()=>{});
     // Sync allClients cache
     const c = allClients.find(x => x.rowNum === _custState.rowNum);
-    if(c) c.supplDocsRequired = required.map(r => ({id:r.id, text:r.text, report:0}));
+    if(c){ c.supplDocs = docs; c.docsList = text; }
   };
   if(debounce) _supplDocsSaveTimer = setTimeout(doSave, 800);
   else doSave();
