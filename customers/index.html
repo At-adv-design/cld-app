@@ -1198,7 +1198,7 @@ function _renderReportRow(info, todayMs, isCurrent){
   else cls.push('active');
   if(isCurrent) cls.push('is-current');
 
-  const badge = isDone ? esc(info.status) : (isCurrent ? 'להגשה' : 'הוגש');
+  const badge = isDone ? esc(info.status) : (isCurrent ? 'להגשה' : 'טרם');
 
   const meta=[];
   if(info.dateText) meta.push('תאריך: '+esc(info.dateText));

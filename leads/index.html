@@ -737,7 +737,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
       <input type="text" id="reminder-note" placeholder="הערה (אופציונלי)" maxlength="80" style="display:none;flex:1;min-width:0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-family:inherit;color:var(--text);text-align:right"/>
       <!-- View Google Calendar — same overlay used in the call-summary modal,
            so the user can check their existing schedule before picking a time. -->
-      <button onclick="openCalendarOverlay()" title="צפה בקלנדר Google" style="background:var(--slate);border:1px solid var(--slate);padding:9px 12px;font-size:12px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;gap:5px">
+      <button onclick="openCalendarOverlay()" title="צפה בקלנדר Google" style="background:var(--slate);border:1px solid var(--slate);padding:9px 12px;font-size:12px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;flex-shrink:0;display:none;align-items:center;gap:5px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>קלנדר</span>
       </button>
@@ -3648,6 +3648,8 @@ function openMeetingDialog(idx,name,phone){
   syncHiddenInputs();
   document.getElementById('meeting-modal').style.display='flex';
   history.pushState({page:'meeting'},'');
+  // Auto-open calendar so user can see their schedule
+  setTimeout(() => openCalendarOverlay(), 300);
 }
 
 // Days in month, with leap-year handling for February
