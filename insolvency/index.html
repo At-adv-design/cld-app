@@ -5845,6 +5845,7 @@ async function deleteDocRow(rowNum, idx){
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'מסמכים'));
+  _syncDocsToCV(rowNum, newVal, c.supplDocs||[]);
 }
 
 async function deleteReportDocs(rowNum){
@@ -6092,9 +6093,26 @@ async function saveDocsEdit(){
   closeDocsEdit();
   showToast('נשמר','ok');
   if(typeof applyFilters==='function') applyFilters();
+  // Write AC (text for reminders)
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${c.rowNum}?valueInputOption=RAW`;
   const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
   apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'מסמכים'));
+  // Sync CV (JSON requirements for customer portal)
+  _syncDocsToCV(c.rowNum, newVal, c.supplDocs||[]);
+}
+
+// Sync AC text list → CV JSON requirements (customer portal source of truth)
+async function _syncDocsToCV(rowNum, textList, existingReqs){
+  const lines = (textList||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const existing = Array.isArray(existingReqs) ? existingReqs : [];
+  const newReqs = lines.map(text => {
+    const ex = existing.find(r => (r.text||'').trim() === text);
+    return ex || {id:'req_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text, status:'pending'};
+  });
+  const cvUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CV${rowNum}?valueInputOption=RAW`;
+  apiFetch(cvUrl,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(newReqs)]]})})
+    .then(()=>{ const c=allClients.find(x=>x.rowNum===rowNum); if(c) c.supplDocs=newReqs; })
+    .catch(e=>console.warn('CV sync:',e));
 }
 
 // ── REPORT-DOCS EDITOR (column BA) — same UX as docs editor ───────────────
