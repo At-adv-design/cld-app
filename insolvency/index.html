@@ -760,6 +760,25 @@ body.focus-mode-active .app-body{overflow:hidden;}
 .client-card.focused{position:fixed!important;inset:0!important;z-index:400!important;overflow-y:auto!important;border-radius:0!important;margin:0!important;padding-top:env(safe-area-inset-top,8px)!important;}
 body.focus-mode-active{overflow:hidden;}
 
+/* ── Questionnaire modal (shared with clients app style) ── */
+.insq-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,.55);z-index:430;align-items:flex-end;}
+.insq-sheet{background:var(--white);width:100%;max-width:640px;margin:0 auto;max-height:92dvh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;}
+.insq-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.insq-body{overflow-y:auto;flex:1;padding:12px 16px}
+.quest-section{margin:0 0 10px;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.quest-section-head{background:var(--slate);color:#fff;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.quest-section-body{padding:10px 12px;display:none}
+.quest-section.open .quest-section-body{display:block}
+.quest-field{margin-bottom:10px}
+.quest-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.quest-field input,.quest-field select,.quest-field textarea{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text)}
+.quest-field textarea{min-height:52px;resize:vertical}
+.quest-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quest-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.quest-add-btn{border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:4px;padding:6px;width:100%;font-size:12px;cursor:pointer;margin-bottom:6px;font-family:inherit}
+.quest-creditor{border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:8px;background:var(--bg)}
+.quest-creditor-title{font-size:12px;font-weight:700;color:var(--slate);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+
 </style>
 </head>
 <body>
@@ -1683,6 +1702,7 @@ const C_DL = 115;  // 0-based — DL
 const COL_DJ = 'DJ';
 const COL_DK = 'DK';
 const C_EC_STAGE = 132;   // 0-based EC — stage: 'pre_order' | 'commercial' | ''
+const C_CY_QUEST = 133;   // 0-based ED — questionnaire JSON (Form 45)
 const COL_EC = 'EC';
 const COL_DL = 'DL';
 const C_CZ_INQUIRIES = 135; // 0-based EF (1-based 136) — client inquiries JSON
@@ -2248,6 +2268,7 @@ function parseClient(row,rowNum){
   const clientStage = (g(C_EC_STAGE)||'').toString().trim().toLowerCase();
   // EF — client inquiries JSON array
   const inquiries = (() => { try{ const v=JSON.parse(g(C_CZ_INQUIRIES)||'[]'); return Array.isArray(v)?v:[]; }catch(_){return [];} })();
+  const questData = (() => { try{ const v=JSON.parse(g(C_CY_QUEST)||'null'); return v&&typeof v==='object'?v:null; }catch(_){return null;} })();
   // CU/CV/CW hold JSON arrays of requirement objects. Parse defensively —
   // the cell may have been edited by hand. Empty → empty list.
   function parseReqList(raw){
@@ -2426,7 +2447,7 @@ function parseClient(row,rowNum){
     currentPayment,
     missedPayments,
     inCollection, collectReminder, clientStage,
-    bvRaw, bwRaw, inquiries};
+    bvRaw, bwRaw, inquiries, questData};
 }
 
 function parseDate(s){
@@ -2936,9 +2957,15 @@ function renderCards(clients){
             <span class="card-section-chev">▼</span>
             <span class="card-section-icon">${ICON.noteAdd}</span>
             <span class="section-title" style="color:#5c4a36;margin:0">שאלון צו פתיחה</span>
+            ${c.questData?`<span class="status-badge badge-green" style="margin-inline-start:auto">מלא</span>`:`<span class="status-badge badge-gray" style="margin-inline-start:auto">ריק</span>`}
           </div>
           <div class="card-section-body">
-            <button onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" style="width:100%;padding:8px;background:var(--bg);border:1px dashed var(--border);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--slate);display:inline-flex;align-items:center;justify-content:center;gap:6px">${ICON.customer} פתח שאלון</button>
+            ${c.questData ? `<div style="font-size:11px;color:var(--text);margin-bottom:8px;padding:6px 8px;background:var(--bg);border:1px solid var(--border)">
+              ${c.questData.last_name||c.questData.first_name?`<div><b>שם:</b> ${esc((c.questData.last_name||'')+' '+(c.questData.first_name||''))}</div>`:''}
+              ${c.questData.id?`<div><b>ת.ז:</b> ${esc(c.questData.id)}</div>`:''}
+              ${c.questData.creditors&&c.questData.creditors.length?`<div><b>נושים:</b> ${c.questData.creditors.length}</div>`:''}
+            </div>` : ''}
+            <button onclick="event.stopPropagation();openInsQuestModal(${c.rowNum})" style="width:100%;padding:8px;background:var(--bg);border:1px dashed var(--border);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--slate);display:inline-flex;align-items:center;justify-content:center;gap:6px">${ICON.pencil} ${c.questData?'ערוך שאלון':'מלא שאלון'}</button>
           </div>
         </div>` : ''}
         ${(c.clientStage === 'pre_order' || c.clientStage === 'commercial') && c.infoQs && c.infoQs.length ? `<div class="card-section" data-section="info">
@@ -6820,6 +6847,11 @@ window.addEventListener('popstate',()=>{
     else { closeReqExplain(); }
     return;
   }
+  const insqOpen = document.getElementById('insq-modal') && document.getElementById('insq-modal').style.display==='flex';
+  if(insqOpen){
+    closeInsQuestModal();
+    return;
+  }
   if(custAreaOpen){
     // Customer-area modal saves continuously, so back-press just closes
     closeCustomerArea();
@@ -8037,6 +8069,210 @@ async function markInquiryDone(rowNum, inquiryId){
     openInquiriesPanel(); // refresh panel
     showToast('סומן כטופל','ok');
   }catch(e){ showToast('שגיאה','err'); }
+}
+</script>
+
+<!-- ══════════════════════════════════════════════
+     QUESTIONNAIRE MODAL — full Form 45 editor
+     Same structure as clients app; IDs prefixed insq_
+     ══════════════════════════════════════════════ -->
+<div class="insq-modal" id="insq-modal">
+  <div class="insq-sheet">
+    <div class="insq-header">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700">שאלון — בקשת צו פתיחת הליכים</div>
+        <div id="insq-client-name" style="font-size:12px;color:var(--slate);font-weight:600"></div>
+      </div>
+      <button onclick="saveInsQuestionnaire()" style="background:var(--green);color:#fff;border:none;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;border-radius:4px">שמור</button>
+      <button onclick="closeInsQuestModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;margin-inline-start:6px">×</button>
+    </div>
+    <div class="insq-body">
+      <!-- א — פרטים אישיים -->
+      <div class="quest-section open">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>א — פרטים אישיים</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div class="quest-row"><div class="quest-field"><label>שם משפחה</label><input id="insq_last_name"></div><div class="quest-field"><label>שם פרטי</label><input id="insq_first_name"></div></div>
+          <div class="quest-row"><div class="quest-field"><label>תעודת זהות</label><input id="insq_id" inputmode="numeric"></div><div class="quest-field"><label>תאריך לידה</label><input id="insq_dob" type="date"></div></div>
+          <div class="quest-row"><div class="quest-field"><label>מין</label><select id="insq_gender"><option value="">בחר...</option><option>זכר</option><option>נקבה</option></select></div><div class="quest-field"><label>מצב משפחתי</label><select id="insq_marital"><option value="">בחר...</option><option>רווק</option><option>רווקה</option><option>נשוי</option><option>נשואה</option><option>גרוש</option><option>גרושה</option><option>אלמן</option><option>אלמנה</option></select></div></div>
+          <div class="quest-row"><div class="quest-field"><label>ארץ לידה</label><input id="insq_birth_country"></div><div class="quest-field"><label>תאריך עלייה</label><input id="insq_aliya_date" type="date"></div></div>
+          <div class="quest-field"><label>כתובת מגורים</label><input id="insq_address"></div>
+          <div class="quest-row"><div class="quest-field"><label>מיקוד</label><input id="insq_zip" inputmode="numeric"></div><div class="quest-field"><label>מספר חדרים</label><input id="insq_apt_rooms" inputmode="decimal"></div></div>
+          <div class="quest-field"><label>זכויות בדירה</label><select id="insq_apt_rights"><option value="">בחר...</option><option>שוכר</option><option>בעלות מלאה</option><option>בעלות חלקית</option><option>גר עם הורים</option></select></div>
+          <div class="quest-row"><div class="quest-field"><label>טלפון</label><input id="insq_phone" type="tel"></div><div class="quest-field"><label>דוא"ל</label><input id="insq_email" type="email"></div></div>
+        </div>
+      </div>
+      <!-- בן/בת זוג -->
+      <div class="quest-section">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>בן / בת זוג</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div class="quest-row"><div class="quest-field"><label>שם משפחה</label><input id="insq_spouse_last"></div><div class="quest-field"><label>שם פרטי</label><input id="insq_spouse_first"></div></div>
+          <div class="quest-row"><div class="quest-field"><label>ת.ז</label><input id="insq_spouse_id" inputmode="numeric"></div><div class="quest-field"><label>תאריך לידה</label><input id="insq_spouse_dob" type="date"></div></div>
+          <div class="quest-field"><label>טלפון</label><input id="insq_spouse_phone" type="tel"></div>
+        </div>
+      </div>
+      <!-- ילדים -->
+      <div class="quest-section">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ילדים קטינים</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div id="insq_kids_list"></div>
+          <button class="quest-add-btn" onclick="insqAddKid()">+ הוסף ילד</button>
+        </div>
+      </div>
+      <!-- הכנסות -->
+      <div class="quest-section">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ב — הכנסות</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div class="quest-field"><label>מקצוע</label><input id="insq_occupation"></div>
+          <div class="quest-field"><label>שם המעסיק</label><input id="insq_employer"></div>
+          <div class="quest-field"><label>כתובת עבודה</label><input id="insq_work_address"></div>
+          <div class="quest-field"><label>תאריך תחילת עבודה</label><input id="insq_work_start" type="date"></div>
+          <div class="quest-row"><div class="quest-field"><label>שכר ברוטו ₪</label><input id="insq_salary_gross" inputmode="numeric"></div><div class="quest-field"><label>שכר נטו ₪</label><input id="insq_salary_net" inputmode="numeric"></div></div>
+          <div class="quest-field"><label>מעסיק בן/בת זוג</label><input id="insq_spouse_employer"></div>
+          <div class="quest-row"><div class="quest-field"><label>שכר ברוטו ₪</label><input id="insq_spouse_salary_gross" inputmode="numeric"></div><div class="quest-field"><label>שכר נטו ₪</label><input id="insq_spouse_salary_net" inputmode="numeric"></div></div>
+          <div class="quest-row"><div class="quest-field"><label>קצבת ילדים ₪</label><input id="insq_child_allowance" inputmode="numeric"></div><div class="quest-field"><label>קצבת נכות/זקנה ₪</label><input id="insq_disability" inputmode="numeric"></div></div>
+        </div>
+      </div>
+      <!-- הוצאות -->
+      <div class="quest-section">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ג — הוצאות חודשיות</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div class="quest-row"><div class="quest-field"><label>שכ"ד ₪</label><input id="insq_rent" inputmode="numeric"></div><div class="quest-field"><label>ארנונה ₪</label><input id="insq_arnona" inputmode="numeric"></div></div>
+          <div class="quest-row3"><div class="quest-field"><label>חשמל ₪</label><input id="insq_electric" inputmode="numeric"></div><div class="quest-field"><label>מים ₪</label><input id="insq_water" inputmode="numeric"></div><div class="quest-field"><label>גז ₪</label><input id="insq_gas" inputmode="numeric"></div></div>
+          <div class="quest-row"><div class="quest-field"><label>כלכלה ₪</label><input id="insq_food" inputmode="numeric"></div><div class="quest-field"><label>רכב+דלק ₪</label><input id="insq_car" inputmode="numeric"></div></div>
+          <div class="quest-row"><div class="quest-field"><label>ביגוד ₪</label><input id="insq_clothing" inputmode="numeric"></div><div class="quest-field"><label>חינוך ₪</label><input id="insq_education" inputmode="numeric"></div></div>
+          <div class="quest-field"><label>הוצאות אחרות</label><textarea id="insq_other_exp"></textarea></div>
+        </div>
+      </div>
+      <!-- נושים -->
+      <div class="quest-section">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ד — נושים (חובות)</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div id="insq_creditors_list"></div>
+          <button class="quest-add-btn" onclick="insqAddCreditor()">+ הוסף נושה</button>
+        </div>
+      </div>
+      <!-- נכסים -->
+      <div class="quest-section">
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ו — נכסים</span><span>▾</span></div>
+        <div class="quest-section-body">
+          <div class="quest-field"><label>פרטי רכב</label><textarea id="insq_cars"></textarea></div>
+          <div class="quest-field"><label>חשבונות בנק</label><textarea id="insq_banks"></textarea></div>
+          <div class="quest-field"><label>נדל"ן</label><select id="insq_realestate"><option value="לא">לא</option><option value="כן">כן</option></select></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══ INSOLVENCY QUESTIONNAIRE MODAL ══════════════════════════════ */
+let _insqRowNum = null;
+let _insqKidCount = 0, _insqCredCount = 0;
+
+function openInsQuestModal(rowNum){
+  const c = allClients.find(x=>x.rowNum===rowNum);
+  if(!c) return;
+  _insqRowNum = rowNum;
+  _insqKidCount = 0; _insqCredCount = 0;
+  document.getElementById('insq-client-name').textContent = c.name||'';
+  document.getElementById('insq_kids_list').innerHTML = '';
+  document.getElementById('insq_creditors_list').innerHTML = '';
+  // Fill form
+  const d = c.questData || {};
+  const set = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+  ['last_name','first_name','id','dob','gender','marital','birth_country','aliya_date',
+   'address','zip','apt_rooms','apt_rights','phone','email',
+   'spouse_last','spouse_first','spouse_id','spouse_dob','spouse_phone',
+   'occupation','employer','work_address','work_start','salary_gross','salary_net',
+   'spouse_employer','spouse_salary_gross','spouse_salary_net','child_allowance','disability',
+   'rent','arnona','electric','water','gas','food','car','clothing','education','other_exp',
+   'cars','banks','realestate'
+  ].forEach(k => set('insq_'+k, d[k]));
+  if(Array.isArray(d.children)) d.children.forEach(kid=>{
+    insqAddKid(); const c2=_insqKidCount;
+    set('insq_kid_'+c2+'_last',kid.last); set('insq_kid_'+c2+'_first',kid.first);
+    set('insq_kid_'+c2+'_id',kid.id); set('insq_kid_'+c2+'_dob',kid.dob);
+  });
+  if(Array.isArray(d.creditors)) d.creditors.forEach(cr=>{
+    insqAddCreditor(); const c2=_insqCredCount;
+    set('insq_cred_'+c2+'_name',cr.name); set('insq_cred_'+c2+'_type',cr.type);
+    set('insq_cred_'+c2+'_amount',cr.amount); set('insq_cred_'+c2+'_status',cr.status);
+  });
+  document.getElementById('insq-modal').style.display = 'flex';
+  history.pushState({page:'insq'},'');
+}
+
+function closeInsQuestModal(){
+  document.getElementById('insq-modal').style.display = 'none';
+  _insqRowNum = null;
+}
+
+function insqAddKid(){
+  _insqKidCount++;
+  const n = _insqKidCount;
+  const d = document.createElement('div');
+  d.className = 'quest-creditor'; d.id = 'insq_kid_'+n;
+  d.innerHTML = `<div class="quest-creditor-title">ילד ${n}<button onclick="document.getElementById('insq_kid_${n}').remove()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>
+    <div class="quest-row"><div class="quest-field"><label>שם משפחה</label><input id="insq_kid_${n}_last"></div><div class="quest-field"><label>שם פרטי</label><input id="insq_kid_${n}_first"></div></div>
+    <div class="quest-row"><div class="quest-field"><label>ת.ז</label><input id="insq_kid_${n}_id" inputmode="numeric"></div><div class="quest-field"><label>תאריך לידה</label><input id="insq_kid_${n}_dob" type="date"></div></div>`;
+  document.getElementById('insq_kids_list').appendChild(d);
+}
+
+function insqAddCreditor(){
+  _insqCredCount++;
+  const n = _insqCredCount;
+  const d = document.createElement('div');
+  d.className = 'quest-creditor'; d.id = 'insq_cred_'+n;
+  d.innerHTML = `<div class="quest-creditor-title">נושה ${n}<button onclick="document.getElementById('insq_cred_${n}').remove()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>
+    <div class="quest-row"><div class="quest-field"><label>שם הנושה</label><input id="insq_cred_${n}_name"></div><div class="quest-field"><label>סוג</label><select id="insq_cred_${n}_type"><option>בנקים</option><option>הלוואה חוץ בנקאית</option><option>תאגידים</option><option>אחר</option></select></div></div>
+    <div class="quest-row"><div class="quest-field"><label>סכום ₪</label><input id="insq_cred_${n}_amount" inputmode="numeric"></div><div class="quest-field"><label>מצב</label><select id="insq_cred_${n}_status"><option>טרם ננקטו הליכים</option><option>הוצאה לפועל</option><option>תביעה בבית משפט</option></select></div></div>`;
+  document.getElementById('insq_creditors_list').appendChild(d);
+}
+
+function _insqVal(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+async function saveInsQuestionnaire(){
+  if(!_insqRowNum) return;
+  const kids = [];
+  document.querySelectorAll('[id^="insq_kid_"][id$="_last"]').forEach(el=>{
+    const n = el.id.replace('insq_kid_','').replace('_last','');
+    kids.push({last:_insqVal('insq_kid_'+n+'_last'),first:_insqVal('insq_kid_'+n+'_first'),id:_insqVal('insq_kid_'+n+'_id'),dob:_insqVal('insq_kid_'+n+'_dob')});
+  });
+  const creditors = [];
+  document.querySelectorAll('[id^="insq_cred_"][id$="_name"]').forEach(el=>{
+    const n = el.id.replace('insq_cred_','').replace('_name','');
+    creditors.push({name:_insqVal('insq_cred_'+n+'_name'),type:_insqVal('insq_cred_'+n+'_type'),amount:_insqVal('insq_cred_'+n+'_amount'),status:_insqVal('insq_cred_'+n+'_status')});
+  });
+  const data = {
+    last_name:_insqVal('insq_last_name'),first_name:_insqVal('insq_first_name'),
+    id:_insqVal('insq_id'),dob:_insqVal('insq_dob'),gender:_insqVal('insq_gender'),
+    marital:_insqVal('insq_marital'),birth_country:_insqVal('insq_birth_country'),aliya_date:_insqVal('insq_aliya_date'),
+    address:_insqVal('insq_address'),zip:_insqVal('insq_zip'),apt_rooms:_insqVal('insq_apt_rooms'),apt_rights:_insqVal('insq_apt_rights'),
+    phone:_insqVal('insq_phone'),email:_insqVal('insq_email'),
+    spouse_last:_insqVal('insq_spouse_last'),spouse_first:_insqVal('insq_spouse_first'),
+    spouse_id:_insqVal('insq_spouse_id'),spouse_dob:_insqVal('insq_spouse_dob'),spouse_phone:_insqVal('insq_spouse_phone'),
+    occupation:_insqVal('insq_occupation'),employer:_insqVal('insq_employer'),work_address:_insqVal('insq_work_address'),work_start:_insqVal('insq_work_start'),
+    salary_gross:_insqVal('insq_salary_gross'),salary_net:_insqVal('insq_salary_net'),
+    spouse_employer:_insqVal('insq_spouse_employer'),spouse_salary_gross:_insqVal('insq_spouse_salary_gross'),spouse_salary_net:_insqVal('insq_spouse_salary_net'),
+    child_allowance:_insqVal('insq_child_allowance'),disability:_insqVal('insq_disability'),
+    rent:_insqVal('insq_rent'),arnona:_insqVal('insq_arnona'),electric:_insqVal('insq_electric'),water:_insqVal('insq_water'),gas:_insqVal('insq_gas'),
+    food:_insqVal('insq_food'),car:_insqVal('insq_car'),clothing:_insqVal('insq_clothing'),education:_insqVal('insq_education'),other_exp:_insqVal('insq_other_exp'),
+    creditors, children: kids,
+    cars:_insqVal('insq_cars'),banks:_insqVal('insq_banks'),realestate:_insqVal('insq_realestate'),
+    _savedAt: new Date().toISOString(),
+  };
+  const activeSheet = _potentialMode ? POTENTIAL_SHEET_ID : SHEET_ID;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${activeSheet}/values/ED${_insqRowNum}?valueInputOption=RAW`;
+  const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(data)]]})};
+  showToast('שומר שאלון...','ok');
+  try{
+    await apiFetch(url, opts);
+    // Update local cache
+    const c = allClients.find(x=>x.rowNum===_insqRowNum);
+    if(c) c.questData = data;
+    closeInsQuestModal();
+    showToast('שאלון נשמר','ok');
+  }catch(e){ showToast(e.message||'שגיאה','err'); }
 }
 </script>
 
