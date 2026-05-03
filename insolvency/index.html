@@ -1119,6 +1119,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       <div style="font-size:11px;color:var(--muted);text-align:center;font-weight:600;padding:4px 0">ש</div>
     </div>
     <div id="dp-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;direction:rtl"></div>
+    <!-- Time row — only shown when the picker is opened for a meeting (BV). -->
+    <div id="dp-time-row" style="display:none;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:var(--bg);border:1px solid var(--border)">
+      <label for="dp-time-input" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap">שעת פגישה:</label>
+      <input id="dp-time-input" type="time" step="900"
+        style="flex:1;padding:6px 8px;font-size:14px;font-family:inherit;border:1px solid var(--border);background:var(--white);color:var(--text);direction:ltr;text-align:center"
+        onclick="event.stopPropagation()" />
+    </div>
     <div style="display:flex;gap:6px;margin-top:10px">
       <button onclick="dpSelectToday()" style="flex:1;padding:8px;font-size:12px;font-weight:600;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-family:inherit">היום</button>
       <button onclick="dpClear()" style="flex:1;padding:8px;font-size:12px;font-weight:600;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-family:inherit;color:var(--red)">מחק</button>
@@ -1533,6 +1540,7 @@ const C_AL=37,C_AZ=51;
 // Read+written exactly like docsList (column AC) — same UI block, same flow.
 const C_REPORT_DOCS=52;
 const C_BG=58,C_BH=59,C_BI=60;
+const C_BV=73,C_BW=74,C_BX=75;  // BV=meeting date, BW=start time, BX=end time
 // Customer-area columns. Filled in by the lawyer in the "customer area"
 // modal; read by the customer-facing app to know what's required.
 //   CR = customer login username (typically national ID)
@@ -2104,6 +2112,8 @@ function parseClient(row,rowNum){
   //   service: BG (mailed)            → BG+45 (last)
   const alRaw=g(C_AL);                            // AL = inj end date raw
   const bgRaw=g(C_BG);                            // BG = service mailed date
+  const bvRaw=g(C_BV);                            // BV = meeting date
+  const bwRaw=g(C_BW);                            // BW = meeting start time
   // BD (index 55) — free-text tag for the service section. We take the
   // FIRST LINE only (split on \n) and clip later in the template to fit.
   const bdRaw=(g(55)||'').split(/\r?\n/)[0].trim();
@@ -2292,7 +2302,8 @@ function parseClient(row,rowNum){
     monthlyAmount:monthlyNum,
     currentPayment,
     missedPayments,
-    inCollection, collectReminder, clientStage};
+    inCollection, collectReminder, clientStage,
+    bvRaw, bwRaw};
 }
 
 function parseDate(s){
@@ -2804,6 +2815,8 @@ function renderCards(clients){
                  waiting for approval. _customerPendingCount is computed
                  in parseClient(). -->
             <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}${c.customerPendingCount?`<span class="cust-badge">${c.customerPendingCount}</span>`:''}</button>
+            <!-- Meeting button — opens the date+time picker to set BV/BW/BX -->
+            <button class="log-btn${c.bvRaw?' has-log':''}" onclick="event.stopPropagation();openMeetingPicker(${c.rowNum},this.dataset.bv,this.dataset.bw)" data-bv="${esc(c.bvRaw||'')}" data-bw="${esc(c.bwRaw||'')}" title="קביעת פגישה${c.bvRaw?' — '+esc(c.bvRaw)+(c.bwRaw?' '+esc(c.bwRaw):''):''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="15" x2="12" y2="15" stroke-width="2.5"/></svg>${c.bvRaw?'<span class="log-dot"></span>':''}</button>
           </div>
         </div>
         ${bodyHtml}
@@ -5447,13 +5460,16 @@ let _dpState={
   // Currently-selected day. null until user picks one.
   selDay:null, selMonth:null, selYear:null,
   // Currently-displayed month (may differ from selected after user navigates)
-  viewMonth:null, viewYear:null
+  viewMonth:null, viewYear:null,
+  // true when opened for BV (meeting) — shows the time input row
+  isMeeting:false
 };
 
 function _daysInMonth(y,m){return new Date(y,m,0).getDate();}
 
 // Open the picker. currentValue may be DD/MM/YY or DD/MM/YYYY (or empty).
-function openDatePicker(rowNum, colLetter, label, currentValue){
+// timeValue (optional) is HH:MM — only used when colLetter==='BV'.
+function openDatePicker(rowNum, colLetter, label, currentValue, timeValue){
   const today=new Date();
   let d=null,mo=null,yr=null;
   if(currentValue){
@@ -5463,18 +5479,30 @@ function openDatePicker(rowNum, colLetter, label, currentValue){
       yr=parseInt(m[3],10); if(m[3].length===2) yr=2000+yr;
     }
   }
+  const isMeeting = colLetter==='BV';
   // If no current value, default to today (but don't pre-select — view only)
   _dpState={
     rowNum, colLetter, label,
     selDay:d, selMonth:mo, selYear:yr,
     viewMonth: mo || (today.getMonth()+1),
-    viewYear:  yr || today.getFullYear()
+    viewYear:  yr || today.getFullYear(),
+    isMeeting
   };
   document.getElementById('dp-title').textContent=label||'בחר תאריך';
   const sub=document.getElementById('dp-subtitle');
   if(sub){
     const c=allClients.find(x=>x.rowNum===rowNum);
     sub.textContent=c?c.name:'';
+  }
+  // Show/hide the time row and populate the time input
+  const timeRow=document.getElementById('dp-time-row');
+  const timeInput=document.getElementById('dp-time-input');
+  if(timeRow && timeInput){
+    timeRow.style.display = isMeeting ? 'flex' : 'none';
+    if(isMeeting){
+      // Pre-fill with existing time (HH:MM from BW) or default 09:00
+      timeInput.value = (timeValue && /^\d{2}:\d{2}$/.test(timeValue)) ? timeValue : '09:00';
+    }
   }
   renderDatePicker();
   document.getElementById('date-picker-modal').style.display='flex';
@@ -5544,7 +5572,7 @@ function renderDatePicker(){
 }
 
 async function confirmDatePicker(){
-  const {rowNum, colLetter, label, selDay, selMonth, selYear} = _dpState;
+  const {rowNum, colLetter, label, selDay, selMonth, selYear, isMeeting} = _dpState;
   closeDatePicker();
   showToast('שומר...');
   let url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${colLetter}${rowNum}?valueInputOption=USER_ENTERED`;
@@ -5558,6 +5586,31 @@ async function confirmDatePicker(){
   }
   showToast(selDay?'נשמר':'נמחק','ok');
   apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,label));
+
+  // For BV (meeting date): also write BW (start time) and BX (end = start+1hr)
+  if(isMeeting && selDay && selMonth && selYear){
+    const timeInput = document.getElementById('dp-time-input');
+    const timeVal = timeInput ? timeInput.value : '';
+    if(timeVal && /^\d{2}:\d{2}$/.test(timeVal)){
+      const [h, m] = timeVal.split(':').map(s=>parseInt(s,10));
+      let nh = h+1, nm = m;
+      if(nh >= 24) nh -= 24;
+      const bwUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BW${rowNum}?valueInputOption=USER_ENTERED`;
+      const bxUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BX${rowNum}?valueInputOption=USER_ENTERED`;
+      const bwOpts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[`=TIME(${h},${m},0)`]]})};
+      const bxOpts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[`=TIME(${nh},${nm},0)`]]})};
+      apiFetch(bwUrl, bwOpts).catch(()=>enqueueWrite(bwUrl, bwOpts, 'שעת פגישה - התחלה'));
+      apiFetch(bxUrl, bxOpts).catch(()=>enqueueWrite(bxUrl, bxOpts, 'שעת פגישה - סיום'));
+    }
+  } else if(isMeeting && !(selDay && selMonth && selYear)){
+    // Cleared meeting — also clear BW and BX
+    const bwUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BW${rowNum}?valueInputOption=USER_ENTERED`;
+    const bxUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/BX${rowNum}?valueInputOption=USER_ENTERED`;
+    const clearOpts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[['']]})};
+    apiFetch(bwUrl, clearOpts).catch(()=>enqueueWrite(bwUrl, clearOpts, 'שעת פגישה - התחלה'));
+    apiFetch(bxUrl, clearOpts).catch(()=>enqueueWrite(bxUrl, clearOpts, 'שעת פגישה - סיום'));
+  }
+
   setTimeout(()=>{ if(typeof loadData==='function') loadData(); }, 800);
   // Auto-open Google Calendar for meeting-date columns
   if(selDay && selMonth && selYear && (colLetter==='BV'||colLetter==='Y'||colLetter==='AE')){
@@ -5566,6 +5619,20 @@ async function confirmDatePicker(){
     const pad = n=>String(n).padStart(2,'0');
     const ds = `${selYear}${pad(selMonth)}${pad(selDay)}`;
     const title = encodeURIComponent((label||'פגישה')+(nm?` — ${nm}`:''));
+    // For meetings with a time, build a proper event URL with start/end times
+    if(isMeeting){
+      const timeInput = document.getElementById('dp-time-input');
+      const timeVal = timeInput ? timeInput.value : '';
+      if(timeVal && /^\d{2}:\d{2}$/.test(timeVal)){
+        const [h, m] = timeVal.split(':').map(s=>parseInt(s,10));
+        let nh = h+1, nm2 = m;
+        if(nh >= 24) nh -= 24;
+        const startStr = `${ds}T${pad(h)}${pad(m)}00`;
+        const endStr   = `${ds}T${pad(nh)}${pad(nm2)}00`;
+        window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&dates=${startStr}/${endStr}&text=${title}`,'_blank');
+        return;
+      }
+    }
     window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&dates=${ds}/${ds}&text=${title}`,'_blank');
   }
 }
@@ -5574,6 +5641,25 @@ async function confirmDatePicker(){
 // picker instead of a free-text prompt.
 async function editDateField(rowNum, colLetter, label, currentValue){
   openDatePicker(rowNum, colLetter, label, currentValue);
+}
+
+// Opens the date picker in "meeting" mode (BV), pre-filling the time input
+// with the existing BW value when available.
+function openMeetingPicker(rowNum, bvCurrent, bwCurrent){
+  // bwCurrent is a raw Sheets time value — Google Sheets stores TIME() as a
+  // decimal fraction (e.g. 0.375 = 09:00). Convert to HH:MM for the input.
+  let timeStr = '';
+  if(bwCurrent){
+    const asFloat = parseFloat(bwCurrent);
+    if(!isNaN(asFloat) && asFloat > 0 && asFloat < 1){
+      const totalMin = Math.round(asFloat * 24 * 60);
+      timeStr = String(Math.floor(totalMin/60)).padStart(2,'0') + ':' + String(totalMin%60).padStart(2,'0');
+    } else if(/^\d{1,2}:\d{2}$/.test((bwCurrent||'').trim())){
+      // Already HH:MM
+      timeStr = bwCurrent.trim();
+    }
+  }
+  openDatePicker(rowNum, 'BV', 'קביעת פגישה', bvCurrent||'', timeStr);
 }
 
 async function editDaysField(rowNum, colLetter, label, currentValue){
