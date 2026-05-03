@@ -156,13 +156,21 @@ input,textarea,button{font-family:inherit;}
 .hdr-btn:active{background:var(--border);}
 .hdr-name-wrap{display:flex;flex-direction:column;gap:4px;}
 .hdr-inquiry-btn{
+  background:rgba(26,95,158,0.1);border:1px solid rgba(26,95,158,0.25);color:#1a5f9e;
+  font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;
+  padding:2px 8px;border-radius:10px;height:18px;
+  display:inline-flex;align-items:center;white-space:nowrap;gap:4px;
+  line-height:1;
+}
+.hdr-inquiry-btn:active{background:rgba(26,95,158,0.2);}
+.hdr-collapse-btn{
   background:var(--bg);border:1px solid var(--border);color:var(--muted);
   font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;
   padding:2px 8px;border-radius:10px;height:18px;
   display:inline-flex;align-items:center;white-space:nowrap;
   line-height:1;
 }
-.hdr-inquiry-btn:active{background:var(--border);}
+.hdr-collapse-btn:active{background:var(--border);}
 
 /* ─── INQUIRY MODAL ─── */
 #inquiry-modal{
@@ -609,7 +617,8 @@ input,textarea,button{font-family:inherit;}
     <div class="hdr-right">
       <div class="hdr-name-wrap">
         <span class="hdr-name" id="topbar-name"></span>
-        <button class="hdr-inquiry-btn" id="inquiry-open-btn" onclick="openInquiryModal()">שלח פניה</button>
+        <button class="hdr-inquiry-btn" id="inquiry-open-btn" onclick="openInquiryModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>שלח פניה</button>
+        <button class="hdr-collapse-btn" id="collapse-all-btn" onclick="collapseAll()" title="סגור הכל">סגור הכל</button>
       </div>
       <button class="hdr-btn" onclick="loadData()" title="רענן">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
@@ -1227,6 +1236,8 @@ function _renderReportRow(info, todayMs, isCurrent){
 
   const inquiryBtn = `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num}')" title="שלח פניה בעניין דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--slate,#6c7a8d);background:transparent;color:var(--slate,#6c7a8d);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">פניה</button>`;
 
+  const submitBtn = (!isDone && isCurrent) ? `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num} — בקשת הגשה')" title="הגש דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--green,#2F8550);background:rgba(47,133,80,0.08);color:var(--green,#2F8550);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">הגש דוח</button>` : '';
+
   return `
     <div class="${cls.join(' ')}" onclick="openReport(${info.num})">
       <div class="num">${info.num}</div>
@@ -1241,6 +1252,7 @@ function _renderReportRow(info, todayMs, isCurrent){
         ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
         ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
         <span class="badge">${badge}</span>
+        ${submitBtn}
         ${closeBtn}
         ${inquiryBtn}
       </div>
@@ -1614,12 +1626,19 @@ window.addEventListener('popstate', (e) => {
 });
 
 /* ─── SECTIONS ─── */
+function collapseAll(){
+  Object.keys(sectionState).forEach(k => sectionState[k] = false);
+  currentReportNum = null;
+  render();
+  requestAnimationFrame(() => applySectionState());
+  saveSectionState();
+}
 function toggleSection(name){
   const wasOpen = !!sectionState[name];
   // close all — one card open at a time
   Object.keys(sectionState).forEach(k => sectionState[k] = false);
   if(!wasOpen) sectionState[name] = true;
-  applySectionState();
+  requestAnimationFrame(() => applySectionState());
   saveSectionState();
 }
 function applySectionState(){
