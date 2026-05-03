@@ -119,10 +119,12 @@ header h1{font-size:15px;font-weight:700;}
 </div>
 
 <script>
+const CLIENT_ID  = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const SCOPES     = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 const API_KEY    = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID   = '1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
 const CUST_API   = 'https://script.google.com/macros/s/AKfycbyw2h2n6TNprU2JCNtX8VOLB01eSoFbc8v3KfUbTWAZ3J4r4APnWy3uQ0yWjq6vlXjXaA/exec';
-const ALLOWED    = ['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
+const ALLOWED    = ['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com','avi.t.adv@gmail.com'];
 
 // Column indices (0-based)
 const C_NAME=22, C_PHONE=21, C_TZ=64, C_BL=63, C_BN=65, C_BV=73, C_EC=132;
@@ -138,14 +140,18 @@ window.addEventListener('load', ()=>{
   document.getElementById('login-screen').style.display='flex';
 });
 
-function doLogin(){
-  // OAuth is registered for index.html — redirect there to log in, then come back
-  sessionStorage.setItem('tz_return', location.href);
-  location.href = './';
+function _oauthRedirect(prompt){
+  const base = location.href.replace('tzav.html','');
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id: CLIENT_ID, redirect_uri: base,
+    response_type: 'token', scope: SCOPES,
+    state: 'tzav_return', prompt
+  });
 }
+function doLogin(){ _oauthRedirect('select_account'); }
 function doLoginFresh(){
   ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
-  doLogin();
+  _oauthRedirect('consent select_account');
 }
 function doLogout(){
   ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
