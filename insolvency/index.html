@@ -2892,7 +2892,7 @@ function renderCards(clients){
           }
           </div>
         </div>
-        <div class="card-section" data-section="service">
+        ${(c.clientStage !== 'pre_order' && c.clientStage !== 'commercial') ? `<div class="card-section" data-section="service">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'service')">
             <span class="card-section-chev">▼</span>
             <span class="card-section-icon">${ICON.serviceIcon}</span>
@@ -2930,6 +2930,28 @@ function renderCards(clients){
           </div>
           </div>
         </div>
+        ` : ''}
+        ${(c.clientStage === 'pre_order') ? `<div class="card-section" data-section="questionnaire">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'questionnaire')">
+            <span class="card-section-chev">▼</span>
+            <span class="card-section-icon">${ICON.noteAdd}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">שאלון צו פתיחה</span>
+          </div>
+          <div class="card-section-body">
+            <button onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" style="width:100%;padding:8px;background:var(--bg);border:1px dashed var(--border);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--slate);display:inline-flex;align-items:center;justify-content:center;gap:6px">${ICON.customer} פתח שאלון</button>
+          </div>
+        </div>` : ''}
+        ${(c.clientStage === 'pre_order' || c.clientStage === 'commercial') && c.infoQs && c.infoQs.length ? `<div class="card-section" data-section="info">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'info')">
+            <span class="card-section-chev">▼</span>
+            <span class="card-section-icon">${ICON.question}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">השלמת פרטים</span>
+            <span class="status-badge ${c.infoQs.every(q=>q.status==='approved')?'badge-green':c.infoQs.some(q=>q.status==='uploaded')?'badge-orange':'badge-gray'}" style="margin-inline-start:auto">${c.infoQs.filter(q=>q.status==='approved').length}/${c.infoQs.length}</span>
+          </div>
+          <div class="card-section-body">
+            ${c.infoQs.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border-light,#f0ede8)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.text||'')}</span><span class="status-badge ${q.status==='approved'?'badge-green':q.status==='uploaded'?'badge-orange':'badge-gray'}" style="margin-inline-start:8px;flex-shrink:0">${q.status==='approved'?'אושר':q.status==='uploaded'?'הועלה':'ממתין'}</span></div>`).join('')}
+          </div>
+        </div>` : ''}
       </div>`;
       }
     }
@@ -2943,7 +2965,7 @@ function renderCards(clients){
           <div class="client-info">
             <!-- Name on its own line at the top -->
             <div class="client-name-row"><div class="client-name">${esc(c.name)}</div>
-              ${c.clientStage==='pre_order'?'<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-border);padding:1px 5px;white-space:nowrap;flex-shrink:0">צו פתיחה</span>':''}
+              ${c.clientStage==='pre_order'?'<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-border);padding:1px 5px;white-space:nowrap;flex-shrink:0">צו פתיחה</span>':c.clientStage==='commercial'?'<span style="font-size:10px;font-weight:700;color:var(--slate);background:var(--bg);border:1px solid var(--border);padding:1px 5px;white-space:nowrap;flex-shrink:0">מסחרי</span>':''}
               <!-- 5 status dots: overall, reports, docs, service, injunction -->
               <div class="status-dots" title="סטטוס כללי • דוחות • מסמכים • אישורי מסירה • עיכוב הליכים">
                 <div class="sdot-lg" style="background:${d1}" title="סטטוס כללי"></div>
@@ -2977,7 +2999,12 @@ function renderCards(clients){
                Note: the customer's Drive folder is accessible from inside the
                customer area modal, not as a separate top-level icon. -->
           <div class="client-side-icons">
-            ${_potentialMode ? `<button class="log-btn" onclick="event.stopPropagation();transferToInsolvency(${c.rowNum})" title="העבר לחדלות" style="background:var(--slate);color:#fff;border:none;font-size:9px;font-weight:700;padding:2px">➜חדלות</button>` : `<button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>`}
+            ${_potentialMode
+              ? `<button class="log-btn" onclick="event.stopPropagation();transferToInsolvency(${c.rowNum})" title="העבר לחדלות" style="background:var(--slate);color:#fff;border:none;font-size:9px;font-weight:700;padding:2px">➜חדלות</button>`
+              : collectionMode && c.phone
+                ? `<button class="log-btn wa-btn" onclick="event.stopPropagation();sendCollectionWA('${esc(c.name||'')}','${esc(c.phone||'')}')" title="שלח הודעת גבייה">${ICON.whatsapp}</button>`
+                : `<button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>`
+            }
             <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}${c.customerPendingCount?`<span class="cust-badge">${c.customerPendingCount}</span>`:''}</button>
             <button class="log-btn${c.bvRaw?' has-log':''}" onclick="event.stopPropagation();openMeetingPicker(${c.rowNum},this.dataset.bv,this.dataset.bw)" data-bv="${esc(c.bvRaw||'')}" data-bw="${esc(c.bwRaw||'')}" title="קביעת פגישה${c.bvRaw?' — '+esc(c.bvRaw)+(c.bwRaw?' '+esc(c.bwRaw):''):''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="15" x2="12" y2="15" stroke-width="2.5"/></svg>${c.bvRaw?'<span class="log-dot"></span>':''}</button>
           </div>
@@ -3130,8 +3157,8 @@ function _saveCollapsedSections(state){
 }
 let _collapsedSections = _loadCollapsedSections();
 
-// Default for any card that's never been touched: all 4 sections collapsed
-const _defaultCollapsed = {reports:true, docs:true, service:true, injunction:true};
+// Default for any card that's never been touched: all sections collapsed
+const _defaultCollapsed = {reports:true, docs:true, service:true, injunction:true, questionnaire:true, info:true};
 
 function _getCardCollapsedState(rowNum){
   if(!_collapsedSections[rowNum]){
@@ -5910,6 +5937,14 @@ async function editDateField(rowNum, colLetter, label, currentValue){
 const GREEN_API_INSTANCE = '7103130952';
 const GREEN_API_TOKEN = '8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0';
 
+function sendCollectionWA(name, phone){
+  if(!phone) return;
+  const p = phone.replace(/\D/g,'');
+  const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
+  const msg = encodeURIComponent(`שלום. אבי.\nניסיתי לתפוס אותך בטלפון אולם לא היה מענה.\nמדוע לא משלמים שכר הטרחה?`);
+  window.open(`https://wa.me/${intl}?text=${msg}`, '_blank');
+}
+
 async function _sendInsMeetingWhatsApp(name, phone, dateStr, timeStr){
   if(!phone) return;
   const p = phone.replace(/\D/g,'');
@@ -7950,12 +7985,16 @@ function _updateInquiriesBadge(){
   badge.textContent = n;
   badge.style.display = n ? 'block' : 'none';
 }
+const _iqSlotsMap = {};  // id → slots array, populated when inquiry panel opens
+
 function openInquiriesPanel(){
   const list = document.getElementById('inquiries-list');
   const items = _allInquiries();
   if(!items.length){
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">אין פניות ממתינות</div>';
   } else {
+    // Populate slots map so onclick handlers can look up slots by inquiry ID
+    items.forEach(iq=>{ if(iq.slots&&iq.slots.length) _iqSlotsMap[iq.id]=iq.slots; });
     list.innerHTML = items.map(iq=>{
       const d = new Date(iq.ts);
       const dt = d.toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('he',{hour:'2-digit',minute:'2-digit'});
@@ -7970,10 +8009,10 @@ function openInquiriesPanel(){
         <div style="font-size:13px;margin-bottom:10px;white-space:pre-wrap">${esc(iq.message)}</div>
         ${(iq.slots&&iq.slots.length)?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${iq.slots.map(s=>`<span style="padding:3px 8px;background:#f0f4ff;border:1px solid #c7d6f7;color:#3a5ba0;border-radius:4px;font-size:11px;font-weight:700">📅 ${s.date} ${s.time}</span>`).join('')}</div>`:''}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" style="flex:1;min-width:100px;text-align:center;padding:7px;background:#25d366;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">💬 WhatsApp</a>`:''}
-          ${waPhone?`<a href="https://wa.me/${waPhone}" target="_blank" style="flex:1;min-width:90px;text-align:center;padding:7px;background:#007aff;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">📞 שיחה</a>`:''}
-          ${(iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה'))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','',${JSON.stringify(iq.slots||[])})" style="flex:1;min-width:90px;padding:7px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
-          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:90px;padding:7px;background:var(--slate);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✓ טופל</button>
+          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" class="wa-btn" style="flex:1;min-width:90px;text-align:center;padding:7px;background:#25d366;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px">${ICON.whatsapp} הגב</a>`:''}
+          ${waPhone?`<a href="https://wa.me/${waPhone}" target="_blank" class="phone-btn" style="flex:1;min-width:80px;text-align:center;padding:7px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px">${ICON.phone} שיחה</a>`:''}
+          ${(iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה'))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','',_iqSlotsMap[${JSON.stringify(iq.id)}]||[])" style="flex:1;min-width:80px;padding:7px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
+          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:80px;padding:7px;background:var(--slate);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px">${ICON.check} טופל</button>
         </div>
       </div>`;
     }).join('');

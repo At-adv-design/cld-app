@@ -893,7 +893,7 @@ input,textarea,button{font-family:inherit;}
           <span style="font-size:10px;color:var(--muted);font-weight:400">שיחת טלפון</span>
         </button>
       </div>
-      <button onclick="closeMeetingRequestModal()" style="width:100%;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted);">ביטול</button>
+      <button onclick="closeMeetingRequestModal()" class="inquiry-cancel-btn" style="width:100%">ביטול</button>
     </div>
     <!-- Step 2: choose 3 time slots -->
     <div id="mtg-step-slots" style="display:none">
@@ -917,9 +917,9 @@ input,textarea,button{font-family:inherit;}
           <select id="slot3-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
         </div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="backToMeetingType()" style="flex:1;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted);">חזור</button>
-        <button onclick="submitMeetingSlots()" style="flex:2;padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;background:var(--blue);color:#fff;border:none;border-radius:4px;">שלח בקשה</button>
+      <div class="inquiry-actions">
+        <button onclick="submitMeetingSlots()" class="inquiry-send-btn">שלח בקשה</button>
+        <button onclick="backToMeetingType()" class="inquiry-cancel-btn">חזור</button>
       </div>
     </div>
   </div>
