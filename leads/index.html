@@ -875,7 +875,7 @@ function toggleTheme(){
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
-const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar.readonly';
+const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar';
 const REDIRECT=location.origin+location.pathname;
 
 // Sheet status values stored in column V (per-row)
@@ -1192,7 +1192,7 @@ window.addEventListener('load',()=>{
   // When the user visits the page and their localStorage version
   // doesn't match, we wipe ALL caches and reload — this is the
   // bulletproof way to kick out a stuck old SW. Once per upgrade.
-  const APP_VERSION = 'v86';
+  const APP_VERSION = 'v88';
   if('serviceWorker' in navigator){
     const stored = localStorage.getItem('app_version');
     if(stored !== APP_VERSION){
@@ -4016,37 +4016,24 @@ async function saveMeeting(){
   }
 }
 
-// Fire the Make.com webhook to trigger the meeting automation immediately.
-// We use a regular CORS POST (not no-cors) so the Content-Type:
-// application/json header is actually sent — Make's webhooks normally
-// allow CORS so this works fine and we get a useful response. If CORS
-// were ever to fail we still don't block the user (errors are caught).
-const MEETING_WEBHOOK_URL='https://hook.eu2.make.com/v1f2u71ib68t7rfuiblnx4cg2riqy927';
-function fireMeetingWebhook(payload){
+async function fireMeetingWebhook(payload){
+  // Create Google Calendar event directly instead of using Make.com webhook
   try{
-    fetch(MEETING_WEBHOOK_URL,{
+    const tok = await ensureFreshToken();
+    const body = {
+      summary: `פגישה — ${payload.name||''}`,
+      description: `טלפון: ${payload.phone||''} | מסגרת: ${payload.type||''}`,
+      start: { dateTime: payload.start, timeZone: 'Asia/Jerusalem' },
+      end:   { dateTime: payload.end,   timeZone: 'Asia/Jerusalem' },
+    };
+    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload),
-      keepalive:true
-    }).then(res => {
-      if(res.ok){
-        console.log('Meeting webhook OK:', res.status);
-        // Show a small confirmation that the automation was triggered.
-        // Most users won't notice but it's reassuring when it works.
-        if(typeof showToast === 'function') showToast('האוטומציה הופעלה ✓', 'ok');
-      } else {
-        console.warn('Meeting webhook returned non-OK:', res.status, res.statusText);
-        if(typeof showToast === 'function') showToast('אוטומציה: '+res.status+' '+res.statusText, 'err');
-      }
-    }).catch(err => {
-      console.warn('Meeting webhook fetch failed:', err);
-      if(typeof showToast === 'function') showToast('אוטומציה נכשלה: '+(err.message||err), 'err');
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+tok},
+      body: JSON.stringify(body)
     });
-  }catch(e){
-    console.warn('Meeting webhook threw:', e);
-    if(typeof showToast === 'function') showToast('שגיאה: '+(e.message||e), 'err');
-  }
+    if(res.ok) showToast('אירוע נוסף לקלנדר ✓','ok');
+    else { const err=await res.json(); console.warn('Calendar error:', err); }
+  }catch(e){ console.warn('Calendar create failed:', e); }
 }
 
 let _leadsSheetId=null;

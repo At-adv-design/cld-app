@@ -52,6 +52,7 @@ function doPost(e){
     else if(action === 'unapproveItem')     result = handleUnapproveItem(body);
     else if(action === 'sendInquiry')       result = handleSendInquiry(body);
     else if(action === 'closeReport')       result = handleCloseReport(body);
+    else if(action === 'createCalendarEvent') result = handleCreateCalendarEvent(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -193,8 +194,9 @@ function handleUploadFile(p){
   } else if(p.category === 'info'){
     target = _ensureFolder(inboxFolder, 'השלמת פרטים');
   } else if(p.category === 'pre_order_docs'){
-    const poRoot = _ensureFolder(inboxFolder, 'מסמכי צו פתיחה');
-    target = poRoot;
+    const clientFolder = _ensureFolder(root, clientName);
+    const tzavFolder   = _ensureFolder(clientFolder, 'צו פתיחה');
+    target = tzavFolder;
   } else {
     throw new Error('קטגוריה לא תקינה');
   }
@@ -295,8 +297,133 @@ function handleSaveQuestionnaire(p){
   if(!p.data || typeof p.data !== 'object') throw new Error('נתוני שאלון חסרים');
   p.data._savedAt = new Date().toISOString();
   const sheet = _sheet();
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'לקוח';
   sheet.getRange(t.rowNum, COL.CY_QUEST).setValue(JSON.stringify(p.data));
+  // Also write to a Google Sheet in the client's Drive folder
+  try{ _saveQuestToSheet(clientName, p.data); }catch(e){ Logger.log('Sheet save failed: '+e); }
   return {ok: true};
+}
+
+function _saveQuestToSheet(clientName, d){
+  const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+  const clientFolder = _ensureFolder(root, clientName);
+  const tzavFolder   = _ensureFolder(clientFolder, 'צו פתיחה');
+  const sheetName    = 'שאלון — ' + clientName;
+
+  // Find existing sheet or create new one
+  let ss;
+  const it = tzavFolder.getFilesByName(sheetName);
+  if(it.hasNext()){
+    ss = SpreadsheetApp.open(it.next());
+    ss.getActiveSheet().clearContents();
+  } else {
+    ss = SpreadsheetApp.create(sheetName);
+    DriveApp.getFileById(ss.getId()).moveTo(tzavFolder);
+  }
+  const ws = ss.getActiveSheet();
+
+  const sections = [
+    { title: 'פרטים אישיים', rows: [
+      ['שם משפחה', d.last_name], ['שם פרטי', d.first_name],
+      ['מספר ת.ז', d.id], ['תאריך לידה', d.dob],
+      ['מין', d.gender], ['מצב משפחתי', d.marital],
+      ['ארץ לידה', d.birth_country], ['תאריך עלייה', d.aliya_date],
+      ['כתובת', d.address], ['מיקוד', d.zip],
+      ['חדרים', d.apt_rooms], ['זכויות בדירה', d.apt_rights],
+      ['טלפון', d.phone], ['אימייל', d.email],
+    ]},
+    { title: 'פרטי בן/בת זוג', rows: [
+      ['שם משפחה', d.spouse_last], ['שם פרטי', d.spouse_first],
+      ['ת.ז', d.spouse_id], ['תאריך לידה', d.spouse_dob],
+      ['טלפון', d.spouse_phone],
+    ]},
+    { title: 'תעסוקה', rows: [
+      ['עיסוק', d.occupation], ['מעסיק', d.employer],
+      ['כתובת עבודה', d.work_address], ['תאריך תחילת עבודה', d.work_start],
+      ['משכורת ברוטו', d.salary_gross], ['משכורת נטו', d.salary_net],
+      ['מעסיק בן/בת זוג', d.spouse_employer],
+      ['משכורת בן/בת זוג ברוטו', d.spouse_salary_gross],
+      ['משכורת בן/בת זוג נטו', d.spouse_salary_net],
+      ['קצבת ילדים', d.child_allowance], ['נכות', d.disability],
+    ]},
+    { title: 'הוצאות', rows: [
+      ['שכר דירה', d.rent], ['ארנונה', d.arnona],
+      ['חשמל', d.electric], ['מים', d.water], ['גז', d.gas],
+      ['מזון', d.food], ['רכב', d.car], ['הלבשה', d.clothing],
+      ['חינוך', d.education], ['אחר', d.other_exp],
+    ]},
+    { title: 'נכסים', rows: [
+      ['רכבים', d.cars], ['חשבונות בנק', d.banks],
+      ['נדלן', d.realestate],
+    ]},
+  ];
+
+  let row = 1;
+  // Title row
+  ws.getRange(row, 1, 1, 2).merge().setValue('שאלון לקוח — ' + clientName)
+    .setFontSize(14).setFontWeight('bold')
+    .setBackground('#1a1a2e').setFontColor('#ffffff');
+  ws.getRange(row, 1, 1, 2).setHorizontalAlignment('center');
+  row += 2;
+
+  sections.forEach(sec => {
+    ws.getRange(row, 1, 1, 2).merge().setValue(sec.title)
+      .setFontSize(12).setFontWeight('bold')
+      .setBackground('#3a5ba0').setFontColor('#ffffff');
+    row++;
+    sec.rows.forEach(([label, val]) => {
+      if(!val) return;
+      ws.getRange(row, 1).setValue(label).setFontWeight('bold').setBackground('#f8f9fa');
+      ws.getRange(row, 2).setValue(val);
+      row++;
+    });
+    row++;
+  });
+
+  // Children
+  if(Array.isArray(d.children) && d.children.length){
+    ws.getRange(row, 1, 1, 4).merge().setValue('ילדים')
+      .setFontSize(12).setFontWeight('bold')
+      .setBackground('#3a5ba0').setFontColor('#ffffff');
+    row++;
+    ws.getRange(row, 1).setValue('שם משפחה').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 2).setValue('שם פרטי').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 3).setValue('ת.ז').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 4).setValue('תאריך לידה').setFontWeight('bold').setBackground('#e8edf5');
+    row++;
+    d.children.forEach(kid => {
+      ws.getRange(row,1).setValue(kid.last||'');
+      ws.getRange(row,2).setValue(kid.first||'');
+      ws.getRange(row,3).setValue(kid.id||'');
+      ws.getRange(row,4).setValue(kid.dob||'');
+      row++;
+    });
+    row++;
+  }
+
+  // Creditors
+  if(Array.isArray(d.creditors) && d.creditors.length){
+    ws.getRange(row, 1, 1, 4).merge().setValue('נושים')
+      .setFontSize(12).setFontWeight('bold')
+      .setBackground('#3a5ba0').setFontColor('#ffffff');
+    row++;
+    ws.getRange(row, 1).setValue('שם נושה').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 2).setValue('סוג').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 3).setValue('סכום ₪').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 4).setValue('מצב').setFontWeight('bold').setBackground('#e8edf5');
+    row++;
+    d.creditors.forEach(cr => {
+      ws.getRange(row,1).setValue(cr.name||'');
+      ws.getRange(row,2).setValue(cr.type||'');
+      ws.getRange(row,3).setValue(cr.amount||'');
+      ws.getRange(row,4).setValue(cr.status||'');
+      row++;
+    });
+  }
+
+  ws.setColumnWidth(1, 180);
+  ws.setColumnWidth(2, 300);
+  ws.setRightToLeft(true);
 }
 
 // ─── Action: getQuestionnaire ────────────────────────────────────────
@@ -376,13 +503,26 @@ function handleSendInquiry(p){
   const CZ_INQUIRIES = 136;
   const cell = sheet.getRange(t.rowNum, CZ_INQUIRIES);
   const list = _parseList(cell.getValue());
-  list.push({
+  const entry = {
     id:      Utilities.getUuid(),
     context: p.context || 'כללי',
     message: p.message || '',
     ts:      Date.now(),
     done:    false,
-  });
+  };
+  if(Array.isArray(p.slots) && p.slots.length) entry.slots = p.slots;
+  list.push(entry);
   cell.setValue(JSON.stringify(list));
   return {ok: true};
+}
+
+// ─── Action: createCalendarEvent ─────────────────────────────────────
+function handleCreateCalendarEvent(p){
+  const title = p.title || 'פגישה';
+  const start = new Date(p.start);
+  const end   = new Date(p.end);
+  const description = p.description || '';
+  const cal = CalendarApp.getDefaultCalendar();
+  const event = cal.createEvent(title, start, end, {description});
+  return { eventId: event.getId() };
 }

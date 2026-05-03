@@ -877,21 +877,51 @@ input,textarea,button{font-family:inherit;}
 <!-- MEETING REQUEST MODAL -->
 <div id="meeting-request-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:350;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeMeetingRequestModal()">
   <div style="background:var(--white);width:100%;max-width:480px;padding:20px 16px 24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));">
-    <div style="font-size:16px;font-weight:700;margin-bottom:4px">בקשת פגישה</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">בחר סוג פגישה ונחזור אליך לתיאום</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <button onclick="sendMeetingRequest('פרונטלית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
-        <span style="font-size:24px">🤝</span>
-        <span>פרונטלית</span>
-        <span style="font-size:10px;color:var(--muted);font-weight:400">במשרד</span>
-      </button>
-      <button onclick="sendMeetingRequest('טלפונית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
-        <span style="font-size:24px">📞</span>
-        <span>טלפונית</span>
-        <span style="font-size:10px;color:var(--muted);font-weight:400">שיחת טלפון</span>
-      </button>
+    <!-- Step 1: choose type -->
+    <div id="mtg-step-type">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">בקשת פגישה</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">בחר סוג פגישה</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <button onclick="chooseMeetingType('פרונטלית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <span style="font-size:24px">🤝</span>
+          <span>פרונטלית</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400">במשרד</span>
+        </button>
+        <button onclick="chooseMeetingType('טלפונית')" style="padding:16px 8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:2px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <span style="font-size:24px">📞</span>
+          <span>טלפונית</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400">שיחת טלפון</span>
+        </button>
+      </div>
+      <button onclick="closeMeetingRequestModal()" style="width:100%;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted);">ביטול</button>
     </div>
-    <button onclick="closeMeetingRequestModal()" style="width:100%;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted);">ביטול</button>
+    <!-- Step 2: choose 3 time slots -->
+    <div id="mtg-step-slots" style="display:none">
+      <div style="font-size:16px;font-weight:700;margin-bottom:2px">בחר מועדים אפשריים</div>
+      <div id="mtg-type-label" style="font-size:12px;color:var(--slate);font-weight:600;margin-bottom:12px"></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">בחר עד 3 מועדים שנוחים לך — נאשר אחד מהם</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">מועד 1</span>
+          <input type="date" id="slot1-date" style="flex:1;padding:7px 8px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)">
+          <select id="slot1-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">מועד 2</span>
+          <input type="date" id="slot2-date" style="flex:1;padding:7px 8px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)">
+          <select id="slot2-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">מועד 3</span>
+          <input type="date" id="slot3-date" style="flex:1;padding:7px 8px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)">
+          <select id="slot3-time" style="padding:7px 6px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:13px;color:var(--text)"></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="backToMeetingType()" style="flex:1;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted);">חזור</button>
+        <button onclick="submitMeetingSlots()" style="flex:2;padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;background:var(--blue);color:#fff;border:none;border-radius:4px;">שלח בקשה</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -918,7 +948,7 @@ input,textarea,button{font-family:inherit;}
    CONFIG — paste your deployed Apps Script Web App URL here.
    ═══════════════════════════════════════════════════════════ */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzEJijn50pZZmcuU8DI0b9SuHnhFChZvj32NmuVa9Rqvq7s950FC2zfBAhSyFgihMJ-2w/exec'
+  API_URL: 'https://script.google.com/macros/s/AKfycbwXDMYp5HdJz1H1-e7IIRVdM5tO_uC4conhjpsiADqro-Q9sP2vHYJIq9dNKf0vvAnYEQ/exec'
 };
 
 const STORAGE_KEY      = 'at_customer_session_v1';
@@ -1720,19 +1750,70 @@ function _inquiryContext(){
   return 'כללי';
 }
 let _inquiryContextOverride = null;
+let _meetingType = '';
+const _MTG_TIMES = (()=>{const t=[];for(let h=8;h<=20;h++){t.push(`${String(h).padStart(2,'0')}:00`);if(h<20)t.push(`${String(h).padStart(2,'0')}:30`);}return t;})();
+
+function _populateMtgTimeSelects(){
+  ['slot1-time','slot2-time','slot3-time'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- שעה --</option>' + _MTG_TIMES.map(t=>`<option>${t}</option>`).join('');
+  });
+  // Set default min date to today
+  const today = new Date().toISOString().split('T')[0];
+  ['slot1-date','slot2-date','slot3-date'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.min = today;
+  });
+}
+
 function openMeetingRequestModal(){
+  _populateMtgTimeSelects();
+  document.getElementById('mtg-step-type').style.display='';
+  document.getElementById('mtg-step-slots').style.display='none';
   document.getElementById('meeting-request-modal').style.display='flex';
 }
 function closeMeetingRequestModal(){
   document.getElementById('meeting-request-modal').style.display='none';
 }
-async function sendMeetingRequest(type){
-  closeMeetingRequestModal();
+function chooseMeetingType(type){
+  _meetingType = type;
+  document.getElementById('mtg-type-label').textContent = type === 'פרונטלית' ? '🤝 פרונטלית — במשרד' : '📞 טלפונית';
+  document.getElementById('mtg-step-type').style.display='none';
+  document.getElementById('mtg-step-slots').style.display='';
+}
+function backToMeetingType(){
+  document.getElementById('mtg-step-type').style.display='';
+  document.getElementById('mtg-step-slots').style.display='none';
+}
+
+function _getSlotVal(dateId, timeId){
+  const d = (document.getElementById(dateId)||{}).value||'';
+  const t = (document.getElementById(timeId)||{}).value||'';
+  if(!d||!t) return null;
+  const [y,m,day] = d.split('-');
+  return { date: `${day}/${m}/${y}`, time: t };
+}
+
+async function submitMeetingSlots(){
   if(!currentUser||!currentUser.token){ toast('יש להתחבר תחילה','error'); return; }
-  const msg = `בקשת פגישה ${type}`;
+  const slots = [
+    _getSlotVal('slot1-date','slot1-time'),
+    _getSlotVal('slot2-date','slot2-time'),
+    _getSlotVal('slot3-date','slot3-time'),
+  ].filter(Boolean);
+  if(!slots.length){ toast('יש לבחור לפחות מועד אחד','error'); return; }
+  const slotsText = slots.map((s,i)=>`${i+1}. ${s.date} ${s.time}`).join('\n');
+  const msg = `בקשת פגישה ${_meetingType}\nמועדים מוצעים:\n${slotsText}`;
+  closeMeetingRequestModal();
   try{
-    await api('sendInquiry',{token:currentUser.token, context:'בקשת פגישה', message:msg});
-    toast(`✅ הבקשה נשלחה — ${type}`, 'ok');
+    await api('sendInquiry',{
+      token: currentUser.token,
+      context: `בקשת פגישה ${_meetingType}`,
+      message: msg,
+      slots: slots,
+    });
+    toast(`✅ הבקשה נשלחה — נחזור אליך`, 'ok');
   }catch(e){
     toast(e.message||'שגיאה בשליחה','error');
   }
