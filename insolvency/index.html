@@ -371,6 +371,30 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   font-size:12px;color:var(--text);text-decoration:none;
 }
 
+/* Per-doc deletable row in the client card docs section */
+.card-doc-row{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 8px;
+  background:var(--bg);border:1px solid var(--border);
+  margin-bottom:3px;
+}
+.card-doc-row span{flex:1;min-width:0;font-size:12px;color:var(--text);word-break:break-word;direction:rtl;}
+.card-doc-row-del{
+  flex-shrink:0;background:var(--white);border:1px solid var(--border);
+  color:var(--muted);width:24px;height:24px;display:inline-flex;
+  align-items:center;justify-content:center;cursor:pointer;font-size:14px;
+  font-family:inherit;padding:0;line-height:1;
+}
+.card-doc-row-del:active{background:var(--red-bg);color:var(--red);border-color:var(--red-border);}
+/* Revert-approved button next to an approved file row */
+.rar-revert-btn{
+  align-self:flex-start;margin-top:3px;
+  background:var(--white);border:1px solid var(--border);
+  color:var(--muted);font-size:10px;font-weight:700;font-family:inherit;
+  padding:2px 7px;cursor:pointer;white-space:nowrap;
+}
+.rar-revert-btn:active{background:var(--orange-bg);color:var(--orange);border-color:var(--orange-border);}
+
 /* Rejection note */
 .req-rejection-note{
   padding:5px 8px;
@@ -741,7 +765,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   border-radius:2px;
   pointer-events:none;
   z-index:10000;
-" title="גרסה">v84</span>
+" title="גרסה">v85</span>
 
 <!-- LOGIN -->
 <div id="login-screen">
@@ -2721,12 +2745,14 @@ function renderCards(clients){
             </button>
           </div>
           ${c.docsList
-            ? `<div style="position:relative">
-                 <div onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--text);padding:8px 70px 8px 10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;white-space:pre-wrap;word-break:break-word">${esc(c.docsList)}</div>
-                 <div style="position:absolute;left:6px;top:6px;display:flex;gap:4px">
-                   <button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="ערוך רשימה">${ICON.pencil}</button>
-                   <button onclick="event.stopPropagation();deleteDocsList(${c.rowNum})" style="width:28px;height:28px;background:var(--white);border:1px solid var(--border);color:var(--slate);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-family:inherit" title="מחק רשימה">${ICON.trash}</button>
-                 </div>
+            ? `<div>
+                 ${c.docsList.split('\n').map((line,idx)=>line.trim()?`
+                   <div class="card-doc-row">
+                     <span>${esc(line)}</span>
+                     <button class="card-doc-row-del" onclick="event.stopPropagation();deleteDocRow(${c.rowNum},${idx})" title="מחק שורה">×</button>
+                   </div>`:''
+                 ).join('')}
+                 <button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="margin-top:4px;font-size:11px;color:var(--muted);padding:4px 8px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px">${ICON.pencil}<span>ערוך / הוסף</span></button>
                </div>`
             : `<button onclick="event.stopPropagation();openDocsEdit(${c.rowNum})" style="font-size:12px;color:var(--muted);padding:8px 10px;background:var(--bg);border:1px dashed var(--border);cursor:pointer;font-family:inherit;text-align:right;width:100%;display:inline-flex;align-items:center;gap:6px">${ICON.plus}<span>הוסף רשימת מסמכים</span></button>`
           }
@@ -3541,11 +3567,16 @@ async function rejectCustomerFile(p){
   if(!_custState) return;
   _pendingRejectFile = p;
   document.getElementById('reject-file-name').textContent = p.name || '';
-  document.getElementById('reject-file-textarea').value = '';
+  // Pre-fill a default rejection reason so the lawyer can confirm quickly
+  document.getElementById('reject-file-textarea').value = 'הקובץ אינו ברור — יש להעלות מחדש';
   document.getElementById('reject-file-modal').style.display = 'flex';
   history.pushState({page:'reject-file'},'');
-  // Auto-focus the textarea after modal is shown
-  setTimeout(()=>document.getElementById('reject-file-textarea').focus(), 80);
+  // Auto-focus + select-all so the lawyer can immediately overwrite if needed
+  setTimeout(()=>{
+    const ta = document.getElementById('reject-file-textarea');
+    ta.focus();
+    ta.select();
+  }, 80);
 }
 function closeRejectModal(){
   document.getElementById('reject-file-modal').style.display = 'none';
@@ -3580,6 +3611,29 @@ function previewCustomerFile(p){
     openDrivePreview({id:p.fileId, name:p.name, mimeType:p.mimeType||'', webViewLink:p.url});
   } else if(p.url){
     window.open(p.url, '_blank');
+  }
+}
+
+/* Revert an approved file back to "uploaded" (pending) status.
+   Calls Apps Script unapproveItem action which moves the file back
+   to the client's inbox and removes it from the approved list. */
+async function revertApprovedFile(a){
+  if(!_custState) return;
+  showToast('מבטל אישור…','info');
+  try{
+    const token = await _custGetToken();
+    await _custApi('unapproveItem', {
+      token,
+      fileId: a.fileId,
+      category: a.category,
+      reportNum: a.reportNum || null,
+      reqId: a.reqId,
+      reqText: a.reqText || a.name || '',
+    });
+    showToast('האישור בוטל','ok');
+    await loadCustomerPending();
+  }catch(err){
+    showToast('שגיאה בביטול: '+(err.message||err),'err');
   }
 }
 
@@ -4395,6 +4449,7 @@ function _renderReqAttachments(o){
           <div class="rar-name">
             ${ICON.paper}<span>${esc(a.name||'')}</span>
             <span class="rar-check">✓</span>
+            <button class="rar-revert-btn" onclick="revertApprovedFile(${_jsArg(a)})" title="בטל אישור">בטל אישור</button>
           </div>
           ${a.url ? `<a class="rar-url" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a>` : ''}
         </div>`).join('')}
@@ -5729,6 +5784,21 @@ async function deleteDocsList(rowNum){
   c.docsList='';
   applyFilters();
   await _writeCellBlank(rowNum,'AC','רשימת מסמכים');
+}
+
+/* Delete a single line (by index) from the AC docs list. */
+async function deleteDocRow(rowNum, idx){
+  const c=allClients.find(x=>x.rowNum===rowNum);
+  if(!c) return;
+  const lines=(c.docsList||'').split('\n');
+  lines.splice(idx,1);
+  const newVal=lines.join('\n');
+  c.docsList=newVal;
+  if(typeof applyFilters==='function') applyFilters();
+  showToast('נמחק','ok');
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/AC${rowNum}?valueInputOption=RAW`;
+  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'מסמכים'));
 }
 
 async function deleteReportDocs(rowNum){

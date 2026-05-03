@@ -11,6 +11,8 @@
 <!-- version badge -->
 <style>
 #app-version-tag{position:fixed;top:calc(2px + env(safe-area-inset-top));right:4px;font-size:9px;color:#999;font-weight:700;font-family:monospace;padding:1px 4px;background:rgba(255,255,255,0.85);border-radius:2px;pointer-events:none;z-index:10000;}
+[data-theme="dark"] .hdr-btn svg,
+[data-theme="dark"] button svg { color:#fff; }
 /* Questionnaire styles */
 .quest-section{margin:0 0 12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
 .quest-section-head{background:var(--slate);color:#fff;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
@@ -47,7 +49,7 @@
   --slate:#3A3A48;
   --border:#E5E2D8;
   --border-strong:#C9C5B8;
-  --red:#C8362A;
+  --red:#8B2020;
   --red-bg:#FBEEEC;
   --red-border:#E8C4BF;
   --green:#2F8550;
