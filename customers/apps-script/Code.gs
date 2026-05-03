@@ -51,6 +51,7 @@ function doPost(e){
     else if(action === 'rejectItem')        result = handleRejectItem(body);
     else if(action === 'unapproveItem')     result = handleUnapproveItem(body);
     else if(action === 'sendInquiry')       result = handleSendInquiry(body);
+    else if(action === 'closeReport')       result = handleCloseReport(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -262,6 +263,28 @@ function handleRemoveFile(p){
     if(!req.files.length && req.status === 'uploaded') req.status = 'pending';
     cell.setValue(JSON.stringify(list));
   }
+  return {ok: true};
+}
+
+// ─── Action: closeReport ─────────────────────────────────────────────
+function handleCloseReport(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!p.reportNum) throw new Error('מספר דוח חסר');
+  const sheet = _sheet();
+  const repCell = sheet.getRange(t.rowNum, COL.CU_REPORTS);
+  const repList = _parseList(repCell.getValue());
+  repList.forEach(req => {
+    if((req.reportNum||null) === p.reportNum){
+      req.locked = true;
+      req.closedAt = Date.now();
+    }
+  });
+  repCell.setValue(JSON.stringify(repList));
+  const sigsCell = sheet.getRange(t.rowNum, 138);  // EH
+  const sigs = _parseObj(sigsCell.getValue()) || {};
+  sigs['rep_' + p.reportNum] = {ts: Date.now()};
+  sigsCell.setValue(JSON.stringify(sigs));
   return {ok: true};
 }
 

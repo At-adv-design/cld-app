@@ -355,6 +355,27 @@ input,textarea,button{font-family:inherit;}
 }
 .report-excel-btn:active{transform:scale(.9);background:var(--white);}
 .report-excel-btn svg{width:14px;height:14px;}
+.report-close-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;font-size:11px;font-weight:600;
+  background:#e8e8ec;color:#555;border:1px solid #ccc;
+  border-radius:4px;cursor:pointer;
+  transition:background .12s;
+}
+.report-close-btn:active{background:#d0d0d6;}
+.docs-month-filter{
+  display:flex;gap:6px;padding:0 0 10px;flex-wrap:wrap;
+}
+.docs-month-pill{
+  padding:4px 12px;font-size:12px;font-weight:600;
+  border:1.5px solid var(--border);border-radius:20px;
+  background:var(--white);color:var(--muted);cursor:pointer;
+  transition:background .12s, border-color .12s, color .12s;
+}
+.docs-month-pill.active{
+  background:var(--slate);color:#fff;border-color:var(--slate);
+}
+.docs-month-pill:active{opacity:.8;}
 /* The clickable approved-row variant — visual hint that it opens a viewer */
 .approved-row.clickable{cursor:pointer;}
 .approved-row.clickable:active{background:rgba(0,0,0,.04);}
@@ -1194,6 +1215,13 @@ function _renderReportRow(info, todayMs, isCurrent){
       </svg>
     </a>` : '';
 
+  const approvedCount = (r.approved||[]).length;
+  const closeBtn = (!isDone && approvedCount > 0) ? `
+    <button class="report-close-btn" onclick="event.stopPropagation();openSignModal(${info.num})" title="סגור דוח">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:middle"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      סגור דוח
+    </button>` : '';
+
   return `
     <div class="${cls.join(' ')}" onclick="openReport(${info.num})">
       <div class="num">${info.num}</div>
@@ -1208,6 +1236,7 @@ function _renderReportRow(info, todayMs, isCurrent){
         ${pendingC?`<span class="report-pending-pill">ממתין ${pendingC}</span>`:''}
         ${rejC?`<span class="report-rejected-pill">נדחה ${rejC}</span>`:''}
         <span class="badge">${badge}</span>
+        ${closeBtn}
       </div>
     </div>`;
 }
@@ -1300,10 +1329,32 @@ function renderReportDetail(){
    Approved files come from DK.
    Pending uploads come from dataPending (category='docs').
 */
+let _docsMonthFilter = 0; // 0=all, 1=month1, 2=month2
+function setDocsMonthFilter(val){
+  _docsMonthFilter = val;
+  renderDocs();
+}
+
 function renderDocs(){
   const list=$('docs-list');
-  const required = dataDocsRequired || [];
+  const allRequired = dataDocsRequired || [];
   const approved = dataDocsApproved || [];
+
+  // Check if any requirement has a month field — if so show filter pills
+  const hasMonths = allRequired.some(req => req.month === 1 || req.month === 2);
+
+  // Apply month filter
+  const required = (_docsMonthFilter === 0 || !hasMonths)
+    ? allRequired
+    : allRequired.filter(req => !req.month || req.month === _docsMonthFilter);
+
+  // Build filter pills HTML
+  const filterPillsHtml = hasMonths ? `
+    <div class="docs-month-filter">
+      <button class="docs-month-pill${_docsMonthFilter===0?' active':''}" onclick="setDocsMonthFilter(0)">הכל</button>
+      <button class="docs-month-pill${_docsMonthFilter===1?' active':''}" onclick="setDocsMonthFilter(1)">חודש 1</button>
+      <button class="docs-month-pill${_docsMonthFilter===2?' active':''}" onclick="setDocsMonthFilter(2)">חודש 2</button>
+    </div>` : '';
 
   const cards = required.map(req => {
     return buildReqCard({
@@ -1318,28 +1369,29 @@ function renderDocs(){
   }).join('');
 
   // Orphan approved (approved files for requirements that no longer exist)
-  const orphanApproved = approved.filter(a => !required.some(req => req.id === a.reqId));
+  // Use allRequired so orphan detection isn't affected by the month filter
+  const orphanApproved = approved.filter(a => !allRequired.some(req => req.id === a.reqId));
   const orphanApprovedHtml = orphanApproved.length ? `
     <div class="req-card approved">
       <div class="req-text">קבצים שאושרו</div>
       <div class="file-pills">${orphanApproved.map(a => buildFilePillApproved(a)).join('')}</div>
     </div>` : '';
 
-  // Orphan pending
-  const orphanPending = dataPending.filter(p =>
-    p.category==='docs' && !required.some(req => req.id === p.reqId)
-  );
+  // Orphan pending — only show when filter is "all" to avoid confusion
+  const orphanPending = (_docsMonthFilter === 0) ? dataPending.filter(p =>
+    p.category==='docs' && !allRequired.some(req => req.id === p.reqId)
+  ) : [];
   const orphanPendingHtml = orphanPending.length ? `
     <div class="req-card pending">
       <div class="req-text">קבצים נוספים שהעלית</div>
       <div class="file-pills">${orphanPending.map(p => buildFilePillPending(p)).join('')}</div>
     </div>` : '';
 
-  list.innerHTML = (cards + orphanPendingHtml + orphanApprovedHtml) ||
-    '<div class="empty">אין מסמכים נדרשים</div>';
+  list.innerHTML = filterPillsHtml + ((cards + orphanPendingHtml + orphanApprovedHtml) ||
+    '<div class="empty">אין מסמכים נדרשים</div>');
 
-  const totalReq = required.length;
-  const approvedReqs = required.filter(req => approved.some(a => a.reqId === req.id)).length;
+  const totalReq = allRequired.length;
+  const approvedReqs = allRequired.filter(req => approved.some(a => a.reqId === req.id)).length;
   $('docs-meta').textContent = totalReq ? `${approvedReqs} מתוך ${totalReq} אושרו` : 'אין נתונים';
 
   const pendingCount = pendingCountFor('docs', null);
@@ -2062,6 +2114,70 @@ async function saveQuestionnaire(){
   }finally{
     showLoading(false);
   }
+}
+</script>
+
+<!-- Signature modal for report close flow -->
+<div id="sign-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:500px;border-radius:16px 16px 0 0;padding:16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+      <span id="sign-title" style="font-weight:700;font-size:15px">חתימה על דוח</span>
+      <button onclick="closeSignModal()" style="background:none;border:none;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:12px;color:#888;margin-bottom:10px">חתום בתיבה למטה לאישור הדוח. לאחר האישור לא יהיה ניתן לשנות מסמכים.</p>
+    <canvas id="sign-canvas" style="border:2px solid #e0e0e0;border-radius:8px;width:100%;height:160px;display:block;touch-action:none;background:#fafafa"></canvas>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="clearSignature()" style="flex:1;padding:10px;background:#f0f0f0;border:none;border-radius:6px;font-size:13px;cursor:pointer">נקה</button>
+      <button onclick="confirmSign()" style="flex:1;padding:10px;background:#1a7f4b;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">אשר וסגור דוח</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _signReportNum = null, _signCtx = null, _signing = false;
+function openSignModal(num){
+  _signReportNum = num;
+  document.getElementById('sign-title').textContent = 'חתימה — אישור דוח ' + num;
+  document.getElementById('sign-modal').style.display = 'flex';
+  const canvas = document.getElementById('sign-canvas');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight || 160;
+  _signCtx = canvas.getContext('2d');
+  _signCtx.strokeStyle = '#1a1a2e';
+  _signCtx.lineWidth = 2.5;
+  _signCtx.lineCap = 'round';
+  _signing = false;
+  canvas.addEventListener('pointerdown', _signStart);
+  canvas.addEventListener('pointermove', _signMove);
+  canvas.addEventListener('pointerup', ()=>_signing=false);
+}
+function _signStart(e){
+  _signing=true;
+  const r=e.target.getBoundingClientRect();
+  _signCtx.beginPath();
+  _signCtx.moveTo(e.clientX-r.left, e.clientY-r.top);
+}
+function _signMove(e){
+  if(!_signing) return;
+  const r=e.target.getBoundingClientRect();
+  _signCtx.lineTo(e.clientX-r.left, e.clientY-r.top);
+  _signCtx.stroke();
+}
+function clearSignature(){ if(_signCtx){ const c=document.getElementById('sign-canvas'); _signCtx.clearRect(0,0,c.width,c.height); }}
+function closeSignModal(){ document.getElementById('sign-modal').style.display='none'; _signReportNum=null; }
+async function confirmSign(){
+  const canvas = document.getElementById('sign-canvas');
+  const sigData = canvas.toDataURL('image/png');
+  if(sigData === canvas.toDataURL('image/png', 0) || !_signReportNum) return;
+  closeSignModal();
+  showLoading(true);
+  try{
+    await api('closeReport', {token: currentUser.token, reportNum: _signReportNum, signature: sigData});
+    toast('הדוח אושר וננעל', 'success');
+    await loadData(true);
+  }catch(e){
+    toast('שגיאה: ' + (e.message||''), 'error');
+  }finally{ showLoading(false); }
 }
 </script>
 </body>
