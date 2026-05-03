@@ -8,11 +8,13 @@
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#3a3a48">
 <title>תיק שלי — אבי טל ושות׳</title>
-<!-- screen capture prevention -->
-<style>:root{-webkit-user-select:none;user-select:none;}</style>
+<!-- screen capture prevention + image drag/save lock -->
+<style>:root{-webkit-user-select:none;user-select:none;}
+img{pointer-events:none;-webkit-user-drag:none;user-drag:none;}
+</style>
 <!-- version badge -->
 <style>
-#app-version-tag{position:fixed;top:calc(2px + env(safe-area-inset-top));right:4px;font-size:9px;color:#999;font-weight:700;font-family:monospace;padding:1px 4px;background:rgba(255,255,255,0.85);border-radius:2px;pointer-events:none;z-index:10000;}
+#app-version-tag{position:fixed;top:calc(2px + env(safe-area-inset-top));right:4px;font-size:9px;color:#888;font-weight:700;font-family:monospace;padding:1px 4px;background:rgba(255,255,255,0.85);border-radius:2px;pointer-events:none;z-index:10000;}
 [data-theme="dark"] .hdr-btn svg,
 [data-theme="dark"] button svg { color:#fff; }
 /* Questionnaire styles */
@@ -37,7 +39,7 @@
 <link rel="apple-touch-icon" href="../icon.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
 <!-- pdf-lib for converting images to PDF and merging multiple images
      into a single PDF before upload. Loaded async so it doesn't block
      the initial render. -->
@@ -240,6 +242,7 @@ input,textarea,button{font-family:inherit;}
 }
 .section-icon svg{width:16px;height:16px;}
 .section-title{font-size:14px;font-weight:700;color:var(--text);}
+.section-title,.hdr-name{font-family:'Frank Ruhl Libre',serif;}
 .section-meta{font-size:11px;color:var(--muted);font-weight:500;}
 .section-chev{
   width:18px;height:18px;color:var(--muted);
@@ -584,7 +587,7 @@ input,textarea,button{font-family:inherit;}
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-box">
-    <img src="../logo.png?v=3" alt="אבי טל ושות׳" class="login-logo">
+    <img src="../logo.png?v=3" alt="אבי טל ושות׳" class="login-logo" draggable="false">
     <div class="login-title">תיק שלי</div>
     <div class="login-sub">אבי טל ושות׳ — משרד עורכי דין</div>
     <div id="login-error" class="login-error"></div>
@@ -613,7 +616,7 @@ input,textarea,button{font-family:inherit;}
       </button>
       <div class="avatar" id="user-avatar" onclick="doLogout()" title="יציאה"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" class="header-logo" onerror="this.style.display='none'">
+    <img src="../logo.png" alt="אבי טל ושות׳" class="header-logo" draggable="false" onerror="this.style.display='none'">
   </div>
   <div class="content">
 
@@ -1531,11 +1534,11 @@ function buildFilePillPending(p){
   const fileId = p.fileId || _extractFileIdFromUrl(p.url||'');
   const openAttr = fileId
     ? `onclick="event.preventDefault();openInAppViewer('${esc(fileId)}', '${esc(p.name||'')}', '${esc(p.url||'')}')"`
-    : '';
+    : `onclick="event.preventDefault()"`;
   return `
     <div class="file-pill" data-file-id="${esc(p.fileId)}">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <a class="nm" href="${esc(p.url)}" target="_blank" rel="noopener" ${openAttr}>${esc(p.name)}</a>
+      <a class="nm" href="#" ${openAttr}>${esc(p.name)}</a>
       <button class="rm" onclick="removeFile('${esc(p.fileId)}','${esc(p.category||'')}','${esc(p.reqId||'')}');" title="הסר">✕</button>
     </div>`;
 }
