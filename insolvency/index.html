@@ -3790,17 +3790,17 @@ function renderCustomerArea(){
       </button>
     `)}
 
-    ${sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody())}
+    ${_custState.stage !== 'pre_order' ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody()) : ''}
 
     ${sect('docs', 'השלמת מסמכים', docsBadge, `
       ${_renderSupplDocsList()}
       <button class="req-add-btn" onclick="addSupplDocRow()" style="margin-top:6px">+ הוסף שדה</button>
     `)}
 
-    ${sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
+    ${_custState.stage !== 'pre_order' ? sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
       ${_renderInfoQAList()}
       <button class="req-add-btn" onclick="addInfoQuestion()" style="margin-top:6px">+ הוסף שאלה</button>
-    `)}
+    `) : ''}
 
     ${sect('creds', 'שם משתמש וסיסמה ללקוח', credsBadge, `
       <div class="cust-creds">

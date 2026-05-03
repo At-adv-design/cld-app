@@ -699,7 +699,7 @@ input,textarea,button{font-family:inherit;}
   </div>
 </div>
 
-<span id="app-version-tag" title="גרסה">v2</span>
+<span id="app-version-tag" title="גרסה">v3</span>
 
 <!-- QUESTIONNAIRE (pre_order stage) -->
 <div id="sec-questionnaire" class="section" style="display:none">
@@ -1201,16 +1201,20 @@ function renderReports(){
 function _renderReportRow(info, todayMs, isCurrent){
   const r = dataReports.find(x=>x.num===info.num) || {required:[], approved:[]};
   const isDone = !!info.status;
+  // A report is locked when it has been signed/closed — indicated by any
+  // requirement carrying locked:true, OR when the report itself is marked done.
+  const isLocked = isDone || (r.required||[]).some(req=>req.locked===true);
   const reqCount = (r.required||[]).length;
   const pendingC = dataPending.filter(p=>p.category==='reports'&&(p.reportNum||null)===info.num).length;
   const rejC = dataRejections.filter(rj=>rj.category==='reports'&&(rj.reportNum||null)===info.num).length;
 
   const cls = ['report-row'];
+  if(isLocked) cls.push('locked');
   if(isDone) cls.push('done');
   else cls.push('active');
   if(isCurrent) cls.push('is-current');
 
-  const badge = isDone ? esc(info.status) : (isCurrent ? 'להגשה' : 'טרם');
+  const badge = isLocked ? 'נסגר' : (isDone ? esc(info.status) : (isCurrent ? 'להגשה' : 'טרם'));
 
   const meta=[];
   if(info.dateText) meta.push('תאריך: '+esc(info.dateText));
@@ -1228,7 +1232,10 @@ function _renderReportRow(info, todayMs, isCurrent){
     </a>` : '';
 
   const approvedCount = (r.approved||[]).length;
-  const closeBtn = (!isDone && approvedCount > 0) ? `
+  // If locked: replace close button with a "נסגר ✓" label (disabled)
+  const closeBtn = isLocked
+    ? `<span class="report-close-btn" style="opacity:.45;cursor:not-allowed;pointer-events:none;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border:1px solid var(--border);">🔒 נסגר ✓</span>`
+    : (!isDone && approvedCount > 0) ? `
     <button class="report-close-btn" onclick="event.stopPropagation();openSignModal(${info.num})" title="סגור דוח">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:middle"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       סגור דוח
@@ -1236,14 +1243,19 @@ function _renderReportRow(info, todayMs, isCurrent){
 
   const inquiryBtn = `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num}')" title="שלח פניה בעניין דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--slate,#6c7a8d);background:transparent;color:var(--slate,#6c7a8d);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">פניה</button>`;
 
-  const submitBtn = (!isDone && isCurrent) ? `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num} — בקשת הגשה')" title="הגש דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--green,#2F8550);background:rgba(47,133,80,0.08);color:var(--green,#2F8550);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">הגש דוח</button>` : '';
+  // If locked: show "הגש דוח" greyed out (disabled, non-clickable)
+  const submitBtn = isLocked
+    ? (isCurrent ? `<button class="report-inquiry-btn" disabled style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:not-allowed;font-family:inherit;font-weight:600;white-space:nowrap;opacity:.45">הגש דוח</button>` : '')
+    : (!isDone && isCurrent) ? `<button class="report-inquiry-btn" onclick="event.stopPropagation();openInquiryModal('דוחות — דוח ${info.num} — בקשת הגשה')" title="הגש דוח ${info.num}" style="font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid var(--green,#2F8550);background:rgba(47,133,80,0.08);color:var(--green,#2F8550);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">הגש דוח</button>` : '';
+
+  const lockBadge = isLocked ? `<span style="font-size:12px;margin-inline-end:2px" title="דוח נסגר">🔒</span>` : '';
 
   return `
     <div class="${cls.join(' ')}" onclick="openReport(${info.num})">
       <div class="num">${info.num}</div>
       <div class="info">
         <div class="ttl">
-          <span>דוח ${info.num}</span>
+          <span>${lockBadge}דוח ${info.num}</span>
           ${excelBtn}
         </div>
         <div class="dt">${meta.join(' • ')||'&nbsp;'}</div>
