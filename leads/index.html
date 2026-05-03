@@ -721,6 +721,16 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .cal-hour-content{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;}
 .cal-hour-row.cal-hour-now{background:rgba(58,91,176,.06);}
 .cal-hour-row.cal-hour-now .cal-hour-label{color:var(--blue,#3A5BB0);}
+/* Bookable empty slot */
+.cal-hour-row.cal-hour-bookable{cursor:pointer;transition:background .12s;}
+.cal-hour-row.cal-hour-bookable:hover,.cal-hour-row.cal-hour-bookable:active{background:rgba(26,122,69,.08);}
+.cal-hour-book-hint{
+  font-size:10px;color:var(--muted);opacity:0;
+  transition:opacity .12s;padding:3px 0;user-select:none;
+  display:flex;align-items:center;gap:3px;
+}
+.cal-hour-row.cal-hour-bookable:hover .cal-hour-book-hint,
+.cal-hour-row.cal-hour-bookable:active .cal-hour-book-hint{opacity:1;}
 </style>
 
 <div id="meeting-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.45);z-index:340;align-items:flex-end;backdrop-filter:blur(4px);">
@@ -3052,6 +3062,34 @@ function closeCalendarOverlay(){
   // user complained about.
 }
 
+// Called when the user taps an empty hour slot in the calendar day view.
+// Closes the calendar overlay, updates the meeting time picker, and shows a toast.
+function _calBookSlot(hour){
+  closeCalendarOverlay();
+
+  // If calendar was opened standalone (no meeting dialog), nothing more to do.
+  if(document.getElementById('meeting-modal').style.display !== 'flex') return;
+
+  // Sync the selected calendar date back into _meetingPick so the date
+  // also updates if the user browsed to a different day in the calendar.
+  if(_calSelected){
+    const parts = _calSelected.split('-').map(Number);  // [YYYY, MM, DD]
+    if(parts.length === 3 && !isNaN(parts[0])){
+      _meetingPick.year  = parts[0];
+      _meetingPick.month = parts[1];
+      _meetingPick.day   = parts[2];
+      renderCalendar();
+    }
+  }
+
+  // Set the hour (on-the-hour, 0 minutes).
+  const clampedHour = Math.max(8, Math.min(20, hour));
+  pickTime(clampedHour, 0);  // updates _meetingPick, re-renders slots, syncs hidden inputs
+
+  const hh = String(clampedHour).padStart(2, '0');
+  showToast('שעה ' + hh + ':00 נבחרה', 'ok');
+}
+
 function _calFmtDay(d){
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');
@@ -3167,8 +3205,12 @@ function _calRenderDay(){
 
   const list = document.getElementById('cal-events-list');
   if(!events.length){
-    list.innerHTML = '<div class="cal-empty">אין אירועים ביום זה — פנוי</div>';
-    return;
+    const _meetingOpenEmpty = document.getElementById('meeting-modal').style.display === 'flex';
+    if(!_meetingOpenEmpty){
+      list.innerHTML = '<div class="cal-empty">אין אירועים ביום זה — פנוי</div>';
+      return;
+    }
+    // Meeting dialog is open — fall through to render the full bookable grid
   }
 
   // Build a clear time-grid layout. Hours from 8:00 to 22:00, each hour
@@ -3196,6 +3238,8 @@ function _calRenderDay(){
   }
 
   // Group timed events by hour
+  // Check if the calendar was opened from within the meeting dialog
+  const _meetingOpen = document.getElementById('meeting-modal').style.display === 'flex';
   html += '<div class="cal-hourgrid">';
   for(let h = HOUR_START; h <= HOUR_END; h++){
     const hourEvents = timed.filter(ev => {
@@ -3204,11 +3248,18 @@ function _calRenderDay(){
     });
     const isCurrent = (date.toDateString() === new Date().toDateString())
       && new Date().getHours() === h;
+    const isEmpty = hourEvents.length === 0;
+    const bookable = isEmpty && _meetingOpen;
+    const bookAttr = bookable ? ` onclick="_calBookSlot(${h})"` : '';
+    const bookClass = (isCurrent ? ' cal-hour-now' : '') + (bookable ? ' cal-hour-bookable' : '');
     html += `
-      <div class="cal-hour-row${isCurrent?' cal-hour-now':''}">
+      <div class="cal-hour-row${bookClass}"${bookAttr}>
         <div class="cal-hour-label">${String(h).padStart(2,'0')}:00</div>
         <div class="cal-hour-content">
-          ${hourEvents.length ? hourEvents.map(ev => {
+          ${isEmpty && bookable
+            ? `<div class="cal-hour-book-hint">＋ לחץ לקביעת פגישה</div>`
+            : ''}
+          ${!isEmpty ? hourEvents.map(ev => {
             const startT = _calNiceTime(ev.start.dateTime || ev.start.date);
             const endT   = _calNiceTime(ev.end && (ev.end.dateTime || ev.end.date));
             const time = endT ? startT+' – '+endT : startT;
