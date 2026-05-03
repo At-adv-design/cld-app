@@ -644,7 +644,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 #log-modal.open,#log-edit-modal.open,#bd-edit-modal.open,#customer-area-modal.open{display:flex;flex-direction:column;}
 #log-edit-modal{z-index:310;}
 #bd-edit-modal{z-index:312;}
-#customer-area-modal{z-index:308;}
+#customer-area-modal{z-index:410;}
 #log-add-modal{display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:320;align-items:flex-end;backdrop-filter:blur(4px);}
 #log-add-modal.open{display:flex;}
 /* Fullscreen sheet for the viewer + editor */
@@ -6544,18 +6544,21 @@ window.addEventListener('popstate',()=>{
   // the tasks-section triple-back pattern). The × button exits immediately.
   if(_focusCard){
     _backPressCount++;
-    history.pushState({page:'focus'}, '');
     if(_backPressCount < 3){
+      // Re-push focus state so app doesn't navigate back
+      history.pushState({page:'focus'}, '');
       showToast(`לחץ ${3-_backPressCount} פעמים נוספות לצאת ממיקוד`);
       clearTimeout(_backPressTimer);
       _backPressTimer = setTimeout(()=>{ _backPressCount=0; }, 1500);
       return;
     }
     _backPressCount = 0;
-    // Three presses — exit focus mode
+    clearTimeout(_backPressTimer);
+    // Single press — just exit focus mode (button × equivalent)
     if(_focusCard){ _focusCard.classList.remove('focused'); }
     document.body.classList.remove('focus-mode-active');
     _focusCard = null;
+    // history was already popped by the back press, don't push more
     return;
   }
   // Calendar overlay — TOP-MOST. When open, back-press should close
