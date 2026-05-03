@@ -1979,6 +1979,8 @@ window.addEventListener('load',()=>{
       localStorage.setItem('ite',(Date.now()+(exp-120)*1000).toString());
       localStorage.setItem('isc',scope);
       history.replaceState(null,'',location.pathname);
+      const tzReturn=sessionStorage.getItem('tz_return');
+      if(tzReturn){sessionStorage.removeItem('tz_return');location.href=tzReturn;return;}
       fetchUserInfo();showApp();loadData();return;
     }
   }

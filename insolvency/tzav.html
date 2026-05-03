@@ -119,12 +119,10 @@ header h1{font-size:15px;font-weight:700;}
 </div>
 
 <script>
-const CLIENT_ID  = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY    = 'AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID   = '1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
-const SCOPES     = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
-const REDIRECT   = location.href.split('#')[0].split('?')[0];
 const CUST_API   = 'https://script.google.com/macros/s/AKfycbyw2h2n6TNprU2JCNtX8VOLB01eSoFbc8v3KfUbTWAZ3J4r4APnWy3uQ0yWjq6vlXjXaA/exec';
+const ALLOWED    = ['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
 
 // Column indices (0-based)
 const C_NAME=22, C_PHONE=21, C_TZ=64, C_BL=63, C_BN=65, C_BV=73, C_EC=132;
@@ -132,37 +130,25 @@ const C_CR=95, C_CS=96; // customer username/password
 
 let accessToken='', clients=[], openNotes={};
 
-/* ── Auth ─────────────────────────────────────────────────────────────── */
-function g(k){ return localStorage.getItem(k)||''; }
-function s(k,v){ localStorage.setItem(k,v); }
-
+/* ── Auth — shares token with insolvency/index.html (keys: it / ite) ──── */
 window.addEventListener('load', ()=>{
-  const hash = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
-  if(hash.access_token){
-    accessToken = hash.access_token;
-    s('tz_lt', accessToken);
-    s('tz_lte', String(Date.now() + (parseInt(hash.expires_in||3600)-120)*1000));
-    history.replaceState(null,'',location.pathname);
-    init();
-    return;
-  }
-  const tok=g('tz_lt'), exp=parseInt(g('tz_lte')||'0');
+  const tok = localStorage.getItem('it');
+  const exp = parseInt(localStorage.getItem('ite')||'0');
   if(tok && Date.now()<exp){ accessToken=tok; init(); return; }
   document.getElementById('login-screen').style.display='flex';
 });
 
 function doLogin(){
-  location.href='https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
-    client_id:CLIENT_ID, redirect_uri:REDIRECT, response_type:'token',
-    scope:SCOPES, prompt:'select_account'
-  });
+  // OAuth is registered for index.html — redirect there to log in, then come back
+  sessionStorage.setItem('tz_return', location.href);
+  location.href = './';
 }
 function doLoginFresh(){
-  ['tz_lt','tz_lte','tz_le','tz_ln'].forEach(k=>localStorage.removeItem(k));
+  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
   doLogin();
 }
 function doLogout(){
-  ['tz_lt','tz_lte','tz_le','tz_ln'].forEach(k=>localStorage.removeItem(k));
+  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
   accessToken=''; clients=[];
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -183,13 +169,20 @@ async function init(){
   document.getElementById('app').style.display='block';
   document.getElementById('spinner').style.display='block';
 
-  // Get user profile
   try{
     const u = await apiFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+    if(!ALLOWED.includes((u.email||'').toLowerCase())){
+      doLogout();
+      alert('אין הרשאה לכתובת המייל: ' + u.email);
+      return;
+    }
     const av = document.getElementById('avatar');
     if(u.picture){ av.innerHTML=`<img src="${u.picture}">`; }
     else { av.textContent=(u.name||'?')[0]; }
-  }catch(_){}
+  }catch(e){
+    doLogout();
+    return;
+  }
 
   await loadClients();
 }
