@@ -400,7 +400,7 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
   border-radius:2px;
   pointer-events:none;
   z-index:10000;
-" title="גרסה">v86</span>
+" title="גרסה">v87</span>
 
 <!-- LOGIN -->
 <div id="login-screen" style="display:flex">
@@ -4110,7 +4110,7 @@ function toggleMic(){
   if(!SR){showToast('הדפדפן לא תומך בהכתבה');return;}
   finalTranscript=document.getElementById('note-input').value;
   recognition=new SR();
-  recognition.lang='he-IL';recognition.continuous=false;recognition.interimResults=true;
+  recognition.lang=navigator.language||'he-IL';recognition.continuous=false;recognition.interimResults=false;
   recognition.onresult=e=>{
     let interim='';
     for(let i=0;i<e.results.length;i++){
