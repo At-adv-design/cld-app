@@ -875,6 +875,7 @@ body.focus-mode-active{overflow:hidden;}
                (right edge in RTL = margin-inline-start:auto). Uses the same
                neutral white chip style as the other filter chips. -->
           <div class="chip" id="collection-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">גבייה</div>
+          <div class="chip" id="potential-chip" onclick="togglePotentialMode()" style="margin-inline-start:4px">פוטנציאליים</div>
         </div>
       </div>
       <div class="filter-row">
@@ -1615,6 +1616,8 @@ function initAutoHideHeader(){
 const CLIENT_ID='298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const API_KEY='AIzaSyCrttdxP_Iq9A_rnf9umws6VqlbB6Q3Tdg';
 const SHEET_ID='1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
+// Potential clients sheet — run tools/create_potential_sheet.py to create and update this ID
+let POTENTIAL_SHEET_ID = localStorage.getItem('at_potential_sheet_id') || '';
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/calendar';
 const REDIRECT=location.origin+location.pathname;
 const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
@@ -1721,6 +1724,7 @@ let fReport='all',fDocs='all',fInj='all',fSrv='all';
 // filters are hidden during collection mode.
 let collectionMode=false;
 let fColl='all'; // 'all' | 1 | 2 | 3 | 4 — minimum number of missed payments
+let _potentialMode=false; // when true: show potential clients from POTENTIAL_SHEET_ID
 let userName='',userEmail='';
 let currentLog=null;        // {rowNum, name, log, field, col, preserveLines}
 let logRecognition=null,logIsRecording=false,logFinalTranscript='';
@@ -2099,9 +2103,21 @@ function phoneBtn(c){
 // the way back to the client list — not leave the user looking at the log.
 let _callFromDial=false;
 
-// Dial the client AND open the call-summary viewer with the Add modal pre-opened,
-// so when the user returns from the phone app, the summary form is ready.
+// Dial the client AND auto-log the call + open summary viewer.
+// Every dial is recorded immediately, even without user notes.
 function dialAndOpenSummary(rowNum){
+  const c = allClients.find(x=>x.rowNum===rowNum);
+  if(c){
+    const stamp = `${getInsTS()} | ${getUserTag6()}`;
+    const newEntry = `${stamp}\nשיחה`;
+    const prev = (c.callLog||'').replace(/^\s+|\s+$/g,'');
+    const newVal = prev ? (newEntry+'\n\n'+prev) : newEntry;
+    c.callLog = newVal;
+    const activeSheet = _potentialMode ? POTENTIAL_SHEET_ID : SHEET_ID;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${activeSheet}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
+    const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תיעוד שיחה'));
+  }
   openCallSummary(rowNum);
   _callFromDial=true;
   setTimeout(()=>{
@@ -2125,7 +2141,8 @@ async function loadData(){
   // duplicate reloads stacking up.
   if(_loadDataTimer){ clearTimeout(_loadDataTimer); _loadDataTimer=null; }
   try{
-    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:GZ?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const activeSheetId = _potentialMode ? POTENTIAL_SHEET_ID : SHEET_ID;
+    const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${activeSheetId}/values/A:GZ?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const allRows=(data.values||[]);
@@ -2534,6 +2551,18 @@ function applyFilters(){
     return;
   }
   const q=document.getElementById('search').value.toLowerCase();
+  // In potential mode: show all clients from the potential sheet (simple text filter only)
+  if(_potentialMode){
+    const filtered = allClients.filter(c=>{
+      if(!q) return true;
+      const hay = [c.name, c.phone, c.caseNum].map(s=>(s||'').toLowerCase()).join(' ');
+      return hay.includes(q);
+    });
+    document.getElementById('total-count').textContent = filtered.length;
+    renderCards(filtered);
+    if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
+    return;
+  }
   const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
   // In collection mode: skip all the regular filters, only check
   // (a) inCollection (S > 0), (b) text search, (c) missed-payment count.
@@ -2580,6 +2609,26 @@ function applyFilters(){
 // reports row's number chips (keeps the section visible so the גבייה button
 // is reachable), shows the collection filter row, and triggers a re-render
 // using the collection lens.
+function togglePotentialMode(){
+  if(!POTENTIAL_SHEET_ID){
+    const id = prompt('הכנס מזהה גוגל שיט לקוחות פוטנציאליים (SHEET ID):');
+    if(!id || !id.trim()) return;
+    POTENTIAL_SHEET_ID = id.trim();
+    localStorage.setItem('at_potential_sheet_id', POTENTIAL_SHEET_ID);
+  }
+  _potentialMode = !_potentialMode;
+  const chip = document.getElementById('potential-chip');
+  if(chip) chip.classList.toggle('active', _potentialMode);
+  // Hide/show filters and collection chip
+  const collChip = document.getElementById('collection-chip');
+  if(collChip) collChip.style.display = _potentialMode ? 'none' : '';
+  const fw = document.querySelector('.filters-wrap');
+  if(fw) fw.style.display = _potentialMode ? 'none' : '';
+  // Reload from correct sheet
+  if(_potentialMode && collectionMode) toggleCollectionView();
+  loadData();
+}
+
 function toggleCollectionView(){
   collectionMode=!collectionMode;
   const otherRows=document.querySelectorAll('.filter-row');
@@ -2928,13 +2977,8 @@ function renderCards(clients){
                Note: the customer's Drive folder is accessible from inside the
                customer area modal, not as a separate top-level icon. -->
           <div class="client-side-icons">
-            <button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>
-            <!-- Customer-area button. Shows a red badge when there are
-                 uploaded items in any of the 3 lists (CU/CV/CW) that are
-                 waiting for approval. _customerPendingCount is computed
-                 in parseClient(). -->
+            ${_potentialMode ? `<button class="log-btn" onclick="event.stopPropagation();transferToInsolvency(${c.rowNum})" title="העבר לחדלות" style="background:var(--slate);color:#fff;border:none;font-size:9px;font-weight:700;padding:2px">➜חדלות</button>` : `<button class="log-btn ${c.log?'has-log':''}" onclick="event.stopPropagation();openLogModal(${c.rowNum},'cf')" title="תיעוד תיק">${ICON.noteAdd}${c.log?'<span class="log-dot"></span>':''}</button>`}
             <button class="log-btn customer-area-btn" onclick="event.stopPropagation();openCustomerArea(${c.rowNum})" title="אגף לקוח">${ICON.customer}${c.customerPendingCount?`<span class="cust-badge">${c.customerPendingCount}</span>`:''}</button>
-            <!-- Meeting button — opens the date+time picker to set BV/BW/BX -->
             <button class="log-btn${c.bvRaw?' has-log':''}" onclick="event.stopPropagation();openMeetingPicker(${c.rowNum},this.dataset.bv,this.dataset.bw)" data-bv="${esc(c.bvRaw||'')}" data-bw="${esc(c.bwRaw||'')}" title="קביעת פגישה${c.bvRaw?' — '+esc(c.bvRaw)+(c.bwRaw?' '+esc(c.bwRaw):''):''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="15" x2="12" y2="15" stroke-width="2.5"/></svg>${c.bvRaw?'<span class="log-dot"></span>':''}</button>
           </div>
         </div>
@@ -3122,14 +3166,70 @@ function applyCollapsedSections(){
 }
 
 function collapseAllSections(){
+  // 1. Collapse all individually-open sections in any expanded card
   document.querySelectorAll('.card-section').forEach(el => el.classList.add('collapsed'));
-  // Also persist: mark all visible cards as fully collapsed
-  document.querySelectorAll('.client-card[data-row]').forEach(card => {
-    const rowNum = parseInt(card.getAttribute('data-row'), 10);
-    if(!rowNum) return;
-    _collapsedSections[rowNum] = Object.assign({}, _defaultCollapsed);
+  // 2. Persist collapsed state for all cards
+  Object.keys(_collapsedSections).forEach(k => {
+    _collapsedSections[k] = Object.assign({}, _defaultCollapsed);
   });
   _saveCollapsedSections(_collapsedSections);
+  // 3. Also close all card bodies (clear expanded set) and re-render
+  expandedSet.clear();
+  applyFilters();
+}
+
+async function transferToInsolvency(rowNum){
+  const c = allClients.find(x=>x.rowNum===rowNum);
+  if(!c) return;
+  if(!confirm(`להעביר את ${c.name} לגוגל שיט חדלות?`)) return;
+  showToast('מעביר לקוח...','ok');
+  try{
+    // Step 1: insert a row at position 4 (index 3) in insolvency sheet, copying row 3
+    const ssMeta = await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties(sheetId,index)`);
+    const firstSheet = (ssMeta.sheets||[]).find(s=>s.properties&&s.properties.index===0)||(ssMeta.sheets||[])[0];
+    const insSheetId = firstSheet.properties.sheetId;
+
+    // Insert blank row at index 3 (row 4)
+    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({requests:[{
+        insertDimension:{
+          range:{sheetId:insSheetId,dimension:'ROWS',startIndex:3,endIndex:4},
+          inheritFromBefore:false
+        }
+      }]})
+    });
+
+    // Copy row 3 (index 2) formulas to new row 4 (index 3)
+    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({requests:[{
+        copyPaste:{
+          source:{sheetId:insSheetId,startRowIndex:2,endRowIndex:3,startColumnIndex:0,endColumnIndex:300},
+          destination:{sheetId:insSheetId,startRowIndex:3,endRowIndex:4,startColumnIndex:0,endColumnIndex:300},
+          pasteType:'PASTE_FORMULA',
+          pasteOrientation:'NORMAL'
+        }
+      }]})
+    });
+
+    // Fill in client data in the new row 4 (rowIndex 3, 1-based row 4)
+    const updates = [];
+    const pad = (col) => `${SHEET_ID}/values/${col}4?valueInputOption=USER_ENTERED`;
+    const writes = [
+      ['W', c.name||''],       // W = name
+      ['V', c.phone||''],      // V = phone
+    ];
+    await Promise.all(writes.map(([col, val])=>
+      apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${pad(col)}`,{
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({values:[[val]]})
+      })
+    ));
+
+    showToast(`${c.name} הועבר לחדלות ✓`,'ok');
+    setTimeout(()=>loadData(), 800);
+  }catch(e){ showToast(e.message||'שגיאה','err'); }
 }
 
 function toggleExpand(rowNum){
@@ -5843,7 +5943,8 @@ async function _createCalendarEventDirect(summary, startIso, endIso, description
 }
 let _insMtgPick = {year:0,month:0,day:0,viewMonth:0,viewYear:0,hour:10,minute:0};
 let _insMtgClient = null;
-let _insSheetId = null;
+let _insSheetId = null;      // insolvency sheet internal ID (for batchUpdate)
+let _potSheetId = null;      // potential sheet internal ID (for batchUpdate)
 let _insMtgSlots = [];
 const INS_HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
@@ -5969,18 +6070,22 @@ async function saveInsMeeting(){
   const c=_insMtgClient;
   if(!c){return;}
   try{
-    if(!_insSheetId){
-      const r=await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties(sheetId,index)`);
+    const mtgSheetDocId = _potentialMode ? POTENTIAL_SHEET_ID : SHEET_ID;
+    const cachedInternalId = _potentialMode ? _potSheetId : _insSheetId;
+    let internalSheetId = cachedInternalId;
+    if(!internalSheetId){
+      const r=await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${mtgSheetDocId}?fields=sheets.properties(sheetId,index)`);
       const first=(r.sheets||[]).find(s=>s.properties&&s.properties.index===0)||(r.sheets||[])[0];
-      _insSheetId=first.properties.sheetId;
+      internalSheetId=first.properties.sheetId;
+      if(_potentialMode) _potSheetId=internalSheetId; else _insSheetId=internalSheetId;
     }
     const rowIdx=c.rowNum-1;
     const body={requests:[
-      {updateCells:{rows:[{values:[{userEnteredValue:{formulaValue:`=DATE(${yyyy},${mm},${dd})`}}]}],fields:'userEnteredValue',start:{sheetId:_insSheetId,rowIndex:rowIdx,columnIndex:C_BV}}},
-      {updateCells:{rows:[{values:[{userEnteredValue:{formulaValue:`=TIME(${h},${m},0)`}}]}],fields:'userEnteredValue',start:{sheetId:_insSheetId,rowIndex:rowIdx,columnIndex:C_BW}}},
-      {updateCells:{rows:[{values:[{userEnteredValue:{formulaValue:`=TIME(${nh},${m},0)`}}]}],fields:'userEnteredValue',start:{sheetId:_insSheetId,rowIndex:rowIdx,columnIndex:C_BX}}}
+      {updateCells:{rows:[{values:[{userEnteredValue:{formulaValue:`=DATE(${yyyy},${mm},${dd})`}}]}],fields:'userEnteredValue',start:{sheetId:internalSheetId,rowIndex:rowIdx,columnIndex:C_BV}}},
+      {updateCells:{rows:[{values:[{userEnteredValue:{formulaValue:`=TIME(${h},${m},0)`}}]}],fields:'userEnteredValue',start:{sheetId:internalSheetId,rowIndex:rowIdx,columnIndex:C_BW}}},
+      {updateCells:{rows:[{values:[{userEnteredValue:{formulaValue:`=TIME(${nh},${m},0)`}}]}],fields:'userEnteredValue',start:{sheetId:internalSheetId,rowIndex:rowIdx,columnIndex:C_BX}}}
     ]};
-    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
+    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${mtgSheetDocId}:batchUpdate`,
       {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const pad=n=>String(n).padStart(2,'0');
     const ddP=pad(dd),mmP=pad(mm),yyP=String(yyyy).slice(2);
