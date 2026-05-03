@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -629,6 +629,179 @@ input,textarea,button{font-family:inherit;}
   </div>
   <div class="content">
 
+    <!-- QUESTIONNAIRE (pre_order stage) — moved here so it renders first in the content flow -->
+    <div id="sec-questionnaire" class="section" style="display:none">
+      <div class="section-head" data-section-key="questionnaire">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <div>
+            <div class="section-title">שאלון — בקשת צו פתיחת הליכים</div>
+            <div class="section-meta" id="quest-meta">מלא את כל הפרטים</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div id="quest-body">
+
+          <!-- פרטים אישיים -->
+          <div class="quest-section open">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>א — פרטים אישיים</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-row">
+                <div class="quest-field"><label>שם משפחה</label><input id="q_last_name" placeholder=""></div>
+                <div class="quest-field"><label>שם פרטי</label><input id="q_first_name" placeholder=""></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>תעודת זהות</label><input id="q_id" inputmode="numeric" placeholder="9 ספרות"></div>
+                <div class="quest-field"><label>תאריך לידה</label><input id="q_dob" type="date"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>מין</label>
+                  <select id="q_gender"><option value="">בחר...</option><option>זכר</option><option>נקבה</option></select></div>
+                <div class="quest-field"><label>מצב משפחתי</label>
+                  <select id="q_marital"><option value="">בחר...</option><option>רווק</option><option>רווקה</option><option>נשוי</option><option>נשואה</option><option>גרוש</option><option>גרושה</option><option>אלמן</option><option>אלמנה</option></select></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>ארץ לידה</label><input id="q_birth_country" placeholder="ישראל / אחר"></div>
+                <div class="quest-field"><label>תאריך עליה (אם לא נולדת בישראל)</label><input id="q_aliya_date" type="date"></div>
+              </div>
+              <div class="quest-field"><label>כתובת מגורים</label><input id="q_address" placeholder="רחוב, מספר, עיר"></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>מיקוד</label><input id="q_zip" inputmode="numeric"></div>
+                <div class="quest-field"><label>מספר חדרים</label><input id="q_apt_rooms" inputmode="decimal"></div>
+              </div>
+              <div class="quest-field"><label>זכויות בדירה</label>
+                <select id="q_apt_rights"><option value="">בחר...</option><option>שוכר</option><option>בעלות מלאה</option><option>בעלות חלקית</option><option>גר עם הורים</option></select></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>טלפון נייד</label><input id="q_phone" type="tel"></div>
+                <div class="quest-field"><label>דוא"ל</label><input id="q_email" type="email"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- בן/בת זוג -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>בן / בת זוג</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-row">
+                <div class="quest-field"><label>שם משפחה</label><input id="q_spouse_last"></div>
+                <div class="quest-field"><label>שם פרטי</label><input id="q_spouse_first"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>תעודת זהות</label><input id="q_spouse_id" inputmode="numeric"></div>
+                <div class="quest-field"><label>תאריך לידה</label><input id="q_spouse_dob" type="date"></div>
+              </div>
+              <div class="quest-field"><label>טלפון</label><input id="q_spouse_phone" type="tel"></div>
+            </div>
+          </div>
+
+          <!-- ילדים -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ילדים קטינים</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div id="q_kids_list"></div>
+              <button class="quest-add-btn" onclick="addQuestKid()">+ הוסף ילד</button>
+            </div>
+          </div>
+
+          <!-- הכנסות -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ב — הכנסות</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-field"><label>מקצוע</label><input id="q_occupation"></div>
+              <div class="quest-field"><label>שם המעסיק</label><input id="q_employer"></div>
+              <div class="quest-field"><label>כתובת מקום עבודה</label><input id="q_work_address"></div>
+              <div class="quest-field"><label>תאריך תחילת עבודה</label><input id="q_work_start" type="date"></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>שכר ברוטו ₪</label><input id="q_salary_gross" inputmode="numeric"></div>
+                <div class="quest-field"><label>שכר נטו ₪</label><input id="q_salary_net" inputmode="numeric"></div>
+              </div>
+              <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+              <div class="quest-field" style="font-size:12px;font-weight:700;color:var(--muted)">בן/בת זוג</div>
+              <div class="quest-field"><label>מעסיק בן/בת זוג</label><input id="q_spouse_employer"></div>
+              <div class="quest-row">
+                <div class="quest-field"><label>שכר ברוטו ₪</label><input id="q_spouse_salary_gross" inputmode="numeric"></div>
+                <div class="quest-field"><label>שכר נטו ₪</label><input id="q_spouse_salary_net" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>קצבת ילדים ₪</label><input id="q_child_allowance" inputmode="numeric"></div>
+                <div class="quest-field"><label>קצבת נכות/זקנה ₪</label><input id="q_disability" inputmode="numeric"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- הוצאות -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ג — הוצאות חודשיות</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-row">
+                <div class="quest-field"><label>שכ"ד ₪</label><input id="q_rent" inputmode="numeric"></div>
+                <div class="quest-field"><label>ארנונה ₪</label><input id="q_arnona" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row3">
+                <div class="quest-field"><label>חשמל ₪</label><input id="q_electric" inputmode="numeric"></div>
+                <div class="quest-field"><label>מים ₪</label><input id="q_water" inputmode="numeric"></div>
+                <div class="quest-field"><label>גז ₪</label><input id="q_gas" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>כלכלה ₪</label><input id="q_food" inputmode="numeric"></div>
+                <div class="quest-field"><label>אחזקת רכב+דלק ₪</label><input id="q_car" inputmode="numeric"></div>
+              </div>
+              <div class="quest-row">
+                <div class="quest-field"><label>ביגוד ₪</label><input id="q_clothing" inputmode="numeric"></div>
+                <div class="quest-field"><label>חינוך ₪</label><input id="q_education" inputmode="numeric"></div>
+              </div>
+              <div class="quest-field"><label>הוצאות אחרות (פרט)</label><textarea id="q_other_exp"></textarea></div>
+            </div>
+          </div>
+
+          <!-- נושים -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ד — נושים (חובות)</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div id="q_creditors_list"></div>
+              <button class="quest-add-btn" onclick="addQuestCreditor()">+ הוסף נושה</button>
+            </div>
+          </div>
+
+          <!-- נכסים -->
+          <div class="quest-section">
+            <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
+              <span>ו — נכסים</span><span>▾</span>
+            </div>
+            <div class="quest-section-body">
+              <div class="quest-field"><label>פרטי רכב (לוחית, שנה, יצרן)</label>
+                <textarea id="q_cars" placeholder="לוחית רישוי, שנה, יצרן — שורה לכל רכב"></textarea></div>
+              <div class="quest-field"><label>חשבונות בנק (בנק, סניף, מספר)</label>
+                <textarea id="q_banks" placeholder="שם בנק | סניף | מספר חשבון — שורה לכל חשבון"></textarea></div>
+              <div class="quest-field"><label>האם יש נדל"ן?</label>
+                <select id="q_realestate"><option value="לא">לא</option><option value="כן">כן</option></select></div>
+            </div>
+          </div>
+
+          <div id="quest-saved-badge" class="quest-saved-badge">✅ נשמר בהצלחה</div>
+          <button class="quest-save-bar" onclick="saveQuestionnaire()">שמור שאלון</button>
+        </div>
+      </div>
+    </div>
+
     <!-- REPORTS -->
     <div class="section" id="sec-reports">
       <div class="section-head" data-section-key="reports">
@@ -701,178 +874,7 @@ input,textarea,button{font-family:inherit;}
 
 <span id="app-version-tag" title="גרסה">v3</span>
 
-<!-- QUESTIONNAIRE (pre_order stage) -->
-<div id="sec-questionnaire" class="section" style="display:none">
-  <div class="section-head" data-section-key="questionnaire">
-    <div class="left">
-      <div class="section-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      </div>
-      <div>
-        <div class="section-title">שאלון — בקשת צו פתיחת הליכים</div>
-        <div class="section-meta" id="quest-meta">מלא את כל הפרטים</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </div>
-  </div>
-  <div class="section-body">
-    <div id="quest-body">
-
-      <!-- פרטים אישיים -->
-      <div class="quest-section open">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>א — פרטים אישיים</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div class="quest-row">
-            <div class="quest-field"><label>שם משפחה</label><input id="q_last_name" placeholder=""></div>
-            <div class="quest-field"><label>שם פרטי</label><input id="q_first_name" placeholder=""></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>תעודת זהות</label><input id="q_id" inputmode="numeric" placeholder="9 ספרות"></div>
-            <div class="quest-field"><label>תאריך לידה</label><input id="q_dob" type="date"></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>מין</label>
-              <select id="q_gender"><option value="">בחר...</option><option>זכר</option><option>נקבה</option></select></div>
-            <div class="quest-field"><label>מצב משפחתי</label>
-              <select id="q_marital"><option value="">בחר...</option><option>רווק</option><option>רווקה</option><option>נשוי</option><option>נשואה</option><option>גרוש</option><option>גרושה</option><option>אלמן</option><option>אלמנה</option></select></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>ארץ לידה</label><input id="q_birth_country" placeholder="ישראל / אחר"></div>
-            <div class="quest-field"><label>תאריך עליה (אם לא נולדת בישראל)</label><input id="q_aliya_date" type="date"></div>
-          </div>
-          <div class="quest-field"><label>כתובת מגורים</label><input id="q_address" placeholder="רחוב, מספר, עיר"></div>
-          <div class="quest-row">
-            <div class="quest-field"><label>מיקוד</label><input id="q_zip" inputmode="numeric"></div>
-            <div class="quest-field"><label>מספר חדרים</label><input id="q_apt_rooms" inputmode="decimal"></div>
-          </div>
-          <div class="quest-field"><label>זכויות בדירה</label>
-            <select id="q_apt_rights"><option value="">בחר...</option><option>שוכר</option><option>בעלות מלאה</option><option>בעלות חלקית</option><option>גר עם הורים</option></select></div>
-          <div class="quest-row">
-            <div class="quest-field"><label>טלפון נייד</label><input id="q_phone" type="tel"></div>
-            <div class="quest-field"><label>דוא"ל</label><input id="q_email" type="email"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- בן/בת זוג -->
-      <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>בן / בת זוג</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div class="quest-row">
-            <div class="quest-field"><label>שם משפחה</label><input id="q_spouse_last"></div>
-            <div class="quest-field"><label>שם פרטי</label><input id="q_spouse_first"></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>תעודת זהות</label><input id="q_spouse_id" inputmode="numeric"></div>
-            <div class="quest-field"><label>תאריך לידה</label><input id="q_spouse_dob" type="date"></div>
-          </div>
-          <div class="quest-field"><label>טלפון</label><input id="q_spouse_phone" type="tel"></div>
-        </div>
-      </div>
-
-      <!-- ילדים -->
-      <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>ילדים קטינים</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div id="q_kids_list"></div>
-          <button class="quest-add-btn" onclick="addQuestKid()">+ הוסף ילד</button>
-        </div>
-      </div>
-
-      <!-- הכנסות -->
-      <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>ב — הכנסות</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div class="quest-field"><label>מקצוע</label><input id="q_occupation"></div>
-          <div class="quest-field"><label>שם המעסיק</label><input id="q_employer"></div>
-          <div class="quest-field"><label>כתובת מקום עבודה</label><input id="q_work_address"></div>
-          <div class="quest-field"><label>תאריך תחילת עבודה</label><input id="q_work_start" type="date"></div>
-          <div class="quest-row">
-            <div class="quest-field"><label>שכר ברוטו ₪</label><input id="q_salary_gross" inputmode="numeric"></div>
-            <div class="quest-field"><label>שכר נטו ₪</label><input id="q_salary_net" inputmode="numeric"></div>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
-          <div class="quest-field" style="font-size:12px;font-weight:700;color:var(--muted)">בן/בת זוג</div>
-          <div class="quest-field"><label>מעסיק בן/בת זוג</label><input id="q_spouse_employer"></div>
-          <div class="quest-row">
-            <div class="quest-field"><label>שכר ברוטו ₪</label><input id="q_spouse_salary_gross" inputmode="numeric"></div>
-            <div class="quest-field"><label>שכר נטו ₪</label><input id="q_spouse_salary_net" inputmode="numeric"></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>קצבת ילדים ₪</label><input id="q_child_allowance" inputmode="numeric"></div>
-            <div class="quest-field"><label>קצבת נכות/זקנה ₪</label><input id="q_disability" inputmode="numeric"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- הוצאות -->
-      <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>ג — הוצאות חודשיות</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div class="quest-row">
-            <div class="quest-field"><label>שכ"ד ₪</label><input id="q_rent" inputmode="numeric"></div>
-            <div class="quest-field"><label>ארנונה ₪</label><input id="q_arnona" inputmode="numeric"></div>
-          </div>
-          <div class="quest-row3">
-            <div class="quest-field"><label>חשמל ₪</label><input id="q_electric" inputmode="numeric"></div>
-            <div class="quest-field"><label>מים ₪</label><input id="q_water" inputmode="numeric"></div>
-            <div class="quest-field"><label>גז ₪</label><input id="q_gas" inputmode="numeric"></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>כלכלה ₪</label><input id="q_food" inputmode="numeric"></div>
-            <div class="quest-field"><label>אחזקת רכב+דלק ₪</label><input id="q_car" inputmode="numeric"></div>
-          </div>
-          <div class="quest-row">
-            <div class="quest-field"><label>ביגוד ₪</label><input id="q_clothing" inputmode="numeric"></div>
-            <div class="quest-field"><label>חינוך ₪</label><input id="q_education" inputmode="numeric"></div>
-          </div>
-          <div class="quest-field"><label>הוצאות אחרות (פרט)</label><textarea id="q_other_exp"></textarea></div>
-        </div>
-      </div>
-
-      <!-- נושים -->
-      <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>ד — נושים (חובות)</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div id="q_creditors_list"></div>
-          <button class="quest-add-btn" onclick="addQuestCreditor()">+ הוסף נושה</button>
-        </div>
-      </div>
-
-      <!-- נכסים -->
-      <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-          <span>ו — נכסים</span><span>▾</span>
-        </div>
-        <div class="quest-section-body">
-          <div class="quest-field"><label>פרטי רכב (לוחית, שנה, יצרן)</label>
-            <textarea id="q_cars" placeholder="לוחית רישוי, שנה, יצרן — שורה לכל רכב"></textarea></div>
-          <div class="quest-field"><label>חשבונות בנק (בנק, סניף, מספר)</label>
-            <textarea id="q_banks" placeholder="שם בנק | סניף | מספר חשבון — שורה לכל חשבון"></textarea></div>
-          <div class="quest-field"><label>האם יש נדל"ן?</label>
-            <select id="q_realestate"><option value="לא">לא</option><option value="כן">כן</option></select></div>
-        </div>
-      </div>
-
-      <div id="quest-saved-badge" class="quest-saved-badge">✅ נשמר בהצלחה</div>
-      <button class="quest-save-bar" onclick="saveQuestionnaire()">שמור שאלון</button>
-    </div>
-  </div>
-</div>
+<!-- questionnaire is inside .content above -->
 
 <!-- INQUIRY MODAL -->
 <div id="inquiry-modal" onclick="if(event.target===this)closeInquiryModal()">
@@ -1074,12 +1076,14 @@ function rejectionCountFor(category, reportNum){
 
 /* ─── STAGE VISIBILITY ─── */
 function applyStageVisibility(){
-  const isPreOrder  = clientStage === 'pre_order';
+  const isPreOrder   = clientStage === 'pre_order';
   const isCommercial = clientStage === 'commercial';
-  // reports: hidden in pre_order and commercial
-  $('sec-reports').style.display = (isPreOrder || isCommercial) ? 'none' : '';
-  // info: hidden in pre_order (replaced by questionnaire); visible in commercial
-  $('sec-info').style.display = isPreOrder ? 'none' : '';
+  const hasStage     = isPreOrder || isCommercial;
+  // reports: hidden when pre_order OR commercial
+  $('sec-reports').style.display = hasStage ? 'none' : '';
+  // docs + info: always visible (all stages)
+  $('sec-docs').style.display  = '';
+  $('sec-info').style.display  = '';
   // questionnaire: only in pre_order
   $('sec-questionnaire').style.display = isPreOrder ? '' : 'none';
   if(isPreOrder && questData && Object.keys(questData).length){
