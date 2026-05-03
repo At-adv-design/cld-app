@@ -95,12 +95,13 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lm-red{color:var(--red);}
 
 /* HEADER */
-.header{background:var(--white);height:96px;padding:0 16px 0 40px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
-.hdr-right{display:flex;gap:4px;align-items:center;}
-.hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;font-weight:600;padding:0 5px;font-family:inherit;display:inline-flex;align-items:center;height:26px;}
-.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;width:26px;height:26px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.header{background:var(--white);min-height:72px;padding:0 14px 0 40px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.hdr-right{display:flex;gap:6px;align-items:center;}
+.hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:600;padding:0 8px;font-family:inherit;display:inline-flex;align-items:center;height:36px;border-radius:6px;}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:44px;height:44px;font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:8px;}
+.hdr-btn svg{width:18px;height:18px;}
 .hdr-btn:active{background:var(--border);}
-.avatar{width:28px;height:28px;border-radius:4px;background:var(--slate);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar{width:44px;height:44px;border-radius:8px;background:var(--slate);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
