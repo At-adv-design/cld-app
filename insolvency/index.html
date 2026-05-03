@@ -453,7 +453,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .client-card.urgent{border-right:2px solid var(--red);}
 .client-card.warning{border-right:2px solid var(--orange);}
 
-.card-header{padding:13px 14px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;width:100%;}
+.card-header{padding:13px 14px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;width:100%;position:relative;}
 .card-header > .client-info{flex:1 1 auto;min-width:0;}
 /* Side icons stacked at the top-left corner of each card (case log,
    customer area). They sit aligned to the top so the row doesn't grow. */
@@ -749,9 +749,22 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 }
 .qa-a-input:focus{border-color:var(--slate);}
 
+/* ── FOCUS MODE ─────────────────────────────────────────────────────────── */
+.card-focus-btn{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:none;border:1px solid var(--border);border-radius:4px;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.5;}
+.card-focus-btn:hover{opacity:1;}
+body.focus-mode-active .card-focus-btn{display:none;}
+.focus-exit-btn{display:none;position:fixed;top:env(safe-area-inset-top,8px);left:8px;z-index:500;background:rgba(0,0,0,.4);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;}
+body.focus-mode-active .focus-exit-btn{display:flex;}
+body.focus-mode-active .app-body{overflow:hidden;}
+.client-card.focused{position:fixed!important;inset:0!important;z-index:400!important;overflow-y:auto!important;border-radius:0!important;margin:0!important;padding-top:env(safe-area-inset-top,8px)!important;}
+body.focus-mode-active{overflow:hidden;}
+
 </style>
 </head>
 <body>
+
+<!-- Focus-mode exit button — shown only when a card is in full-screen focus mode -->
+<button class="focus-exit-btn" id="focus-exit-btn" onclick="exitFocusMode()">×</button>
 
 <!-- Version badge — fixed top-right corner, above everything -->
 <span id="app-version-tag" style="
@@ -2816,6 +2829,8 @@ function renderCards(clients){
     card.innerHTML=`
       <div class="client-card${c.isUrgent?' urgent':c.isWarning?' warning':''}" data-row="${c.rowNum}">
         <div class="card-header" onclick="toggleExpand(${c.rowNum})">
+          <!-- Focus-mode button: center of card header, small expand icon -->
+          <button class="card-focus-btn" onclick="event.stopPropagation();enterFocusMode(${c.rowNum})" title="מיקוד"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/></svg></button>
           <div class="client-info">
             <!-- Name on its own line at the top -->
             <div class="client-name-row"><div class="client-name">${esc(c.name)}</div></div>
@@ -6320,6 +6335,24 @@ window.addEventListener('popstate',()=>{
     _suppressPopstate=false;
     return;
   }
+  // Focus mode — back-press exits after 3 consecutive presses (same UX as
+  // the tasks-section triple-back pattern). The × button exits immediately.
+  if(_focusCard){
+    _backPressCount++;
+    history.pushState({page:'focus'}, '');
+    if(_backPressCount < 3){
+      showToast(`לחץ ${3-_backPressCount} פעמים נוספות לצאת ממיקוד`);
+      clearTimeout(_backPressTimer);
+      _backPressTimer = setTimeout(()=>{ _backPressCount=0; }, 1500);
+      return;
+    }
+    _backPressCount = 0;
+    // Three presses — exit focus mode
+    if(_focusCard){ _focusCard.classList.remove('focused'); }
+    document.body.classList.remove('focus-mode-active');
+    _focusCard = null;
+    return;
+  }
   // Calendar overlay — TOP-MOST. When open, back-press should close
   // ONLY the calendar, not the date-picker / customer area underneath.
   // The calendar didn't push its own state (so we don't pop one);
@@ -7103,6 +7136,28 @@ document.addEventListener('click', function(e){
     }
   }, {passive:true});
 })();
+
+// ── FOCUS MODE ────────────────────────────────────────────────────────────────
+// enterFocusMode / exitFocusMode — expand a single client card to fill the screen.
+// Exit via: × button, or 3 consecutive back-presses (reuses the popstate counter).
+let _focusCard = null;
+function enterFocusMode(rowNum){
+  const card = document.querySelector(`.client-card[data-row="${rowNum}"]`);
+  if(!card) return;
+  _focusCard = card;
+  card.classList.add('focused');
+  document.body.classList.add('focus-mode-active');
+  window.scrollTo({top:0, behavior:'smooth'});
+  // Push a history state so back-presses are caught by the popstate handler
+  history.pushState({page:'focus'}, '');
+}
+function exitFocusMode(){
+  if(_focusCard){ _focusCard.classList.remove('focused'); }
+  document.body.classList.remove('focus-mode-active');
+  _focusCard = null;
+  // If we're still on the focus history state, pop it silently
+  if(history.state && history.state.page === 'focus') popHistorySilently();
+}
 
 
 </script>
