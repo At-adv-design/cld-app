@@ -1027,7 +1027,7 @@ body.focus-mode-active{overflow:hidden;}
      "חדלפ" folder hierarchy down to the selected client, shows
      subfolders and files as a list, opens previews on tap.
      ============================================================ -->
-<div id="drive-browser-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:330;flex-direction:column;">
+<div id="drive-browser-modal" style="display:none;position:fixed;inset:0;background:var(--white);z-index:420;flex-direction:column;">
   <div class="log-sheet" style="padding:0;gap:0">
     <!-- Header bar with back, breadcrumb, refresh -->
     <div style="display:flex;align-items:center;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
@@ -3835,17 +3835,17 @@ function renderCustomerArea(){
       </button>
     `)}
 
-    ${_custState.stage !== 'pre_order' ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody()) : ''}
+    ${(_custState.stage !== 'pre_order' && _custState.stage !== 'commercial') ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody()) : ''}
 
     ${sect('docs', 'השלמת מסמכים', docsBadge, `
       ${_renderSupplDocsList()}
       <button class="req-add-btn" onclick="addSupplDocRow()" style="margin-top:6px">+ הוסף שדה</button>
     `)}
 
-    ${_custState.stage !== 'pre_order' ? sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
+    ${sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
       ${_renderInfoQAList()}
       <button class="req-add-btn" onclick="addInfoQuestion()" style="margin-top:6px">+ הוסף שאלה</button>
-    `) : ''}
+    `)}
 
     ${sect('creds', 'שם משתמש וסיסמה ללקוח', credsBadge, `
       <div class="cust-creds">
