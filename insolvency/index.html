@@ -802,6 +802,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
         <button class="hdr-btn" onclick="loadData()" title="רענן">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
         </button>
+        <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" title="פניות לקוחות" style="position:relative">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span id="inquiries-hdr-badge" style="display:none;position:absolute;top:-4px;left:-4px;min-width:14px;height:14px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:7px;padding:0 3px;line-height:14px;text-align:center;font-family:inherit"></span>
+        </button>
         <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -1608,6 +1612,7 @@ const COL_DK = 'DK';
 const C_EC_STAGE = 132;   // 0-based EC — stage: 'pre_order' | 'commercial' | ''
 const COL_EC = 'EC';
 const COL_DL = 'DL';
+const C_CZ_INQUIRIES = 135; // 0-based EF (1-based 136) — client inquiries JSON
 
 // Apps Script Web App URL — used for approve/reject calls that need to
 // move/trash files in Drive. Without this, the lawyer cannot approve
@@ -2067,6 +2072,7 @@ async function loadData(){
     updateWaitingTab();
     updateStats(active);
     updatePendingApprovalsBadge();
+    if(typeof _updateInquiriesBadge === 'function') _updateInquiriesBadge();
     document.getElementById('loading').style.display='none';
     // Only re-render the section the user is currently looking at
     if(inTasksSection){
@@ -2149,6 +2155,8 @@ function parseClient(row,rowNum){
   const customerActive = (g(C_CT)||'').toString().toUpperCase().trim()==='TRUE';
   // EC — stage flag: '' | 'pre_order' | 'commercial'
   const clientStage = (g(C_EC_STAGE)||'').toString().trim().toLowerCase();
+  // EF — client inquiries JSON array
+  const inquiries = (() => { try{ const v=JSON.parse(g(C_CZ_INQUIRIES)||'[]'); return Array.isArray(v)?v:[]; }catch(_){return [];} })();
   // CU/CV/CW hold JSON arrays of requirement objects. Parse defensively —
   // the cell may have been edited by hand. Empty → empty list.
   function parseReqList(raw){
@@ -2327,7 +2335,7 @@ function parseClient(row,rowNum){
     currentPayment,
     missedPayments,
     inCollection, collectReminder, clientStage,
-    bvRaw, bwRaw};
+    bvRaw, bwRaw, inquiries};
 }
 
 function parseDate(s){
@@ -7428,6 +7436,84 @@ document.addEventListener('click', function(e){
   document.addEventListener('focusin', handleFocus, true);
 })();
 
+</script>
+
+<!-- ═══ INQUIRIES PANEL ═══════════════════════════════════════════════ -->
+<div id="inquiries-panel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:380;align-items:flex-end;justify-content:center">
+  <div style="background:var(--white);width:100%;max-width:620px;max-height:85vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <span style="font-size:15px;font-weight:700">פניות לקוחות</span>
+      <button onclick="closeInquiriesPanel()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div id="inquiries-list" style="overflow-y:auto;flex:1;padding:12px 16px"></div>
+  </div>
+</div>
+
+<script>
+/* ── Help Desk / Inquiries ───────────────────────────────────────── */
+function _allInquiries(){
+  const out = [];
+  (allClients||[]).forEach(c=>{
+    if(!c.inquiries) return;
+    c.inquiries.forEach(iq=>{
+      if(!iq.done) out.push({...iq, clientName:c.name, phone:c.phone, rowNum:c.rowNum});
+    });
+  });
+  return out.sort((a,b)=>b.ts-a.ts);
+}
+function _updateInquiriesBadge(){
+  const n = _allInquiries().length;
+  const badge = document.getElementById('inquiries-hdr-badge');
+  if(!badge) return;
+  badge.textContent = n;
+  badge.style.display = n ? 'block' : 'none';
+}
+function openInquiriesPanel(){
+  const list = document.getElementById('inquiries-list');
+  const items = _allInquiries();
+  if(!items.length){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">אין פניות ממתינות</div>';
+  } else {
+    list.innerHTML = items.map(iq=>{
+      const d = new Date(iq.ts);
+      const dt = d.toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('he',{hour:'2-digit',minute:'2-digit'});
+      const waPhone = (iq.phone||'').replace(/\D/g,'').replace(/^0/,'972');
+      const waMsg = encodeURIComponent('בהמשך לפניה שלך בעניין '+iq.context+':\n');
+      return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:700;font-size:14px">${esc(iq.clientName)}</span>
+          <span style="font-size:11px;color:var(--muted)">${dt}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(iq.context)}</div>
+        <div style="font-size:13px;margin-bottom:10px;white-space:pre-wrap">${esc(iq.message)}</div>
+        <div style="display:flex;gap:8px">
+          ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" style="flex:1;text-align:center;padding:7px;background:#25d366;color:#fff;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">📱 הגב ב-WhatsApp</a>`:''}
+          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;padding:7px;background:var(--slate);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✓ סמן כטופל</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('inquiries-panel').style.display = 'flex';
+}
+function closeInquiriesPanel(){
+  document.getElementById('inquiries-panel').style.display = 'none';
+}
+async function markInquiryDone(rowNum, inquiryId){
+  const c = (allClients||[]).find(x=>x.rowNum===rowNum);
+  if(!c) return;
+  const list = c.inquiries||[];
+  const iq = list.find(x=>x.id===inquiryId);
+  if(!iq) return;
+  iq.done = true;
+  // Write back to sheet column EF
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EF${rowNum}?valueInputOption=RAW`;
+  try{
+    await apiFetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(list)]]})});
+    _updateInquiriesBadge();
+    openInquiriesPanel(); // refresh panel
+    showToast('סומן כטופל','ok');
+  }catch(e){ showToast('שגיאה','err'); }
+}
 </script>
 
 </body>

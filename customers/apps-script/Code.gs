@@ -31,6 +31,7 @@ const COL = {
   CW_INFO:       101,   // CW — JSON (info questions)
   CX_STAGE:      133,   // EC (0-based 132) — stage: '' | 'pre_order' | 'commercial'
   CY_QUEST:      134,   // ED (0-based 133) — questionnaire JSON (form 45 data)
+  CZ_INQUIRIES:  136,   // EF — client inquiries JSON array
 };
 
 // ─── HTTP entrypoints ────────────────────────────────────────────────
@@ -46,6 +47,10 @@ function doPost(e){
     else if(action === 'removeFile')        result = handleRemoveFile(body);
     else if(action === 'saveQuestionnaire') result = handleSaveQuestionnaire(body);
     else if(action === 'getQuestionnaire')  result = handleGetQuestionnaire(body);
+    else if(action === 'approveItem')       result = handleApproveItem(body);
+    else if(action === 'rejectItem')        result = handleRejectItem(body);
+    else if(action === 'unapproveItem')     result = handleUnapproveItem(body);
+    else if(action === 'sendInquiry')       result = handleSendInquiry(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -278,4 +283,83 @@ function handleGetQuestionnaire(p){
   const sheet = _sheet();
   const raw = sheet.getRange(t.rowNum, COL.CY_QUEST).getValue();
   return { data: _parseObj(raw) };
+}
+
+// ─── Action: approveItem ─────────────────────────────────────────────
+function handleApproveItem(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sheet = _sheet();
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
+  const list = _parseList(cell.getValue());
+  const req  = list.find(r => r.id === p.reqId);
+  if(req){
+    req.status = 'approved';
+    req.approvedAt = Date.now();
+    if(p.fileId) req.approvedFileId = p.fileId;
+    cell.setValue(JSON.stringify(list));
+  }
+  return {ok: true};
+}
+
+// ─── Action: rejectItem ──────────────────────────────────────────────
+function handleRejectItem(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sheet = _sheet();
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
+  const list = _parseList(cell.getValue());
+  const req  = list.find(r => r.id === p.reqId);
+  if(req){
+    // Trash the file from Drive
+    if(p.fileId){
+      try{ DriveApp.getFileById(p.fileId).setTrashed(true); }catch(_){}
+      if(req.files) req.files = req.files.filter(f => f.id !== p.fileId);
+    }
+    req.status = 'rejected';
+    req.rejectionReason = p.reason || '';
+    req.rejectedAt = Date.now();
+    cell.setValue(JSON.stringify(list));
+  }
+  return {ok: true};
+}
+
+// ─── Action: unapproveItem ───────────────────────────────────────────
+function handleUnapproveItem(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sheet = _sheet();
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
+  const list = _parseList(cell.getValue());
+  const req  = list.find(r => r.id === p.reqId);
+  if(req && req.status === 'approved'){
+    req.status = req.files && req.files.length ? 'uploaded' : 'pending';
+    delete req.approvedAt;
+    delete req.approvedFileId;
+    cell.setValue(JSON.stringify(list));
+  }
+  return {ok: true};
+}
+
+// ─── Action: sendInquiry ─────────────────────────────────────────────
+// Stores a client inquiry in column CZ (1-based 136)
+function handleSendInquiry(p){
+  const t = _verifyToken(p.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sheet = _sheet();
+  const CZ_INQUIRIES = 136;
+  const cell = sheet.getRange(t.rowNum, CZ_INQUIRIES);
+  const list = _parseList(cell.getValue());
+  list.push({
+    id:      Utilities.getUuid(),
+    context: p.context || 'כללי',
+    message: p.message || '',
+    ts:      Date.now(),
+    done:    false,
+  });
+  cell.setValue(JSON.stringify(list));
+  return {ok: true};
 }
