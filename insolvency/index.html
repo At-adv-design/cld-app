@@ -2838,6 +2838,7 @@ function renderCards(clients){
           <div class="client-info">
             <!-- Name on its own line at the top -->
             <div class="client-name-row"><div class="client-name">${esc(c.name)}</div>
+              ${c.clientStage==='pre_order'?'<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-border);padding:1px 5px;white-space:nowrap;flex-shrink:0">צו פתיחה</span>':''}
               <!-- 5 status dots: overall, reports, docs, service, injunction -->
               <div class="status-dots" title="סטטוס כללי • דוחות • מסמכים • אישורי מסירה • עיכוב הליכים">
                 <div class="sdot-lg" style="background:${d1}" title="סטטוס כללי"></div>
