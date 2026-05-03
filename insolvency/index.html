@@ -3402,6 +3402,8 @@ function openCustomerArea(rowNum){
     // at a glance and drills into what's needed. Persisted to localStorage
     // so that re-opening the same customer keeps the same sections open.
     openSections: _loadCustSectionState(rowNum),
+    bvRaw: c.bvRaw||'',
+    bwRaw: c.bwRaw||'',
   };
   document.getElementById('customer-area-name').textContent=c.name||'';
   renderCustomerArea();
@@ -3731,8 +3733,8 @@ function renderCustomerArea(){
   const credsBadge = _custState.active ? '<span style="color:var(--green);font-weight:700">פעיל</span>' : '<span style="color:var(--muted)">לא פעיל</span>';
 
   body.innerHTML = `
-    <!-- Stage selector -->
-    <div style="display:flex;gap:8px;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+    <!-- Stage selector + meeting button -->
+    <div style="display:flex;gap:8px;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;">
       <span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center;">שלב:</span>
       ${['','pre_order','commercial'].map(v => {
         const labels = {'':'רגיל','pre_order':'צו פתיחה','commercial':'מסחרי'};
@@ -3744,6 +3746,10 @@ function renderCustomerArea(){
           ${labels[v]}
         </button>`;
       }).join('')}
+      <button onclick="openMeetingPicker(${_custState.rowNum},'${(_custState.bvRaw||'').replace(/'/g,"\\'")}','${(_custState.bwRaw||'').replace(/'/g,"\\'")}');closeCustomerArea()"
+        style="margin-right:auto;font-size:12px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;border:1.5px solid var(--blue);background:var(--blue);color:#fff;display:flex;align-items:center;gap:4px;">
+        📅 קבע פגישה
+      </button>
     </div>
     ${_custState.pendingLoading ? `
       <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">

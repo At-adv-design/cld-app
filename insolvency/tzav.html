@@ -93,6 +93,7 @@ header h1{font-size:15px;font-weight:700;}
     <h1>צו פתיחה</h1>
     <div class="hdr-right">
       <span id="conn-err" style="display:none;font-size:11px;background:#c0392b;padding:2px 8px;border-radius:4px;">שגיאה</span>
+      <button onclick="loadClients()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🔄 סנכרן</button>
       <div class="avatar" id="avatar" onclick="doLogout()" title="יציאה">?</div>
     </div>
   </header>
@@ -198,7 +199,7 @@ async function loadClients(){
   document.getElementById('spinner').style.display='block';
   document.getElementById('client-list').innerHTML='';
   try{
-    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:EE?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:EG?key=${API_KEY}&_=${Date.now()}`,{cache:'no-store'});
     const data = await res.json();
     const rows = (data.values||[]).slice(1); // skip header
     const g = (row,i) => (row[i]||'').toString().trim();
@@ -341,11 +342,48 @@ function renderQuest(q){
     `<div class="qrow"><span class="qlabel">${label}</span><span class="qval">${q['q_'+k]}</span></div>`
   ).join('');
 
+  // Cars / vehicles
+  if(q.q_cars){
+    html += '<div style="font-weight:700;font-size:13px;margin:10px 0 4px">רכבים</div>';
+    const cars = Array.isArray(q.q_cars) ? q.q_cars : (typeof q.q_cars==='string' ? [{desc:q.q_cars}] : []);
+    if(cars.length){
+      cars.forEach((car,i)=>{
+        const desc = car.make||car.model||car.desc||car.type||JSON.stringify(car);
+        const year  = car.year  ? ` ${car.year}`  : '';
+        const plate = car.plate ? ` — ${car.plate}` : '';
+        const val   = car.value ? ` — ₪${car.value}` : '';
+        html += `<div class="qrow"><span class="qlabel">רכב ${i+1}</span><span class="qval">${desc}${year}${plate}${val}</span></div>`;
+      });
+    } else {
+      html += `<div class="qrow"><span class="qlabel">רכבים</span><span class="qval">${String(q.q_cars)}</span></div>`;
+    }
+  }
+
+  // Bank accounts
+  if(q.q_bank){
+    html += '<div style="font-weight:700;font-size:13px;margin:10px 0 4px">חשבונות בנק</div>';
+    const accounts = Array.isArray(q.q_bank) ? q.q_bank : (typeof q.q_bank==='string' ? [{desc:q.q_bank}] : []);
+    if(accounts.length){
+      accounts.forEach((acc,i)=>{
+        const bank    = acc.bank    || acc.name || acc.desc || '';
+        const branch  = acc.branch  ? ` סניף ${acc.branch}` : '';
+        const accNum  = acc.account || acc.num  ? ` — חשבון ${acc.account||acc.num}` : '';
+        const balance = acc.balance ? ` — יתרה ₪${acc.balance}` : '';
+        html += `<div class="qrow"><span class="qlabel">חשבון ${i+1}</span><span class="qval">${bank}${branch}${accNum}${balance}</span></div>`;
+      });
+    } else {
+      html += `<div class="qrow"><span class="qlabel">בנק</span><span class="qval">${String(q.q_bank)}</span></div>`;
+    }
+  }
+
   // Creditors
   if(q.creditors && q.creditors.length){
     html += '<div style="font-weight:700;font-size:13px;margin:10px 0 4px">נושים</div>';
     q.creditors.forEach((cr,i)=>{
-      html += `<div class="qrow"><span class="qlabel">נושה ${i+1}</span><span class="qval">${cr.bank||''} ${cr.type||''} ₪${cr.amount||''}</span></div>`;
+      const name   = cr.name   || cr.bank  || '';
+      const type   = cr.type   ? ` (${cr.type})` : '';
+      const amount = cr.amount ? ` — ₪${cr.amount}` : '';
+      html += `<div class="qrow"><span class="qlabel">נושה ${i+1}</span><span class="qval">${name}${type}${amount}</span></div>`;
     });
   }
   document.getElementById('quest-content').innerHTML = html||'<div style="text-align:center;padding:20px;color:#888">אין נתונים</div>';
