@@ -5291,9 +5291,19 @@ function openDrivePreview(file){
   body.innerHTML='<div style="color:#fff">טוען...</div>';
   m.style.display='flex';
   history.pushState({page:'drive-preview'},'');
-  // Image: download as blob and render. PDF: same. Other: link only.
-  const isImg = (file.mimeType||'').startsWith('image/');
-  const isPdf = (file.mimeType||'')==='application/pdf';
+  let mt = (file.mimeType||'').toLowerCase();
+  if(!mt && file.name){
+    const m2 = file.name.toLowerCase().match(/\.([^.]+)$/);
+    const ext = m2 ? m2[1] : '';
+    if(ext === 'pdf') mt = 'application/pdf';
+    else if(ext === 'jpg' || ext === 'jpeg') mt = 'image/jpeg';
+    else if(ext === 'png') mt = 'image/png';
+    else if(ext === 'gif') mt = 'image/gif';
+    else if(ext === 'webp') mt = 'image/webp';
+    else if(ext === 'heic' || ext === 'heif') mt = 'image/heic';
+  }
+  const isImg = mt.startsWith('image/');
+  const isPdf = mt === 'application/pdf';
   if(isImg || isPdf){
     fetch('https://www.googleapis.com/drive/v3/files/'+file.id+'?alt=media',{
       headers:{'Authorization':'Bearer '+accessToken}
