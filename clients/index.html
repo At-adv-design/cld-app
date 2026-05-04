@@ -422,9 +422,16 @@ input,textarea,button{font-family:inherit;}
   font-size:12px;color:var(--text);
   text-decoration:none;
 }
+.file-pill.clickable{cursor:pointer;}
+.file-pill.clickable:active{background:var(--bg);}
 .file-pill .ico{width:16px;height:16px;color:var(--slate);flex-shrink:0;}
 .file-pill .nm{flex:1;min-width:0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none;}
+.file-pill .view-hint{
+  font-size:10px;font-weight:600;color:var(--slate);
+  background:var(--bg);border:1px solid var(--border);
+  padding:2px 7px;border-radius:8px;flex-shrink:0;
+}
 .file-pill .rm{
   background:transparent;border:none;cursor:pointer;
   padding:2px 6px;font-size:13px;color:var(--muted);
@@ -1626,14 +1633,17 @@ function buildFilePillApproved(a){
 }
 function buildFilePillPending(p){
   const fileId = p.fileId || _extractFileIdFromUrl(p.url||'');
-  const openAttr = fileId
-    ? `onclick="event.preventDefault();openInAppViewer('${esc(fileId)}', '${esc(p.name||'')}', '${esc(p.url||'')}')"`
-    : `onclick="event.preventDefault()"`;
+  // The whole pill (except the remove button) is now clickable — much easier
+  // to hit on a phone than the small filename text.
+  const onPillClick = fileId
+    ? `onclick="if(event.target.closest('.rm'))return;openInAppViewer('${esc(fileId)}', '${esc(p.name||'')}', '${esc(p.url||'')}')"`
+    : '';
   return `
-    <div class="file-pill" data-file-id="${esc(p.fileId)}">
+    <div class="file-pill clickable" data-file-id="${esc(p.fileId)}" ${onPillClick}>
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <a class="nm" href="#" ${openAttr}>${esc(p.name)}</a>
-      <button class="rm" onclick="removeFile('${esc(p.fileId)}','${esc(p.category||'')}','${esc(p.reqId||'')}');" title="הסר">✕</button>
+      <span class="nm">${esc(p.name)}</span>
+      <span class="view-hint">לצפייה</span>
+      <button class="rm" onclick="event.stopPropagation();removeFile('${esc(p.fileId)}','${esc(p.category||'')}','${esc(p.reqId||'')}');" title="הסר">✕</button>
     </div>`;
 }
 

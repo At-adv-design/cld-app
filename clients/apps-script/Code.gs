@@ -223,20 +223,38 @@ function handleUploadFile(p){
     throw new Error('קטגוריה לא תקינה');
   }
 
-  // Filename with timestamp: ddmmyyHHMMSS_original.ext
-  const now = new Date();
-  const pad2 = n => String(n).padStart(2,'0');
-  const ts = pad2(now.getDate()) + pad2(now.getMonth()+1) + String(now.getFullYear()).slice(-2)
-           + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds());
-  const origName = p.filename || 'file';
-  const stampedName = ts + '_' + origName;
+  // Filename: use the requirement text (sanitized) as the canonical name.
+  // Falls back to the client's filename if reqText is missing.
+  // Drive auto-appends "(1)", "(2)" on name collision so we don't need a
+  // timestamp prefix. The result for the user/lawyer is a clean filename
+  // like "תלוש שכר אחרון.pdf" instead of "040526113200_תלוש שכר אחרון.pdf".
+  const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
+  const reqLabel = sanitize(p.reqText || '');
+  const fallback = sanitize(p.filename || 'file');
+  // Preserve the extension from p.filename if present, otherwise infer
+  // from mimeType (image/jpeg → .jpg, application/pdf → .pdf, …).
+  const m = (p.filename || '').match(/\.[^.\/\\]+$/);
+  let ext = m ? m[0] : '';
+  if(!ext){
+    const mt = (p.mimeType || '').toLowerCase();
+    if(mt === 'application/pdf')   ext = '.pdf';
+    else if(mt.startsWith('image/jpeg') || mt.startsWith('image/jpg')) ext = '.jpg';
+    else if(mt.startsWith('image/png')) ext = '.png';
+    else if(mt.startsWith('image/'))    ext = '.jpg';
+    else ext = '';
+  }
+  // Strip extension from reqLabel/fallback before re-adding
+  const stripExt = s => s.replace(/\.[^.\/\\]+$/,'');
+  const baseLabel = reqLabel ? stripExt(reqLabel) : stripExt(fallback);
+  const finalName = baseLabel + ext;
 
   const blob = Utilities.newBlob(
     Utilities.base64Decode(p.dataBase64),
     p.mimeType || 'application/octet-stream',
-    stampedName
+    finalName
   );
   const file = target.createFile(blob);
+  const stampedName = file.getName(); // Drive may have added " (1)" on collision
 
   // Update requirement entry in sheet
   const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
