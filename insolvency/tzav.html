@@ -69,10 +69,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* HEADER — sticky like leads/clients/potential. */
 .header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 .header-spacer{display:none;}
-/* Match leads app: single-row header — all controls + pending badge
-   inline next to each other (was previously a 2-row stack). */
-.hdr-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-.hdr-row-top,.hdr-row-bottom{display:flex;gap:8px;align-items:center;}
+/* Match leads app exactly: single-row header — controls inline.
+   No flex-wrap so the logo position is locked to the visual-left edge
+   regardless of how many controls there are (per user spec: logo
+   position is canonical, everything else arranges around it). */
+.hdr-right{display:flex;gap:6px;align-items:center;}
+.hdr-row-top,.hdr-row-bottom{display:flex;gap:6px;align-items:center;}
 .hdr-row-bottom:empty{display:none;}
 .hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;border-radius:4px;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
