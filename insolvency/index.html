@@ -6561,14 +6561,37 @@ async function saveDocsEdit(){
   _syncDocsToCV(c.rowNum, newVal, c.supplDocs||[]);
 }
 
-// Sync AC text list → CV JSON requirements (customer portal source of truth)
+// Sync AC text list → CV JSON requirements (customer portal source of truth).
+// Robust merge:
+//  - Each line in the new text becomes a requirement (matched by trimmed text
+//    to existing entries to preserve their id/status/files/approval/rejection).
+//  - Existing requirements that are NOT in the new text but DO have attached
+//    files (uploaded, approved, or rejected) are preserved as orphan entries
+//    so we never lose a client's upload or an approval/rejection history.
 async function _syncDocsToCV(rowNum, textList, existingReqs){
   const lines = (textList||'').split('\n').map(l=>l.trim()).filter(Boolean);
   const existing = Array.isArray(existingReqs) ? existingReqs : [];
+
+  // Build new list from current lines, matching to existing by text
+  const matchedIds = new Set();
   const newReqs = lines.map(text => {
-    const ex = existing.find(r => (r.text||'').trim() === text);
-    return ex || {id:'req_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text, status:'pending'};
+    const ex = existing.find(r =>
+      (r.text||'').trim() === text && !matchedIds.has(r.id)
+    );
+    if(ex){ matchedIds.add(ex.id); return ex; }
+    return {id:'req_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text, status:'pending'};
   });
+
+  // Preserve orphans: existing entries that have files OR a non-pending status
+  // (uploaded/approved/rejected). These are appended to the end so client portal
+  // still shows them under the "orphan approved/pending" sections.
+  existing.forEach(r => {
+    if(matchedIds.has(r.id)) return;
+    const hasFiles = Array.isArray(r.files) && r.files.length > 0;
+    const hasState = r.status && r.status !== 'pending';
+    if(hasFiles || hasState) newReqs.push(r);
+  });
+
   const cvUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CV${rowNum}?valueInputOption=RAW`;
   apiFetch(cvUrl,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(newReqs)]]})})
     .then(()=>{ const c=allClients.find(x=>x.rowNum===rowNum); if(c) c.supplDocs=newReqs; })
