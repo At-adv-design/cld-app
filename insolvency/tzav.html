@@ -4324,7 +4324,7 @@ function _renderSupplDocsList(){
         <div class="req-row">
           <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
             oninput="updateSupplDocText('${esc(r.id)}',this.value)"/>
-          <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק שדה">${ICON.trash}</button>
+          <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה">${ICON.trash}</button>
         </div>
         ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
       </div>`;
@@ -4361,7 +4361,7 @@ function addSupplDocRow(){
   saveSupplDocsList();
 }
 function removeSupplDocRow(id){
-  if(!confirm('למחוק שדה?')) return;
+  if(!confirm('למחוק את הדרישה? המסמכים יישמרו בתיקיית "נמחקו" ב-Drive ל-10 ימים.')) return;
   _custState.supplDocs = (_custState.supplDocs||[]).filter(r => r.id !== id);
   renderCustomerArea();
   saveSupplDocsList();
@@ -4804,12 +4804,11 @@ function _renderReqAttachments(o){
         </div>`).join('')}
       ${approved.map(a => `
         <div class="req-approved-row">
-          <div class="rar-name">
+          <div class="rar-name" onclick="previewCustomerFile(${_jsArg(a)})" style="cursor:pointer" title="לחץ לצפייה במסמך">
             ${ICON.paper}<span>${esc(a.name||'')}</span>
             <span class="rar-check">✓</span>
-            <button class="rar-revert-btn" onclick="revertApprovedFile(${_jsArg(a)})" title="בטל אישור">בטל אישור</button>
+            <button class="rar-revert-btn" onclick="event.stopPropagation();revertApprovedFile(${_jsArg(a)})" title="בטל אישור">בטל אישור</button>
           </div>
-          ${a.url ? `<a class="rar-url" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url)}</a>` : ''}
         </div>`).join('')}
       ${rejection ? `
         <div class="req-rejection-note">
