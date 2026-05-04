@@ -846,12 +846,13 @@ body.focus-mode-active{overflow:hidden;}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         התקן
       </button>
-      <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" title="פניות לקוחות" style="position:relative">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span id="inquiries-hdr-badge" style="display:none;position:absolute;top:-4px;left:-4px;min-width:14px;height:14px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:7px;padding:0 3px;line-height:14px;text-align:center;font-family:inherit"></span>
+      <!-- Inquiries + pending-approvals removed from header per user 2026-05-04
+           ('לחצנים דוחקים שמאלה'). Kept in DOM as hidden so JS that targets them
+           still works. Functionality reachable via the customer-area modal. -->
+      <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" style="display:none">
+        <span id="inquiries-hdr-badge" style="display:none"></span>
       </button>
-      <button id="pending-approvals-badge" onclick="jumpToFirstPending()" title="מסמכים ממתינים לאישור" style="display:none;align-items:center;gap:4px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:inherit;border-radius:4px">
-        <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite"></span>
+      <button id="pending-approvals-badge" onclick="jumpToFirstPending()" style="display:none">
         <span id="pending-approvals-count">0</span>
       </button>
       <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
@@ -4342,7 +4343,7 @@ function addSupplDocRow(){
   saveSupplDocsList();
 }
 function removeSupplDocRow(id){
-  if(!confirm('למחוק את הדרישה? המסמכים יישמרו בתיקיית "נמחקו" ב-Drive ל-10 ימים.')) return;
+  if(!confirm('למחוק את הדרישה מהרשימה? הקבצים יישארו בתיקייה ב-Drive.')) return;
   _custState.supplDocs = (_custState.supplDocs||[]).filter(r => r.id !== id);
   renderCustomerArea();
   saveSupplDocsList();

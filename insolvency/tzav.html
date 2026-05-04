@@ -4365,7 +4365,7 @@ function addSupplDocRow(){
   saveSupplDocsList();
 }
 function removeSupplDocRow(id){
-  if(!confirm('למחוק את הדרישה? המסמכים יישמרו בתיקיית "נמחקו" ב-Drive ל-10 ימים.')) return;
+  if(!confirm('למחוק את הדרישה מהרשימה? הקבצים יישארו בתיקייה ב-Drive.')) return;
   _custState.supplDocs = (_custState.supplDocs||[]).filter(r => r.id !== id);
   renderCustomerArea();
   saveSupplDocsList();
