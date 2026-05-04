@@ -434,6 +434,35 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .chip.red.active{background:var(--red);border-color:var(--red);}
 .chip.orange.active{background:var(--orange);border-color:var(--orange);}
 
+/* DROPDOWN FILTERS — compact triggers, popover holds the original chips. */
+.dropdown-filter{position:relative;display:inline-flex;}
+.dropdown-trigger{
+  background:var(--bg);border:1px solid var(--border);
+  padding:0 10px;height:32px;
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:inherit;font-size:12px;cursor:pointer;
+  color:var(--text);border-radius:4px;white-space:nowrap;
+}
+.dropdown-trigger .dd-label{color:var(--muted);font-weight:600;font-size:11px;}
+.dropdown-trigger .dd-value{font-weight:700;color:var(--text);font-size:12px;}
+.dropdown-trigger .dd-chev{width:10px;height:10px;color:var(--muted);transition:transform .15s;flex-shrink:0;}
+.dropdown-trigger:active{background:var(--border);}
+.dropdown-trigger.has-active{background:var(--slate);color:#fff;border-color:var(--slate);}
+.dropdown-trigger.has-active .dd-label,
+.dropdown-trigger.has-active .dd-value,
+.dropdown-trigger.has-active .dd-chev{color:#fff;}
+.dropdown-trigger.has-active.color-red{background:var(--red);border-color:var(--red);}
+.dropdown-trigger.has-active.color-orange{background:var(--orange);border-color:var(--orange);}
+.dropdown-trigger.open .dd-chev{transform:rotate(180deg);}
+.dropdown-menu{
+  position:absolute;top:calc(100% + 6px);right:0;
+  background:var(--white);border:1px solid var(--border);
+  padding:8px;display:none;flex-wrap:wrap;gap:4px;
+  z-index:200;min-width:max-content;
+  box-shadow:var(--shadow);border-radius:4px;
+}
+.dropdown-menu.open{display:flex;}
+
 /* STATS */
 .stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;font-size:11px;font-weight:500;color:var(--muted);overflow-x:auto;}
 .stat{display:flex;align-items:center;gap:4px;white-space:nowrap;}
@@ -882,55 +911,83 @@ body.focus-mode-active{overflow:hidden;}
       </div>
     </div>
     <div class="filters-wrap">
-      <div class="filter-row">
-        <span class="filter-label">דוחות פתוחים:</span>
-        <div class="filter-chips" id="report-chips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;flex:1;">
-          <div class="chip active" onclick="setReportFilter('all',this)">הכל</div>
-          <div class="chip red" onclick="setReportFilter(1,this)">1</div>
-          <div class="chip red" onclick="setReportFilter(2,this)">2</div>
-          <div class="chip red" onclick="setReportFilter(3,this)">3</div>
-          <div class="chip red" onclick="setReportFilter(4,this)">4</div>
-          <div class="chip red" onclick="setReportFilter(5,this)">5</div>
-          <div class="chip red" onclick="setReportFilter(6,this)">6</div>
-          <!-- Collection ("גבייה") section toggle. Pushed to the visual end
-               (right edge in RTL = margin-inline-start:auto). Uses the same
-               neutral white chip style as the other filter chips. -->
-          <div class="chip" id="collection-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">גבייה</div>
+      <!-- Single row holding 4 dropdown filters + 2 mode-toggle chips (גבייה,
+           פוטנציאליים) at the visual end. Each dropdown trigger shows the
+           current value; clicking opens a popover with the original chips.
+           Replaces the previous 4-row filters block (kept the chip IDs and
+           handlers identical so no other code paths broke). -->
+      <div class="filter-row" id="main-filter-row">
+        <div class="dropdown-filter" id="df-reports">
+          <button class="dropdown-trigger" onclick="toggleDropdown(event,this)">
+            <span class="dd-label">דוחות:</span><span class="dd-value">הכל</span>
+            <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu" id="report-chips">
+            <div class="chip active" onclick="setReportFilter('all',this)">הכל</div>
+            <div class="chip red" onclick="setReportFilter(1,this)">1</div>
+            <div class="chip red" onclick="setReportFilter(2,this)">2</div>
+            <div class="chip red" onclick="setReportFilter(3,this)">3</div>
+            <div class="chip red" onclick="setReportFilter(4,this)">4</div>
+            <div class="chip red" onclick="setReportFilter(5,this)">5</div>
+            <div class="chip red" onclick="setReportFilter(6,this)">6</div>
+          </div>
         </div>
+        <div class="dropdown-filter" id="df-docs">
+          <button class="dropdown-trigger" onclick="toggleDropdown(event,this)">
+            <span class="dd-label">מסמכים:</span><span class="dd-value">הכל</span>
+            <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="chip active" id="fd-all" onclick="setF('docs','all')">הכל</div>
+            <div class="chip red" id="fd-urgent" onclick="setF('docs','urgent')" data-icon="fire">דחוף</div>
+            <div class="chip orange" id="fd-warning" onclick="setF('docs','warning')">בטיפול</div>
+          </div>
+        </div>
+        <div class="dropdown-filter" id="df-srv">
+          <button class="dropdown-trigger" onclick="toggleDropdown(event,this)">
+            <span class="dd-label">מסירה:</span><span class="dd-value">הכל</span>
+            <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="chip active" id="fs-all" onclick="setF('srv','all')">הכל</div>
+            <div class="chip red" id="fs-urgent" onclick="setF('srv','urgent')" data-icon="fire">דחוף</div>
+            <div class="chip orange" id="fs-warning" onclick="setF('srv','warning')">בטיפול</div>
+          </div>
+        </div>
+        <div class="dropdown-filter" id="df-inj">
+          <button class="dropdown-trigger" onclick="toggleDropdown(event,this)">
+            <span class="dd-label">עיכוב:</span><span class="dd-value">הכל</span>
+            <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="chip active" id="fi-all" onclick="setF('inj','all')">הכל</div>
+            <div class="chip red" id="fi-urgent" onclick="setF('inj','urgent')" data-icon="fire">דחוף</div>
+          </div>
+        </div>
+        <!-- Visual-end mode chips (RTL: left edge). margin-inline-start:auto
+             pushes them to the far visual end so they're always reachable. -->
+        <div class="chip" id="collection-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">גבייה</div>
+        <div class="chip" id="potential-chip" onclick="togglePotentialMode()">פוטנציאליים</div>
       </div>
-      <div class="filter-row">
-        <span class="filter-label">מסמכים:</span>
-        <div class="chip active" id="fd-all" onclick="setF('docs','all')">הכל</div>
-        <div class="chip red" id="fd-urgent" onclick="setF('docs','urgent')" data-icon="fire">דחוף</div>
-        <div class="chip orange" id="fd-warning" onclick="setF('docs','warning')">בטיפול</div>
-        <div class="chip" id="potential-chip" onclick="togglePotentialMode()" style="margin-inline-start:auto">פוטנציאליים</div>
-      </div>
-      <div class="filter-row">
-        <span class="filter-label">אישורי מסירה:</span>
-        <div class="chip active" id="fs-all" onclick="setF('srv','all')">הכל</div>
-        <div class="chip red" id="fs-urgent" onclick="setF('srv','urgent')" data-icon="fire">דחוף</div>
-        <div class="chip orange" id="fs-warning" onclick="setF('srv','warning')">בטיפול</div>
-      </div>
-      <div class="filter-row">
-        <span class="filter-label">עיכוב הליכים:</span>
-        <div class="chip active" id="fi-all" onclick="setF('inj','all')">הכל</div>
-        <div class="chip red" id="fi-urgent" onclick="setF('inj','urgent')" data-icon="fire">דחוף</div>
-      </div>
-      <!-- Collection-mode-only filter row. Same chip shape as the reports
-           filter (1-6 + הכל). The number = exact missed-payment count. -->
+      <!-- Collection-mode row: shown only when גבייה is on. Same dropdown
+           pattern: a single פיגורים dropdown + a close chip. -->
       <div class="filter-row" id="collection-filter-row" style="display:none">
-        <span class="filter-label">פיגורים:</span>
-        <div class="filter-chips" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;flex:1">
-          <div class="chip active" id="fc-all" onclick="setCollFilter('all',this)">הכל</div>
-          <div class="chip red" id="fc-1" onclick="setCollFilter(1,this)">1</div>
-          <div class="chip red" id="fc-2" onclick="setCollFilter(2,this)">2</div>
-          <div class="chip red" id="fc-3" onclick="setCollFilter(3,this)">3</div>
-          <div class="chip red" id="fc-4" onclick="setCollFilter(4,this)">4</div>
-          <div class="chip red" id="fc-5" onclick="setCollFilter(5,this)">5</div>
-          <div class="chip red" id="fc-6" onclick="setCollFilter(6,this)">6</div>
-          <!-- "Close collection" toggle, sits at the visual end of the row -->
-          <div class="chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור</div>
+        <div class="dropdown-filter" id="df-coll">
+          <button class="dropdown-trigger" onclick="toggleDropdown(event,this)">
+            <span class="dd-label">פיגורים:</span><span class="dd-value">הכל</span>
+            <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <div class="chip active" id="fc-all" onclick="setCollFilter('all',this)">הכל</div>
+            <div class="chip red" id="fc-1" onclick="setCollFilter(1,this)">1</div>
+            <div class="chip red" id="fc-2" onclick="setCollFilter(2,this)">2</div>
+            <div class="chip red" id="fc-3" onclick="setCollFilter(3,this)">3</div>
+            <div class="chip red" id="fc-4" onclick="setCollFilter(4,this)">4</div>
+            <div class="chip red" id="fc-5" onclick="setCollFilter(5,this)">5</div>
+            <div class="chip red" id="fc-6" onclick="setCollFilter(6,this)">6</div>
+          </div>
         </div>
+        <div class="chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור גבייה</div>
       </div>
     </div>
     <div class="stats-bar">
@@ -2534,16 +2591,47 @@ function fmtDate(s){
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────────────
+/* Generic dropdown open/close. Closes any other open dropdown first so only
+   one popover is visible at a time. */
+function toggleDropdown(e, btn){
+  if(e) e.stopPropagation();
+  const wrap = btn.parentElement;
+  const menu = wrap.querySelector('.dropdown-menu');
+  if(!menu) return;
+  const wasOpen = menu.classList.contains('open');
+  document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
+  document.querySelectorAll('.dropdown-trigger.open').forEach(t=>t.classList.remove('open'));
+  if(!wasOpen){ menu.classList.add('open'); btn.classList.add('open'); }
+}
+/* Close any open dropdown when the user clicks outside the filter wrap. */
+document.addEventListener('click', e=>{
+  if(e.target.closest('.dropdown-filter')) return;
+  document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
+  document.querySelectorAll('.dropdown-trigger.open').forEach(t=>t.classList.remove('open'));
+});
+/* Update the trigger of a dropdown after a chip was chosen: change the
+   visible value text, color, and close the popover. */
+function _updateDropdownTrigger(menuEl, val, displayText, color){
+  if(!menuEl) return;
+  const wrap = menuEl.parentElement;
+  const trigger = wrap && wrap.querySelector('.dropdown-trigger');
+  if(!trigger) return;
+  const valSpan = trigger.querySelector('.dd-value');
+  if(valSpan) valSpan.textContent = displayText;
+  const isActive = val !== 'all';
+  trigger.classList.toggle('has-active', isActive);
+  trigger.classList.remove('color-red','color-orange');
+  if(isActive && color) trigger.classList.add('color-' + color);
+  menuEl.classList.remove('open');
+  trigger.classList.remove('open');
+}
+
 function setReportFilter(val,el){
   fReport=val;
-  document.querySelectorAll('#report-chips .chip').forEach(c=>c.classList.remove('active'));
+  const menu=el.closest('.dropdown-menu') || document.getElementById('report-chips');
+  if(menu) menu.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
-  // Pin the row to the header when a real filter is applied (anything
-  // other than "all"). Removing the class when back to "all" lets the row
-  // scroll away again like normal.
-  const row=el.closest('.filter-row');
-  if(row) row.classList.toggle('filter-active', val!=='all');
-  stackActiveFilterRows();
+  _updateDropdownTrigger(menu, val, val==='all'?'הכל':String(val), val==='all'?null:'red');
   applyFilters();
 }
 function setF(type,val){
@@ -2555,12 +2643,12 @@ function setF(type,val){
     const el=document.getElementById('f'+type[0]+'-'+v);
     if(el){ el.classList.toggle('active',v===val); if(v===val) activeEl=el; }
   });
-  // Pin only when a real filter is applied
   if(activeEl){
-    const row=activeEl.closest('.filter-row');
-    if(row) row.classList.toggle('filter-active', val!=='all');
+    const menu=activeEl.closest('.dropdown-menu');
+    const display = val==='all'?'הכל':(val==='urgent'?'דחוף':'בטיפול');
+    const color   = val==='all'?null  :(val==='urgent'?'red'  :'orange');
+    _updateDropdownTrigger(menu, val, display, color);
   }
-  stackActiveFilterRows();
   applyFilters();
 }
 /* Update the global pending-approvals badge in the header. Counts up
@@ -2679,13 +2767,12 @@ function togglePotentialMode(){
   _potentialMode = !_potentialMode;
   const chip = document.getElementById('potential-chip');
   if(chip) chip.classList.toggle('active', _potentialMode);
-  // In potential mode hide the other filter chips (except docs row which hosts potential chip)
-  const collChip = document.getElementById('collection-chip');
-  if(collChip) collChip.style.display = _potentialMode ? 'none' : '';
-  // Hide non-docs filter rows
-  document.querySelectorAll('.filter-row').forEach(r => {
-    if(r.contains(document.getElementById('fd-all'))) return; // keep docs row
-    r.style.display = _potentialMode ? 'none' : '';
+  // In potential mode: hide non-docs dropdowns + collection chip; keep
+  // docs dropdown + potential chip visible. Use empty string to fall
+  // back to CSS default (inline-flex / flex).
+  ['df-reports','df-srv','df-inj','collection-chip'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = _potentialMode ? 'none' : '';
   });
   if(_potentialMode && collectionMode) toggleCollectionView();
   loadData();
@@ -2693,32 +2780,29 @@ function togglePotentialMode(){
 
 function toggleCollectionView(){
   collectionMode=!collectionMode;
-  const otherRows=document.querySelectorAll('.filter-row');
-  otherRows.forEach(r=>{
-    if(r.id==='collection-filter-row'){
-      r.style.display=collectionMode?'flex':'none';
-    } else {
-      // All other filter rows (including the reports row that holds the
-      // "גבייה" button) are hidden in collection mode. The close button
-      // already lives on the collection row itself.
-      r.style.display=collectionMode?'none':'';
-    }
-  });
+  const main=document.getElementById('main-filter-row');
+  const coll=document.getElementById('collection-filter-row');
+  if(main) main.style.display = collectionMode ? 'none' : '';
+  if(coll) coll.style.display = collectionMode ? 'flex' : 'none';
+  // Reset the missed-payments filter back to "הכל"
   fColl='all';
-  document.querySelectorAll('#collection-filter-row .chip').forEach(c=>c.classList.remove('active'));
-  const fcAll=document.getElementById('fc-all'); if(fcAll) fcAll.classList.add('active');
-  // Toggle the stats-bar between regular and collection summaries
+  const collMenu = coll && coll.querySelector('.dropdown-menu');
+  if(collMenu){
+    collMenu.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    const fcAll=document.getElementById('fc-all');
+    if(fcAll) fcAll.classList.add('active');
+    _updateDropdownTrigger(collMenu, 'all', 'הכל', null);
+  }
   updateStatsBarMode();
   applyFilters();
 }
 
 function setCollFilter(val,el){
   fColl=val;
-  document.querySelectorAll('#collection-filter-row .chip').forEach(c=>c.classList.remove('active'));
+  const menu=el.closest('.dropdown-menu');
+  if(menu) menu.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
-  const row=el.closest('.filter-row');
-  if(row) row.classList.toggle('filter-active', val!=='all');
-  stackActiveFilterRows();
+  _updateDropdownTrigger(menu, val, val==='all'?'הכל':String(val), val==='all'?null:'red');
   applyFilters();
 }
 
