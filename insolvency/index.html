@@ -2885,6 +2885,22 @@ function renderCards(clients){
           }
           </div>
         </div>` : ''}
+        ${(c.clientStage === 'pre_order') ? `<div class="card-section" data-section="questionnaire">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'questionnaire')">
+            <span class="card-section-chev">▼</span>
+            <span class="card-section-icon">${ICON.noteAdd}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">שאלון צו פתיחה</span>
+            ${c.questData?`<span class="status-badge badge-green" style="margin-inline-start:auto">מלא</span>`:`<span class="status-badge badge-gray" style="margin-inline-start:auto">ריק</span>`}
+          </div>
+          <div class="card-section-body">
+            ${c.questData ? `<div style="font-size:11px;color:var(--text);margin-bottom:8px;padding:6px 8px;background:var(--bg);border:1px solid var(--border)">
+              ${c.questData.last_name||c.questData.first_name?`<div><b>שם:</b> ${esc((c.questData.last_name||'')+' '+(c.questData.first_name||''))}</div>`:''}
+              ${c.questData.id?`<div><b>ת.ז:</b> ${esc(c.questData.id)}</div>`:''}
+              ${c.questData.creditors&&c.questData.creditors.length?`<div><b>נושים:</b> ${c.questData.creditors.length}</div>`:''}
+            </div>` : ''}
+            <button onclick="event.stopPropagation();openInsQuestModal(${c.rowNum})" style="width:100%;padding:8px;background:var(--bg);border:1px dashed var(--border);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--slate);display:inline-flex;align-items:center;justify-content:center;gap:6px">${ICON.pencil} ${c.questData?'ערוך שאלון':'מלא שאלון'}</button>
+          </div>
+        </div>` : ''}
         <div class="card-section" data-section="docs">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'docs')">
             <span class="card-section-chev">▼</span>
@@ -2920,6 +2936,17 @@ function renderCards(clients){
           }
           </div>
         </div>
+        ${(c.clientStage === 'pre_order' || c.clientStage === 'commercial') && c.infoQs && c.infoQs.length ? `<div class="card-section" data-section="info">
+          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'info')">
+            <span class="card-section-chev">▼</span>
+            <span class="card-section-icon">${ICON.question}</span>
+            <span class="section-title" style="color:#5c4a36;margin:0">השלמת פרטים</span>
+            <span class="status-badge ${c.infoQs.every(q=>q.status==='approved')?'badge-green':c.infoQs.some(q=>q.status==='uploaded')?'badge-orange':'badge-gray'}" style="margin-inline-start:auto">${c.infoQs.filter(q=>q.status==='approved').length}/${c.infoQs.length}</span>
+          </div>
+          <div class="card-section-body">
+            ${c.infoQs.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border-light,#f0ede8)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.text||'')}</span><span class="status-badge ${q.status==='approved'?'badge-green':q.status==='uploaded'?'badge-orange':'badge-gray'}" style="margin-inline-start:8px;flex-shrink:0">${q.status==='approved'?'אושר':q.status==='uploaded'?'הועלה':'ממתין'}</span></div>`).join('')}
+          </div>
+        </div>` : ''}
         ${(c.clientStage !== 'pre_order' && c.clientStage !== 'commercial') ? `<div class="card-section" data-section="service">
           <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'service')">
             <span class="card-section-chev">▼</span>
@@ -2959,33 +2986,6 @@ function renderCards(clients){
           </div>
         </div>
         ` : ''}
-        ${(c.clientStage === 'pre_order') ? `<div class="card-section" data-section="questionnaire">
-          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'questionnaire')">
-            <span class="card-section-chev">▼</span>
-            <span class="card-section-icon">${ICON.noteAdd}</span>
-            <span class="section-title" style="color:#5c4a36;margin:0">שאלון צו פתיחה</span>
-            ${c.questData?`<span class="status-badge badge-green" style="margin-inline-start:auto">מלא</span>`:`<span class="status-badge badge-gray" style="margin-inline-start:auto">ריק</span>`}
-          </div>
-          <div class="card-section-body">
-            ${c.questData ? `<div style="font-size:11px;color:var(--text);margin-bottom:8px;padding:6px 8px;background:var(--bg);border:1px solid var(--border)">
-              ${c.questData.last_name||c.questData.first_name?`<div><b>שם:</b> ${esc((c.questData.last_name||'')+' '+(c.questData.first_name||''))}</div>`:''}
-              ${c.questData.id?`<div><b>ת.ז:</b> ${esc(c.questData.id)}</div>`:''}
-              ${c.questData.creditors&&c.questData.creditors.length?`<div><b>נושים:</b> ${c.questData.creditors.length}</div>`:''}
-            </div>` : ''}
-            <button onclick="event.stopPropagation();openInsQuestModal(${c.rowNum})" style="width:100%;padding:8px;background:var(--bg);border:1px dashed var(--border);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--slate);display:inline-flex;align-items:center;justify-content:center;gap:6px">${ICON.pencil} ${c.questData?'ערוך שאלון':'מלא שאלון'}</button>
-          </div>
-        </div>` : ''}
-        ${(c.clientStage === 'pre_order' || c.clientStage === 'commercial') && c.infoQs && c.infoQs.length ? `<div class="card-section" data-section="info">
-          <div class="card-section-head" onclick="event.stopPropagation();toggleCardSection(${c.rowNum},'info')">
-            <span class="card-section-chev">▼</span>
-            <span class="card-section-icon">${ICON.question}</span>
-            <span class="section-title" style="color:#5c4a36;margin:0">השלמת פרטים</span>
-            <span class="status-badge ${c.infoQs.every(q=>q.status==='approved')?'badge-green':c.infoQs.some(q=>q.status==='uploaded')?'badge-orange':'badge-gray'}" style="margin-inline-start:auto">${c.infoQs.filter(q=>q.status==='approved').length}/${c.infoQs.length}</span>
-          </div>
-          <div class="card-section-body">
-            ${c.infoQs.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border-light,#f0ede8)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.text||'')}</span><span class="status-badge ${q.status==='approved'?'badge-green':q.status==='uploaded'?'badge-orange':'badge-gray'}" style="margin-inline-start:8px;flex-shrink:0">${q.status==='approved'?'אושר':q.status==='uploaded'?'הועלה':'ממתין'}</span></div>`).join('')}
-          </div>
-        </div>` : ''}
       </div>`;
       }
     }
@@ -4003,17 +4003,6 @@ function renderCustomerArea(){
       </div>
     ` : ''}
 
-    ${sect('drive', 'תיקיית מסמכים — Google Drive', '', `
-      <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
-        <span class="cust-folder-icon">${(window.DocsFeature&&window.DocsFeature.icon)||''}</span>
-        <span class="cust-folder-text">
-          <span class="cust-folder-title">פתח תיקיית הלקוח</span>
-          <span class="cust-folder-sub">צפייה במסמכים של ${esc(_custState.name||'')}</span>
-        </span>
-        <span class="cust-folder-chev">‹</span>
-      </button>
-    `)}
-
     ${(_custState.stage !== 'pre_order' && _custState.stage !== 'commercial') ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody()) : ''}
 
     ${sect('docs', 'השלמת מסמכים', docsBadge, `
@@ -4024,6 +4013,17 @@ function renderCustomerArea(){
     ${sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
       ${_renderInfoQAList()}
       <button class="req-add-btn" onclick="addInfoQuestion()" style="margin-top:6px">+ הוסף שאלה</button>
+    `)}
+
+    ${sect('drive', 'תיקיית מסמכים — Google Drive', '', `
+      <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
+        <span class="cust-folder-icon">${(window.DocsFeature&&window.DocsFeature.icon)||''}</span>
+        <span class="cust-folder-text">
+          <span class="cust-folder-title">פתח תיקיית הלקוח</span>
+          <span class="cust-folder-sub">צפייה במסמכים של ${esc(_custState.name||'')}</span>
+        </span>
+        <span class="cust-folder-chev">‹</span>
+      </button>
     `)}
 
     ${sect('creds', 'שם משתמש וסיסמה ללקוח', credsBadge, `

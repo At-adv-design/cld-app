@@ -625,7 +625,30 @@ input,textarea,button{font-family:inherit;}
   </div>
   <div class="content">
 
-    <!-- QUESTIONNAIRE (pre_order stage) — moved here so it renders first in the content flow -->
+    <!-- REPORTS -->
+    <div class="section" id="sec-reports">
+      <div class="section-head" data-section-key="reports">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+          </div>
+          <div>
+            <div class="section-title">דוחות</div>
+            <div class="section-meta" id="reports-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="section-pending" id="reports-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="reports-list" id="reports-list"></div>
+        <div class="report-detail" id="report-detail"></div>
+      </div>
+    </div>
+
+    <!-- QUESTIONNAIRE (pre_order stage) -->
     <div id="sec-questionnaire" class="section" style="display:none">
       <div class="section-head" data-section-key="questionnaire">
         <div class="left">
@@ -795,29 +818,6 @@ input,textarea,button{font-family:inherit;}
           <div id="quest-saved-badge" class="quest-saved-badge">✅ נשמר בהצלחה</div>
           <button class="quest-save-bar" onclick="saveQuestionnaire()">שמור שאלון</button>
         </div>
-      </div>
-    </div>
-
-    <!-- REPORTS -->
-    <div class="section" id="sec-reports">
-      <div class="section-head" data-section-key="reports">
-        <div class="left">
-          <div class="section-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
-          </div>
-          <div>
-            <div class="section-title">דוחות</div>
-            <div class="section-meta" id="reports-meta">טוען…</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span class="section-pending" id="reports-pending" style="display:none"></span>
-          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-      </div>
-      <div class="section-body">
-        <div class="reports-list" id="reports-list"></div>
-        <div class="report-detail" id="report-detail"></div>
       </div>
     </div>
 
