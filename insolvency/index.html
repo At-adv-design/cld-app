@@ -507,6 +507,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 }
 /* Restore button keeps the green hint (used for "back to active") */
 .restore-btn{border-color:var(--green);color:var(--green);}
+/* Anonymous-call button — shown only in collection mode (גבייה).
+   Smaller than the regular phone-btn, with a "31" badge to indicate
+   that the call goes out as caller-ID-blocked (#31# prefix). */
+.anon-btn{position:relative;width:32px;height:32px;background:var(--white);border:1px solid var(--border);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:var(--slate);transition:all .12s;box-shadow:0 1px 2px rgba(0,0,0,0.06);padding:0;font-family:inherit;text-decoration:none;}
+.anon-btn svg{width:14px !important;height:14px !important;}
+.anon-btn:active{transform:scale(.92);background:var(--bg);}
+.anon-badge{position:absolute;top:-4px;left:-4px;background:#3a3a48;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:8px;line-height:1;font-family:inherit;}
 /* "has-log" — small dot indicator that the entry has content */
 .log-btn.has-log,.call-log-btn.has-log{}
 .log-btn.has-log .log-dot,.call-log-btn.has-log .log-dot,.log-dot{
@@ -2120,10 +2127,39 @@ function phoneBtn(c){
     // Dial via tel: AND open the call-summary viewer (with the "Add" button
     // visible) so the user can record the summary immediately after the call.
     html+=`<a href="tel:${tel}" onclick="event.stopPropagation();dialAndOpenSummary(${c.rowNum})" class="phone-btn" title="התקשר ${esc(c.phone)}">${ICON.phone}</a>`;
+    // Anonymous-call button — only in collection mode (גבייה).
+    // Prefixes #31# so the recipient sees "Unknown number".
+    if(collectionMode){
+      html+=`<a href="tel:%2331%23${tel}" onclick="event.stopPropagation();dialAnonymousAndOpenSummary(${c.rowNum})" class="anon-btn" title="התקשר חסוי ${esc(c.phone)} (#31#)"><span class="anon-badge">31</span>${ICON.phone}</a>`;
+    }
   }
   // Always show the call-log icon — even if there's no phone yet.
   html+=`<button onclick="event.stopPropagation();openCallSummary(${c.rowNum})" class="phone-btn call-log-btn${c.callLog?' has-log':''}" title="סיכומי שיחות" type="button">${ICON.clipboard}</button>`;
   return html;
+}
+
+// Anonymous-call variant of dialAndOpenSummary — same logging flow,
+// but the actual dial uses the #31# prefix (caller ID blocked) and the
+// call entry in the log is tagged "שיחה חסויה" so the lawyer can see in
+// the log that this particular call went out anonymously.
+function dialAnonymousAndOpenSummary(rowNum){
+  const c = allClients.find(x=>x.rowNum===rowNum);
+  if(c){
+    const stamp = `${getInsTS()} | ${getUserTag6()}`;
+    const newEntry = `${stamp}\nשיחה חסויה (#31#)`;
+    const prev = (c.callLog||'').replace(/^\s+|\s+$/g,'');
+    const newVal = prev ? (newEntry+'\n\n'+prev) : newEntry;
+    c.callLog = newVal;
+    const activeSheet = _potentialMode ? POTENTIAL_SHEET_ID : SHEET_ID;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${activeSheet}/values/${COL_CH}${rowNum}?valueInputOption=RAW`;
+    const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[newVal]]})};
+    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'תיעוד שיחה חסויה'));
+  }
+  openCallSummary(rowNum);
+  _callFromDial=true;
+  setTimeout(()=>{
+    if(typeof openAddCallSummary==='function') openAddCallSummary();
+  },150);
 }
 
 // Track whether the call-summary viewer was opened as part of a dial flow.
