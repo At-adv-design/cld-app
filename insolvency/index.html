@@ -4005,6 +4005,15 @@ function renderCustomerArea(){
 
     ${(_custState.stage !== 'pre_order' && _custState.stage !== 'commercial') ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody()) : ''}
 
+    ${(_custState.stage === 'pre_order') ? sect('questionnaire', 'שאלון בקשת צו פתיחת הליכים', _custState.questData ? '<span style="color:var(--green);font-weight:700">מלא</span>' : '<span style="color:var(--muted)">ריק</span>', `
+      ${_custState.questData ? `<div style="font-size:12px;color:var(--text);margin-bottom:10px;padding:8px 10px;background:var(--bg);border:1px solid var(--border)">
+        ${_custState.questData.last_name||_custState.questData.first_name?`<div><b>שם:</b> ${esc((_custState.questData.last_name||'')+' '+(_custState.questData.first_name||''))}</div>`:''}
+        ${_custState.questData.id?`<div><b>ת.ז:</b> ${esc(_custState.questData.id)}</div>`:''}
+        ${_custState.questData.creditors&&_custState.questData.creditors.length?`<div><b>נושים:</b> ${_custState.questData.creditors.length}</div>`:''}
+      </div>` : ''}
+      <button onclick="openInsQuestModal(${_custState.rowNum})" style="width:100%;padding:10px;background:var(--bg);border:1px dashed var(--border);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--slate);display:inline-flex;align-items:center;justify-content:center;gap:6px">${_custState.questData?'ערוך שאלון':'מלא שאלון'}</button>
+    `) : ''}
+
     ${sect('docs', 'השלמת מסמכים', docsBadge, `
       ${_renderSupplDocsList()}
       <button class="req-add-btn" onclick="addSupplDocRow()" style="margin-top:6px">+ הוסף שדה</button>
