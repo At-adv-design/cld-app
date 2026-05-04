@@ -200,22 +200,25 @@ function handleUploadFile(p){
   const sheet = _sheet();
   const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
 
+  // Two-stage flow:
+  //   Pending review → "מסמכים ששלח הלקוח" (pending bin)
+  //   After approval → "השלמת מסמכים" (final, locked)
+  // Reports and info still use the old per-stage subfolders.
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
-  const inboxFolder  = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
   let target;
   if(p.category === 'reports'){
+    const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
     const reportsRoot = _ensureFolder(inboxFolder, 'מסמכי דוחות');
     target = _ensureFolder(reportsRoot, 'דוח ' + (p.reportNum || '?'));
   } else if(p.category === 'docs'){
-    const docsRoot = _ensureFolder(inboxFolder, 'השלמת מסמכים');
-    target = _ensureFolder(docsRoot, 'השלמה נוספת');
+    // PENDING bin — stays here until lawyer approves; then file moves to השלמת מסמכים
+    target = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
   } else if(p.category === 'info'){
+    const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
     target = _ensureFolder(inboxFolder, 'השלמת פרטים');
   } else if(p.category === 'pre_order_docs'){
-    const clientFolder = _ensureFolder(root, clientName);
-    const tzavFolder   = _ensureFolder(clientFolder, 'צו פתיחה');
-    target = tzavFolder;
+    target = _ensureFolder(clientFolder, 'צו פתיחה');
   } else {
     throw new Error('קטגוריה לא תקינה');
   }
@@ -277,6 +280,11 @@ function handleRemoveFile(p){
   const list   = _parseList(cell.getValue());
   const req    = list.find(r => r.id === p.reqId);
   if(!req || !req.files) return {ok:true};
+  const file = req.files.find(f => f.id === p.fileId);
+  // LOCK: an approved file cannot be removed by the client.
+  if(file && (file.locked || file.approvedAt)){
+    throw new Error('הקובץ כבר אושר ולא ניתן להסירו');
+  }
   const idx = req.files.findIndex(f => f.id === p.fileId);
   if(idx >= 0){
     try{ DriveApp.getFileById(p.fileId).setTrashed(true); }catch(_){}
@@ -455,6 +463,10 @@ function handleGetQuestionnaire(p){
 }
 
 // ─── Action: approveItem ─────────────────────────────────────────────
+// For docs (and pre_order_docs): move the approved file from the pending
+// "מסמכים ששלח הלקוח" bin to the final "השלמת מסמכים" folder, mark it
+// locked, and update the file entry with the new id+url. Reports/info
+// just flip status.
 function handleApproveItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
@@ -463,12 +475,38 @@ function handleApproveItem(p){
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
-  if(req){
-    req.status = 'approved';
-    req.approvedAt = Date.now();
-    if(p.fileId) req.approvedFileId = p.fileId;
-    cell.setValue(JSON.stringify(list));
+  if(!req){ return {ok: true}; }
+
+  // For docs: physically move the approved file to the final folder
+  if((p.category === 'docs' || p.category === 'pre_order_docs') && p.fileId){
+    try{
+      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+      const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+      const clientFolder = _ensureFolder(root, clientName);
+      const finalFolder  = _ensureFolder(clientFolder, 'השלמת מסמכים');
+      const driveFile    = DriveApp.getFileById(p.fileId);
+      // Remove from current parent(s), add to final folder
+      const parents = driveFile.getParents();
+      while(parents.hasNext()){
+        const parent = parents.next();
+        try{ parent.removeFile(driveFile); }catch(_){}
+      }
+      finalFolder.addFile(driveFile);
+      // Mark file entry: locked + approved + capture new url
+      const fileEntry = (req.files||[]).find(f => f.id === p.fileId);
+      if(fileEntry){
+        fileEntry.approved   = true;
+        fileEntry.locked     = true;
+        fileEntry.approvedAt = Date.now();
+        fileEntry.url        = driveFile.getUrl();
+      }
+    }catch(e){ Logger.log('approve move failed: ' + e); }
   }
+
+  req.status = 'approved';
+  req.approvedAt = Date.now();
+  if(p.fileId) req.approvedFileId = p.fileId;
+  cell.setValue(JSON.stringify(list));
   return {ok: true};
 }
 
@@ -496,6 +534,9 @@ function handleRejectItem(p){
 }
 
 // ─── Action: unapproveItem ───────────────────────────────────────────
+// Reverses an approval. For docs: physically move the file back from
+// "השלמת מסמכים" to the pending bin "מסמכים ששלח הלקוח" and clear the
+// locked/approved flags on the file entry.
 function handleUnapproveItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
@@ -505,6 +546,29 @@ function handleUnapproveItem(p){
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
   if(req && req.status === 'approved'){
+    // For docs: move file back to pending bin and clear lock flags
+    if((p.category === 'docs' || p.category === 'pre_order_docs') && p.fileId){
+      try{
+        const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+        const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+        const clientFolder  = _ensureFolder(root, clientName);
+        const pendingFolder = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
+        const driveFile     = DriveApp.getFileById(p.fileId);
+        const parents = driveFile.getParents();
+        while(parents.hasNext()){
+          const parent = parents.next();
+          try{ parent.removeFile(driveFile); }catch(_){}
+        }
+        pendingFolder.addFile(driveFile);
+        const fileEntry = (req.files||[]).find(f => f.id === p.fileId);
+        if(fileEntry){
+          delete fileEntry.approved;
+          delete fileEntry.locked;
+          delete fileEntry.approvedAt;
+          fileEntry.url = driveFile.getUrl();
+        }
+      }catch(e){ Logger.log('unapprove move failed: ' + e); }
+    }
     req.status = req.files && req.files.length ? 'uploaded' : 'pending';
     delete req.approvedAt;
     delete req.approvedFileId;
