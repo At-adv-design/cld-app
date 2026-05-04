@@ -3930,8 +3930,13 @@ async function confirmRejectFile(){
     });
     showToast('הקובץ נדחה','ok');
     await loadCustomerPending();
+    if(_rejectFromPreview){
+      _rejectFromPreview = false;
+      _jumpToNextPendingOrClose();
+    }
   }catch(err){
     showToast('שגיאה בדחייה: '+(err.message||err),'err');
+    _rejectFromPreview = false;
   }
 }
 function previewCustomerFile(p){
@@ -3978,23 +3983,12 @@ async function approveAndNextFromPreview(){
   }
 }
 
-async function rejectAndNextFromPreview(){
+let _rejectFromPreview = false;
+function rejectAndNextFromPreview(){
   const p = _previewingFile;
   if(!p) return;
-  showToast('שולח דחייה…','info');
-  try {
-    const token = await _custGetToken();
-    await _custApi('rejectItem', {
-      token, fileId: p.fileId, category: p.category,
-      reportNum: p.reportNum, reqId: p.reqId, reqText: p.reqText,
-      reason: ''
-    });
-    showToast('נדחה','ok');
-    await loadCustomerPending();
-    _jumpToNextPendingOrClose();
-  } catch(err){
-    showToast('שגיאה בדחייה: ' + (err.message||err), 'err');
-  }
+  _rejectFromPreview = true;
+  rejectCustomerFile(p);
 }
 
 function _jumpToNextPendingOrClose(){
