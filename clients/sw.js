@@ -1,5 +1,5 @@
 // Service worker for the CUSTOMER app — aggressive auto-update.
-const CACHE_NAME = 'at-customer-v31';
+const CACHE_NAME = 'at-customer-v32';
 const ASSETS = [
   './manifest.json',
   '../logo.png',
