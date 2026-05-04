@@ -1076,9 +1076,11 @@ body.focus-mode-active{overflow:hidden;}
      IN-APP FILE PREVIEW — image / PDF viewer
      ============================================================ -->
 <div id="drive-preview-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:480;flex-direction:column;">
-  <div style="padding:14px;display:flex;align-items:center;gap:10px;color:#fff;flex-shrink:0">
+  <div style="padding:14px;display:flex;align-items:center;gap:8px;color:#fff;flex-shrink:0;flex-wrap:wrap">
     <button onclick="closeDrivePreview()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit"><span>‹ חזרה</span></button>
     <div id="drive-preview-name" style="flex:1;min-width:0;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <button id="drive-preview-approve-btn" onclick="approveAndNextFromPreview()" style="display:none;background:#1a7a45;border:none;color:#fff;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ אישור</button>
+    <button id="drive-preview-reject-btn" onclick="rejectAndNextFromPreview()" style="display:none;background:#b01010;border:none;color:#fff;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✗ דחייה</button>
     <a id="drive-preview-open-external" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;font-size:13px;text-decoration:none;font-family:inherit">פתח ב-Drive</a>
   </div>
   <div id="drive-preview-body" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:auto"></div>
@@ -3913,10 +3915,79 @@ function previewCustomerFile(p){
     if(p && p.url) window.open(p.url, '_blank');
     return;
   }
+  // Track for the in-preview approve/reject buttons. We only show
+  // those buttons when the file is in the pending bin (not already
+  // approved/merged).
+  const isPending = (_custState && Array.isArray(_custState.pending))
+    ? _custState.pending.some(x => x.fileId === p.fileId)
+    : false;
+  _previewingFile = isPending ? p : null;
   if(typeof openDrivePreview === 'function'){
     openDrivePreview({id:p.fileId, name:p.name, mimeType:p.mimeType||'', webViewLink:p.url});
+    _setPreviewActionButtons(isPending);
   } else if(p.url){
     window.open(p.url, '_blank');
+  }
+}
+
+let _previewingFile = null;
+
+function _setPreviewActionButtons(show){
+  const approve = document.getElementById('drive-preview-approve-btn');
+  const reject  = document.getElementById('drive-preview-reject-btn');
+  if(approve) approve.style.display = show ? 'inline-flex' : 'none';
+  if(reject)  reject.style.display  = show ? 'inline-flex' : 'none';
+}
+
+async function approveAndNextFromPreview(){
+  const p = _previewingFile;
+  if(!p) return;
+  showToast('שולח אישור…','info');
+  try {
+    const token = await _custGetToken();
+    await _custApi('approveItem', {
+      token, fileId: p.fileId, category: p.category,
+      reportNum: p.reportNum, reqId: p.reqId, reqText: p.reqText
+    });
+    showToast('אושר','ok');
+    await loadCustomerPending();
+    _jumpToNextPendingOrClose();
+  } catch(err){
+    showToast('שגיאה באישור: ' + (err.message||err), 'err');
+  }
+}
+
+async function rejectAndNextFromPreview(){
+  const p = _previewingFile;
+  if(!p) return;
+  showToast('שולח דחייה…','info');
+  try {
+    const token = await _custGetToken();
+    await _custApi('rejectItem', {
+      token, fileId: p.fileId, category: p.category,
+      reportNum: p.reportNum, reqId: p.reqId, reqText: p.reqText,
+      reason: ''
+    });
+    showToast('נדחה','ok');
+    await loadCustomerPending();
+    _jumpToNextPendingOrClose();
+  } catch(err){
+    showToast('שגיאה בדחייה: ' + (err.message||err), 'err');
+  }
+}
+
+function _jumpToNextPendingOrClose(){
+  const remaining = (_custState && Array.isArray(_custState.pending))
+    ? _custState.pending.slice() : [];
+  if(remaining.length){
+    const next = remaining[0];
+    _previewingFile = next;
+    openDrivePreview({id: next.fileId, name: next.name, mimeType: '', webViewLink: next.url});
+    _setPreviewActionButtons(true);
+  } else {
+    _previewingFile = null;
+    _setPreviewActionButtons(false);
+    closeDrivePreview();
   }
 }
 
