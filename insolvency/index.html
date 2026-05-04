@@ -810,7 +810,7 @@ body.focus-mode-active{overflow:hidden;}
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <img src="../logo.png" alt="אבי טל ושות׳" style="width:180px;object-fit:contain;" onerror="this.style.display='none'">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;" onerror="this.style.display='none'">
     <div style="font-size:15px;font-weight:600;color:var(--text)">חדלות פירעון</div>
     <div style="font-size:13px;color:var(--muted)">ניהול תיקים | כניסה עם Google</div>
     <button class="google-btn" onclick="doLogin()">
@@ -4026,8 +4026,9 @@ function renderCustomerArea(){
       }).join('')}
     </div>
     ${_custState.pendingLoading ? `
-      <div style="padding:8px 12px;font-size:11px;color:var(--muted);text-align:center">
-        טוען קבצים ממתינים…
+      <div style="padding:14px 12px;font-size:11px;color:var(--muted);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div class="spinner" style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite"></div>
+        <div>טוען קבצים ממתינים…</div>
       </div>
     ` : _custState.pendingError ? `
       <div style="padding:8px 12px;font-size:11px;color:var(--red);text-align:center">
@@ -5225,7 +5226,7 @@ async function renderDriveCurrent(){
   }
   // Show loading state
   const list=document.getElementById('drive-list');
-  list.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">טוען...</div>';
+  list.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite"></div><div>טוען...</div></div>';
   try{
     const items=await driveListChildren(here.id);
     if(!items.length){
@@ -7498,7 +7499,7 @@ async function _calLoadMonth(y, m){
   // Show a loading indicator while we fetch
   const listEl = document.getElementById('cal-events-list');
   if(listEl && !_calLoadedRanges.size){
-    listEl.innerHTML = '<div class="cal-empty">טוען אירועים מקלנדר Google…</div>';
+    listEl.innerHTML = '<div class="cal-empty" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px"><div style="width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite"></div><div>טוען אירועים מקלנדר Google…</div></div>';
   }
   try{
     const data = await apiFetch(url);
