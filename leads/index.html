@@ -4224,7 +4224,15 @@ async function _sendMeetingConfirmation(name, phone, dateStr, timeStr){
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const [d,m,y] = dateStr.split('/').map(Number);
   const dow = new Date(y,m-1,d).getDay();
-  const msg = `◇ שלום ${name},\nנקבעה לך פגישה עם עורך דין אבי טל\nיום ${days[dow]} ${dateStr} בשעה ${timeStr}.\nכתובת: שדרות העצמאות 7, כפר סבא (קניון ערים).\nלאישור/שינוי: 04-8251453`;
+  // New office address + Waze link + confirmation request.
+  // Date format: D/M/YY (no leading zeros) — e.g. 5/5/26.
+  const dShort = `${d}/${m}/${String(y).slice(2)}`;
+  const msg =
+    `∆ ◇ שלום. נקבעה לך פגישה עם עורך דין אבי טל ליום ${dShort} בשעה ${timeStr}\n` +
+    ` כתובת המשרד רחוב הרב מרכוס 5 חיפה. נא להודיע כאן אם יש שינוי מבחינתך. תודה ויום טוב. לנוחיותך קישור לוויז : https://maps.app.goo.gl/kQNwgpSebmYviPv88\n` +
+    `\n` +
+    `אם נתקעים בלי וויז תתקשרו בבקשה למשרד 048251453 ונדריך אתכם \n` +
+    `*אשרו שקיבלתם בהודעה חוזרת בבקשה*`;
   try{
     const resp = await fetch(
       'https://api.green-api.com/waInstance7103130952/sendMessage/8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0',
