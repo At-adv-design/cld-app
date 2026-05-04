@@ -3337,7 +3337,8 @@ async function transferToInsolvency(rowNum){
     const updates = [];
     const pad = (col) => `${SHEET_ID}/values/${col}4?valueInputOption=USER_ENTERED`;
     const writes = [
-      ['W', c.name||''],       // W = name
+      ['X', c.name||''],       // X = canonical name (per user 2026-05-04)
+      ['W', c.name||''],       // W = legacy name copy (kept in sync for back-compat)
       ['V', c.phone||''],      // V = phone
     ];
     await Promise.all(writes.map(([col, val])=>
