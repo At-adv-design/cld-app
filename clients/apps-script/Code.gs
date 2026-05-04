@@ -254,6 +254,12 @@ function handleUploadFile(p){
     finalName
   );
   const file = target.createFile(blob);
+  // Make the file viewable without a Google sign-in prompt. The lawyer's
+  // browser session may differ from the app's OAuth account; without this,
+  // the Drive iframe demands a separate Google login. ANYONE_WITH_LINK is
+  // safe given the file ID is unguessable and only surfaces inside the
+  // lawyer's app.
+  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_) {}
   const stampedName = file.getName(); // Drive may have added " (1)" on collision
 
   // Update requirement entry in sheet
@@ -510,6 +516,8 @@ function handleApproveItem(p){
         try{ parent.removeFile(driveFile); }catch(_){}
       }
       finalFolder.addFile(driveFile);
+      // Re-apply public link sharing in case the move reset it
+      try { driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_) {}
       // Mark file entry: locked + approved + capture new url
       const fileEntry = (req.files||[]).find(f => f.id === p.fileId);
       if(fileEntry){
