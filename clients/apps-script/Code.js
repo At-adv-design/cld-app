@@ -148,10 +148,15 @@ function handleGetRequests(body){
     list.forEach(req => {
       const rn = req.reportNum || null;
       if(req.status === 'uploaded' && Array.isArray(req.files)){
-        req.files.forEach(f => pending.push({
-          reqId: req.id, reqText: req.text||'', category, reportNum: rn,
-          fileId: f.id, name: f.name, url: f.url, ts: f.ts
-        }));
+        req.files.forEach(f => {
+          // Skip files already individually approved — they'll appear in
+          // docsApproved instead of the pending list.
+          if(f.approved) return;
+          pending.push({
+            reqId: req.id, reqText: req.text||'', category, reportNum: rn,
+            fileId: f.id, name: f.name, url: f.url, ts: f.ts
+          });
+        });
       }
       if(req.status === 'rejected'){
         rejections.push({
@@ -580,12 +585,14 @@ function _mergeReqFilesToPdf(req, clientFolder){
 }
 
 // ─── Action: approveItem ─────────────────────────────────────────────
-// Behavior depends on number of files in the requirement:
-//   - Single file: move the file from pending bin → "השלמת מסמכים"
-//   - Multiple files: merge images into one PDF in "השלמת מסמכים"
-//     with name = req.text. Originals stay in pending folder as backup
-//     (per user spec: pending files are never auto-deleted).
-// Reports/info just flip status.
+// Per-file approval. Each click approves ONE file in the requirement.
+// When EVERY file in req.files becomes approved (and there's more than
+// one), the script then auto-merges them into a single PDF, trashes
+// the originals from Drive, and replaces req.files with [mergedPdf].
+//
+// User spec 2026-05-04: 'עולים שני המסמכים בנפרד וניתן לאשר אותם בנפרד.
+// לאחר שמאושרים כל המסמכים הם מצורפים לקובץ pdf אחד ונמחקים יתר
+// המסמכים גם מהתיקייה וגם מהרישום'.
 function handleApproveItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
@@ -597,53 +604,15 @@ function handleApproveItem(p){
   if(!req){ return {ok: true}; }
 
   const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
-  const files = req.files || [];
 
-  // Detect if any image is among the files — if so, route through the
-  // merge path so even a single image becomes a 1-page PDF (per user
-  // spec: 'גם מסמך בודד שאני שולח כתמונה עובר ל-PDF').
-  let hasImage = false;
-  for(let i = 0; i < files.length; i++){
-    try {
-      const m = DriveApp.getFileById(files[i].id).getMimeType() || '';
-      if(m.indexOf('image/') === 0){ hasImage = true; break; }
-    } catch(_){}
-  }
-
-  if(isDocs && (files.length > 1 || hasImage)){
-    // Merge path: any-images-present OR multi-file → produce single PDF
-    try {
-      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
-      const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
-      const clientFolder = _ensureFolder(root, clientName);
-      const result = _mergeReqFilesToPdf(req, clientFolder);
-      if(result.success){
-        req.mergedPdfId = result.pdfId;
-        req.mergedPdfName = result.pdfName;
-        req.mergedPdfUrl = result.pdfUrl;
-        req.mergedAt = Date.now();
-        req.mergedSkipped = result.skipped;
-      }
-    } catch(e){ Logger.log('merge approve failed: ' + e); }
-  } else if(isDocs && p.fileId){
-    // SINGLE FILE: move to final folder (existing behavior)
+  // Step 1: approve THIS file — move it from pending → השלמת מסמכים
+  if(isDocs && p.fileId){
     try{
       const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
       const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
       const clientFolder = _ensureFolder(root, clientName);
       const finalFolder  = _ensureFolder(clientFolder, 'השלמת מסמכים');
       const driveFile    = DriveApp.getFileById(p.fileId);
-      // Rename to req.text + same extension
-      const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
-      const reqText = sanitize(req.text || '');
-      if(reqText){
-        const orig = driveFile.getName();
-        const ext = (orig.match(/\.[^.\/\\]+$/) || [''])[0];
-        const desiredName = reqText + ext;
-        if(driveFile.getName() !== desiredName){
-          try { driveFile.setName(desiredName); } catch(_){}
-        }
-      }
       const parents = driveFile.getParents();
       while(parents.hasNext()){
         const parent = parents.next();
@@ -654,16 +623,94 @@ function handleApproveItem(p){
       const fileEntry = (req.files||[]).find(f => f.id === p.fileId);
       if(fileEntry){
         fileEntry.approved   = true;
-        fileEntry.locked     = true;
         fileEntry.approvedAt = Date.now();
         fileEntry.url        = driveFile.getUrl();
-        fileEntry.name       = driveFile.getName();
       }
     }catch(e){ Logger.log('approve move failed: ' + e); }
   }
 
-  req.status = 'approved';
-  req.approvedAt = Date.now();
+  // Step 2: are ALL files in req now approved?
+  const files = req.files || [];
+  const allApproved = files.length > 0 && files.every(f => f.approved);
+
+  // Step 3: if multiple files all approved → merge + delete originals
+  if(isDocs && allApproved && files.length > 1){
+    try {
+      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+      const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+      const clientFolder = _ensureFolder(root, clientName);
+      const result = _mergeReqFilesToPdf(req, clientFolder);
+      if(result.success){
+        // Trash originals from Drive (they're now baked into the PDF)
+        files.forEach(f => {
+          try { DriveApp.getFileById(f.id).setTrashed(true); } catch(_){}
+        });
+        // Replace req.files with a single entry — the merged PDF
+        req.files = [{
+          id: result.pdfId,
+          name: result.pdfName,
+          url: result.pdfUrl,
+          ts: Date.now(),
+          approved: true,
+          approvedAt: Date.now()
+        }];
+        req.mergedPdfId = result.pdfId;
+        req.mergedPdfName = result.pdfName;
+        req.mergedPdfUrl = result.pdfUrl;
+        req.mergedAt = Date.now();
+      }
+    } catch(e){ Logger.log('all-approved merge failed: ' + e); }
+  }
+  // Step 4: also produce a 1-page PDF if a single approved file is an
+  // image (per user: 'גם מסמך בודד שאני שולח כתמונה עובר ל-PDF')
+  else if(isDocs && allApproved && files.length === 1 && !req.mergedPdfId){
+    try {
+      const onlyFile = files[0];
+      const driveFile = DriveApp.getFileById(onlyFile.id);
+      const mime = driveFile.getMimeType() || '';
+      if(mime.indexOf('image/') === 0){
+        const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+        const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+        const clientFolder = _ensureFolder(root, clientName);
+        const result = _mergeReqFilesToPdf(req, clientFolder);
+        if(result.success){
+          // Trash the original image
+          try { driveFile.setTrashed(true); } catch(_){}
+          req.files = [{
+            id: result.pdfId,
+            name: result.pdfName,
+            url: result.pdfUrl,
+            ts: Date.now(),
+            approved: true,
+            approvedAt: Date.now()
+          }];
+          req.mergedPdfId = result.pdfId;
+          req.mergedPdfName = result.pdfName;
+          req.mergedPdfUrl = result.pdfUrl;
+          req.mergedAt = Date.now();
+        }
+      } else {
+        // Single PDF/other — just rename to req.text + ext (existing behavior)
+        const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
+        const reqText = sanitize(req.text || '');
+        if(reqText){
+          const orig = driveFile.getName();
+          const ext = (orig.match(/\.[^.\/\\]+$/) || [''])[0];
+          const desiredName = reqText + ext;
+          if(driveFile.getName() !== desiredName){
+            try { driveFile.setName(desiredName); onlyFile.name = desiredName; } catch(_){}
+          }
+        }
+      }
+    } catch(e){ Logger.log('single-image merge failed: ' + e); }
+  }
+
+  // Step 5: update req.status — only flip to 'approved' once all files done
+  if(allApproved){
+    req.status = 'approved';
+    req.approvedAt = Date.now();
+  }
+  // else: leave status='uploaded' so the still-pending file shows in pending list
   if(p.fileId) req.approvedFileId = p.fileId;
   cell.setValue(JSON.stringify(list));
   return {ok: true};
@@ -704,47 +751,51 @@ function handleUnapproveItem(p){
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
-  if(req && req.status === 'approved'){
-    const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
+  if(!req) return {ok: true};
 
-    if(isDocs && req.mergedPdfId){
-      // MULTI-FILE unapprove: trash the merged PDF; originals are still
-      // sitting in the pending bin (we never moved them out), so they
-      // become visible again automatically.
-      try { DriveApp.getFileById(req.mergedPdfId).setTrashed(true); } catch(e){ Logger.log('unmerge failed: ' + e); }
-      delete req.mergedPdfId;
-      delete req.mergedPdfName;
-      delete req.mergedPdfUrl;
-      delete req.mergedAt;
-      delete req.mergedSkipped;
-    } else if(isDocs && p.fileId){
-      // SINGLE FILE unapprove: move file back to pending bin
-      try{
-        const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
-        const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
-        const clientFolder  = _ensureFolder(root, clientName);
-        const pendingFolder = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
-        const driveFile     = DriveApp.getFileById(p.fileId);
-        const parents = driveFile.getParents();
-        while(parents.hasNext()){
-          const parent = parents.next();
-          try{ parent.removeFile(driveFile); }catch(_){}
-        }
-        pendingFolder.addFile(driveFile);
-        const fileEntry = (req.files||[]).find(f => f.id === p.fileId);
-        if(fileEntry){
-          delete fileEntry.approved;
-          delete fileEntry.locked;
-          delete fileEntry.approvedAt;
-          fileEntry.url = driveFile.getUrl();
-        }
-      }catch(e){ Logger.log('unapprove move failed: ' + e); }
-    }
-    req.status = req.files && req.files.length ? 'uploaded' : 'pending';
+  const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
+  // After per-file approval, req.status may not be 'approved' (e.g. only
+  // one of two files approved). Allow unapprove of an individual file
+  // regardless of overall status.
+  const fileId = p.fileId;
+
+  if(isDocs && fileId){
+    // Move the file back to pending bin (works for merged PDF too —
+    // it now lives in השלמת מסמכים after merge; this moves it back).
+    try{
+      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+      const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+      const clientFolder  = _ensureFolder(root, clientName);
+      const pendingFolder = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
+      const driveFile     = DriveApp.getFileById(fileId);
+      const parents = driveFile.getParents();
+      while(parents.hasNext()){
+        const parent = parents.next();
+        try{ parent.removeFile(driveFile); }catch(_){}
+      }
+      pendingFolder.addFile(driveFile);
+      const fileEntry = (req.files||[]).find(f => f.id === fileId);
+      if(fileEntry){
+        delete fileEntry.approved;
+        delete fileEntry.locked;
+        delete fileEntry.approvedAt;
+        fileEntry.url = driveFile.getUrl();
+      }
+    }catch(e){ Logger.log('unapprove move failed: ' + e); }
+  }
+
+  // Re-derive overall status: 'approved' iff all files still approved
+  const files = req.files || [];
+  const allApproved = files.length > 0 && files.every(f => f.approved);
+  req.status = allApproved ? 'approved' : (files.length ? 'uploaded' : 'pending');
+  if(!allApproved){
     delete req.approvedAt;
     delete req.approvedFileId;
-    cell.setValue(JSON.stringify(list));
   }
+  // Note: req.mergedPdfId stays set even after unapprove — the merged
+  // PDF still exists in Drive (now back in pending bin). User can
+  // re-approve it (single-file flow) or reject it (trashes the PDF).
+  cell.setValue(JSON.stringify(list));
   return {ok: true};
 }
 
