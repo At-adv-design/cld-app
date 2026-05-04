@@ -434,53 +434,34 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .chip.red.active{background:var(--red);border-color:var(--red);}
 .chip.orange.active{background:var(--orange);border-color:var(--orange);}
 
-/* DROPDOWN FILTERS — clear select-style triggers, popover holds chips.
-   Goal: instantly readable as "click me to pick a value" — full white bg,
-   visible border, prominent chevron, separated label/value typography. */
+/* DROPDOWN FILTERS — compact triggers, popover holds the original chips. */
 .dropdown-filter{position:relative;display:inline-flex;}
 .dropdown-trigger{
-  background:var(--white);border:1.5px solid var(--border);
-  padding:0 10px 0 8px;height:38px;
-  display:inline-flex;align-items:center;gap:8px;
-  font-family:inherit;cursor:pointer;
-  color:var(--text);border-radius:6px;white-space:nowrap;
-  box-shadow:0 1px 2px rgba(31,30,27,0.04);
-  transition:border-color .12s, background .12s;
+  background:var(--bg);border:1px solid var(--border);
+  padding:0 10px;height:32px;
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:inherit;font-size:12px;cursor:pointer;
+  color:var(--text);border-radius:4px;white-space:nowrap;
 }
-.dropdown-trigger:hover{border-color:var(--slate);}
-.dropdown-trigger .dd-label{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.2px;}
-.dropdown-trigger .dd-value{
-  font-weight:700;color:var(--text);font-size:14px;
-  padding:2px 8px;background:var(--bg);border-radius:4px;
-  min-width:30px;text-align:center;
-  transition:all .12s;
-}
-.dropdown-trigger .dd-chev{
-  width:14px;height:14px;color:var(--slate);
-  transition:transform .15s;flex-shrink:0;
-  stroke-width:2.4;
-}
-.dropdown-trigger:active{background:var(--bg);}
-/* When a non-default value is selected, recolor only the value pill — the
-   trigger frame stays neutral so multiple active filters don't overwhelm. */
-.dropdown-trigger.has-active{border-color:var(--slate);}
-.dropdown-trigger.has-active .dd-value{background:var(--slate);color:#fff;}
-.dropdown-trigger.has-active.color-red .dd-value{background:var(--red);color:#fff;}
-.dropdown-trigger.has-active.color-orange .dd-value{background:var(--orange);color:#fff;}
-.dropdown-trigger.has-active.color-red{border-color:var(--red);}
-.dropdown-trigger.has-active.color-orange{border-color:var(--orange);}
-.dropdown-trigger.open{border-color:var(--slate);background:var(--bg);}
+.dropdown-trigger .dd-label{color:var(--muted);font-weight:600;font-size:11px;}
+.dropdown-trigger .dd-value{font-weight:700;color:var(--text);font-size:12px;}
+.dropdown-trigger .dd-chev{width:10px;height:10px;color:var(--muted);transition:transform .15s;flex-shrink:0;}
+.dropdown-trigger:active{background:var(--border);}
+.dropdown-trigger.has-active{background:var(--slate);color:#fff;border-color:var(--slate);}
+.dropdown-trigger.has-active .dd-label,
+.dropdown-trigger.has-active .dd-value,
+.dropdown-trigger.has-active .dd-chev{color:#fff;}
+.dropdown-trigger.has-active.color-red{background:var(--red);border-color:var(--red);}
+.dropdown-trigger.has-active.color-orange{background:var(--orange);border-color:var(--orange);}
 .dropdown-trigger.open .dd-chev{transform:rotate(180deg);}
 .dropdown-menu{
   position:absolute;top:calc(100% + 6px);right:0;
   background:var(--white);border:1px solid var(--border);
-  padding:10px;display:none;flex-wrap:wrap;gap:6px;
+  padding:8px;display:none;flex-wrap:wrap;gap:4px;
   z-index:200;min-width:max-content;
-  box-shadow:0 6px 24px rgba(31,30,27,0.12),0 2px 4px rgba(31,30,27,0.06);
-  border-radius:6px;
+  box-shadow:var(--shadow);border-radius:4px;
 }
 .dropdown-menu.open{display:flex;}
-.dropdown-menu .chip{font-size:13px;padding:6px 12px;}
 
 /* STATS */
 .stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;font-size:11px;font-weight:500;color:var(--muted);overflow-x:auto;}
