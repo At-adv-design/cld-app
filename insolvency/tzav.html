@@ -4903,24 +4903,26 @@ let _infoSaveTimer = null;
 function saveInfoQuestions(debounce=false){
   if(!_custState) return;
   const list = _custState.infoQs || [];
-  // Build the plain-text serialization that the Apps Script also uses.
-  const text = list.map(e => {
-    const q = (e.question || e.text || '').trim();
-    const a = (e.answer || '').trim();
-    if(!q) return '';
-    return a ? (q + '\n' + a) : q;
-  }).filter(Boolean).join('\n\n');
+  // Write JSON to CW — Apps Script (handleGetRequests) parses CW as JSON
+  // and the clients app expects {id, question, answer, status?} entries.
+  // Filter out empty rows so we don't write blank questions.
+  const cleaned = list.filter(e => (e.question || e.text || '').trim()).map(e => ({
+    id: e.id || ('q_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
+    question: (e.question || e.text || '').trim(),
+    answer: (e.answer || '').trim(),
+    status: e.status || 'pending'
+  }));
 
   if(_infoSaveTimer) clearTimeout(_infoSaveTimer);
   const doSave = ()=>{
     _infoSaveTimer = null;
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CW${_custState.rowNum}?valueInputOption=RAW`;
     const opts = {method:'PUT', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({values:[[text]]})};
+                  body: JSON.stringify({values:[[JSON.stringify(cleaned)]]})};
     apiFetch(url, opts).catch(()=>enqueueWrite(url, opts, 'השלמת פרטים'));
     // Sync allClients cache
     const c = allClients.find(x => x.rowNum === _custState.rowNum);
-    if(c) c.infoQs = list.map(e => ({...e}));
+    if(c) c.infoQs = cleaned.map(e => ({...e}));
   };
   if(debounce) _infoSaveTimer = setTimeout(doSave, 800);
   else doSave();
