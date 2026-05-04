@@ -165,8 +165,27 @@ function handleGetRequests(body){
   _collect(docs,    'docs');
   _collect(info,    'info');
 
+  // Derive docsRequired + docsApproved from CV docs (clients app expects these fields)
+  const docsRequired = docs.map(req => ({
+    id: req.id, text: req.text || '', report: 0
+  }));
+  const docsApproved = [];
+  docs.forEach(req => {
+    if(!Array.isArray(req.files)) return;
+    req.files.forEach(f => {
+      if(f.approved || req.status === 'approved'){
+        docsApproved.push({
+          fileId: f.id, name: f.name, url: f.url,
+          reqId: req.id, reqText: req.text || '',
+          approvedAt: f.approvedAt || req.approvedAt || 0
+        });
+      }
+    });
+  });
+
   return {
     reports, docs, info,
+    docsRequired, docsApproved,
     name:    row[COL.NAME-1] || '',
     stage:   stage,
     questionnaire: _parseObj(row[COL.CY_QUEST-1]),

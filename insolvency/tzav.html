@@ -795,8 +795,10 @@ body.focus-mode-active{overflow:hidden;}
 .card-section[data-section="service"],
 .card-section[data-section="injunction"] { display:none !important; }
 
-/* באזור הלקוח (מודאל) — להציג רק drive/docs/info/creds. להסתיר reports. */
-.cust-section[data-section="reports"] { display:none !important; }
+/* באזור הלקוח (מודאל) — באפליקציית tzav מציגים רק docs + info לפי ההיררכיה הקנונית */
+.cust-section[data-cust-key="reports"],
+.cust-section[data-cust-key="drive"],
+.cust-section[data-cust-key="creds"] { display:none !important; }
 
 /* התאמת מיקום סטיקי כי הטאבים מוסתרים */
 .search-sticky { top: 96px !important; }
