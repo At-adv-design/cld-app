@@ -3852,6 +3852,10 @@ async function loadCustomerPending(){
     }
     if(Array.isArray(res.docsRequired)) _custState.supplDocsRequired = res.docsRequired;
     if(Array.isArray(res.docsApproved)) _custState.supplDocsApproved = res.docsApproved;
+    // Refresh _custState.supplDocs from CV (post-approve state).
+    if(Array.isArray(res.docs)) _custState.supplDocs = res.docs;
+    const cInList = allClients.find(x => x.rowNum === _custState.rowNum);
+    if(cInList && Array.isArray(res.docs)) cInList.supplDocs = res.docs;
     // CW info questions — Q&A format. Server returns [{id, question, answer}].
     // We keep them on _custState.infoQs (same key as before, new shape).
     if(Array.isArray(res.info)) _custState.infoQs = res.info;
