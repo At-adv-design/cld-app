@@ -1566,6 +1566,7 @@ const ICON={
   bell:     _SVG('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',14),
   plus:     _SVG('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',16),
   arrowL:   _SVG('<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',16),
+  arrowUp:  _SVG('<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',16),
   fire:     _SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',12),
   mic:      _SVG('<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/>',16),
   micStop:  _SVG('<rect x="6" y="6" width="12" height="12" rx="1"/>',16),
@@ -4322,12 +4323,16 @@ function _renderSupplDocsList(){
         }));
       });
     const myReject   = rejections.find(rj => rj.reqId === stableId);
+    const isApproved = (r.status === 'approved') || myApproved.length > 0;
     return `
-      <div class="req-block" data-id="${esc(r.id)}">
+      <div class="req-block ${isApproved?'approved':''}" data-id="${esc(r.id)}">
         <div class="req-row">
           <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
             oninput="updateSupplDocText('${esc(r.id)}',this.value)"/>
-          <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה">${ICON.trash}</button>
+          ${isApproved
+            ? `<button class="req-icon-btn req-submit-btn" onclick="submitApprovedReq('${esc(r.id)}')" title="העבר לתיקייה והסר מהרשימה">${ICON.arrowUp}</button>`
+            : `<button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה">${ICON.trash}</button>`
+          }
         </div>
         ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
       </div>`;
@@ -4368,6 +4373,14 @@ function removeSupplDocRow(id){
   _custState.supplDocs = (_custState.supplDocs||[]).filter(r => r.id !== id);
   renderCustomerArea();
   saveSupplDocsList();
+}
+
+function submitApprovedReq(id){
+  if(!_custState) return;
+  _custState.supplDocs = (_custState.supplDocs||[]).filter(r => r.id !== id);
+  renderCustomerArea();
+  saveSupplDocsList();
+  if(typeof showToast === 'function') showToast('הועבר לתיקייה — מסמכים מאושרים','ok');
 }
 let _supplDocsSaveTimer = null;
 function saveSupplDocsList(debounce=false){
