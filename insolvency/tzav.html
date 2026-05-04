@@ -1103,7 +1103,7 @@ body.focus-mode-active{overflow:hidden;}
 <!-- ============================================================
      IN-APP FILE PREVIEW — image / PDF viewer
      ============================================================ -->
-<div id="drive-preview-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:340;flex-direction:column;">
+<div id="drive-preview-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:480;flex-direction:column;">
   <div style="padding:14px;display:flex;align-items:center;gap:10px;color:#fff;flex-shrink:0">
     <button onclick="closeDrivePreview()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit"><span>‹ חזרה</span></button>
     <div id="drive-preview-name" style="flex:1;min-width:0;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
@@ -4297,7 +4297,13 @@ function _renderSupplDocsList(){
   return required.map(r => {
     const stableId = idForReq(r);
     const myPending  = pending.filter(p  => p.reqId === stableId);
-    const myApproved = (required.filter(x => x.status === 'approved' && x.id === stableId));
+    const myApproved = required
+      .filter(x => x.id === stableId)
+      .flatMap(x => (x.files || []).filter(f => f.approved).map(f => ({
+        fileId: f.id, name: f.name, url: f.url,
+        reqId: stableId, reqText: r.text || '',
+        category: 'docs', approvedAt: f.approvedAt || x.approvedAt || 0
+      })));
     const myReject   = rejections.find(rj => rj.reqId === stableId);
     return `
       <div class="req-block" data-id="${esc(r.id)}">
