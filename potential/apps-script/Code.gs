@@ -10,7 +10,7 @@ const SHEET_ID      = '1UNN3eJts5Wv3G_pL_R6gFMQ1ppxeGLZCbMctMTe3tzQ';
 const DRIVE_ROOT_ID = '1RitBIq8HXTVymhalA34HS4BRyfOzT6lq';
 
 const COL = {
-  NAME:          24,   // X — canonical client display name (per user 2026-05-04: 'בכל אפליקציות הבנות של סולבנסי זה תמיד ב-X')
+  NAME:          23,   // W (1-based) — client display name
   CR_USER:       96,   // CR — username (ID number)
   CS_PASS:       97,   // CS — password
   CT_ACTIVE:     98,   // CT — TRUE/FALSE

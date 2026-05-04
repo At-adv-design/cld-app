@@ -22,7 +22,7 @@ const DRIVE_ROOT_ID = '1RitBIq8HXTVymhalA34HS4BRyfOzT6lq';
 
 // 1-based column indexes
 const COL = {
-  NAME:           24,   // X — canonical client display name (per user 2026-05-04)
+  NAME:           23,   // W (1-based) — client display name
   CR_USER:        96,   // CR — username
   CS_PASS:        97,   // CS — password
   CT_ACTIVE:      98,   // CT — TRUE/FALSE
