@@ -5291,37 +5291,15 @@ function openDrivePreview(file){
   body.innerHTML='<div style="color:#fff">טוען...</div>';
   m.style.display='flex';
   history.pushState({page:'drive-preview'},'');
-  let mt = (file.mimeType||'').toLowerCase();
-  if(!mt && file.name){
-    const m2 = file.name.toLowerCase().match(/\.([^.]+)$/);
-    const ext = m2 ? m2[1] : '';
-    if(ext === 'pdf') mt = 'application/pdf';
-    else if(ext === 'jpg' || ext === 'jpeg') mt = 'image/jpeg';
-    else if(ext === 'png') mt = 'image/png';
-    else if(ext === 'gif') mt = 'image/gif';
-    else if(ext === 'webp') mt = 'image/webp';
-    else if(ext === 'heic' || ext === 'heif') mt = 'image/heic';
-  }
-  const isImg = mt.startsWith('image/');
-  const isPdf = mt === 'application/pdf';
-  if(isImg || isPdf){
-    fetch('https://www.googleapis.com/drive/v3/files/'+file.id+'?alt=media',{
-      headers:{'Authorization':'Bearer '+accessToken}
-    }).then(r=>{
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      return r.blob();
-    }).then(blob=>{
-      const url=URL.createObjectURL(blob);
-      if(isImg){
-        body.innerHTML=`<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain"/>`;
-      } else {
-        body.innerHTML=`<iframe src="${url}" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
-      }
-    }).catch(e=>{
-      body.innerHTML=`<div style="color:#fff;padding:20px;text-align:center"><div style="margin-bottom:10px">לא ניתן להציג בתוך האפליקציה</div><a href="${ext.href}" target="_blank" style="color:#fff;text-decoration:underline">פתח ב-Drive</a></div>`;
-    });
+  if(file.id){
+    body.innerHTML = `<iframe src="https://drive.google.com/file/d/${file.id}/preview"
+                              style="width:100%;height:100%;border:0;background:#1a1a1c"
+                              allow="autoplay"></iframe>`;
   } else {
-    body.innerHTML=`<div style="color:#fff;padding:20px;text-align:center"><div style="margin-bottom:10px">סוג קובץ זה אינו ניתן להצגה בתוך האפליקציה</div><a href="${ext.href}" target="_blank" style="color:#fff;text-decoration:underline">פתח ב-Drive</a></div>`;
+    body.innerHTML = `<div style="color:#fff;padding:20px;text-align:center">
+      <div style="margin-bottom:10px">לא ניתן להציג - מזהה קובץ חסר</div>
+      ${file.webViewLink ? '<a href="'+file.webViewLink+'" target="_blank" style="color:#fff;text-decoration:underline">פתח ב-Drive</a>' : ''}
+    </div>`;
   }
 }
 function closeDrivePreview(){
