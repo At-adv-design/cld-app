@@ -597,10 +597,21 @@ function handleApproveItem(p){
   if(!req){ return {ok: true}; }
 
   const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
-  const fileCount = (req.files || []).length;
+  const files = req.files || [];
 
-  if(isDocs && fileCount > 1){
-    // MULTI-FILE: merge into single PDF, keep originals in pending bin
+  // Detect if any image is among the files — if so, route through the
+  // merge path so even a single image becomes a 1-page PDF (per user
+  // spec: 'גם מסמך בודד שאני שולח כתמונה עובר ל-PDF').
+  let hasImage = false;
+  for(let i = 0; i < files.length; i++){
+    try {
+      const m = DriveApp.getFileById(files[i].id).getMimeType() || '';
+      if(m.indexOf('image/') === 0){ hasImage = true; break; }
+    } catch(_){}
+  }
+
+  if(isDocs && (files.length > 1 || hasImage)){
+    // Merge path: any-images-present OR multi-file → produce single PDF
     try {
       const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
       const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
