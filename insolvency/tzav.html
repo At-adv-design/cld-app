@@ -71,13 +71,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* Spacer that takes the place of the header in the document flow so the
    first elements after it don't jump under it. */
 .header-spacer{height:96px;}
-.hdr-right{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
-.hdr-row-top{display:flex;gap:8px;align-items:center;}
-/* The bottom row only shows when there's a pending-approvals badge to
-   show. We center the badge inside the row so it sits cleanly under
-   the controls above. min-height:0 prevents an empty row from taking
-   vertical space when no pending items are awaiting review. */
-.hdr-row-bottom{display:flex;gap:8px;align-items:center;min-height:0;}
+/* Match leads app: single-row header — all controls + pending badge
+   inline next to each other (was previously a 2-row stack). */
+.hdr-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.hdr-row-top,.hdr-row-bottom{display:flex;gap:8px;align-items:center;}
 .hdr-row-bottom:empty{display:none;}
 .hdr-count{font-size:13px;color:var(--text);font-weight:600;background:var(--bg);border:1px solid var(--border);padding:0 12px;height:32px;display:inline-flex;align-items:center;flex-shrink:0;border-radius:4px;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
