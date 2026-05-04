@@ -6934,6 +6934,19 @@ window.addEventListener('popstate',()=>{
   if(window.DocsFeature && window.DocsFeature.isOpen && window.DocsFeature.isOpen()){
     return;
   }
+  // Drive preview / browser overlays — TOP-MOST. Back-press closes only.
+  const drivePreviewOpen = document.getElementById('drive-preview-modal') &&
+    document.getElementById('drive-preview-modal').style.display === 'flex';
+  if(drivePreviewOpen){
+    document.getElementById('drive-preview-modal').style.display = 'none';
+    return;
+  }
+  const driveBrowserOpen = document.getElementById('drive-browser-modal') &&
+    document.getElementById('drive-browser-modal').style.display === 'flex';
+  if(driveBrowserOpen){
+    document.getElementById('drive-browser-modal').style.display = 'none';
+    return;
+  }
   const addOpen=document.getElementById('log-add-modal').classList.contains('open');
   const editOpen=document.getElementById('log-edit-modal').classList.contains('open');
   const viewOpen=document.getElementById('log-modal').classList.contains('open');
