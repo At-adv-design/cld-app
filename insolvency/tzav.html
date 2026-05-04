@@ -767,6 +767,9 @@ body.focus-mode-active{overflow:hidden;}
 .insq-body{overflow-y:auto;flex:1;padding:12px 16px}
 .quest-section{margin:0 0 10px;border:1px solid var(--border);border-radius:6px;overflow:hidden}
 .quest-section-head{background:var(--slate);color:#fff;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.qs-save-btn{background:var(--green);color:#fff;border:none;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border-radius:3px}
+.qs-save-btn:active{transform:scale(.96)}
+.qs-head-end{display:flex;align-items:center;gap:8px}
 .quest-section-body{padding:10px 12px;display:none}
 .quest-section.open .quest-section-body{display:block}
 .quest-field{margin-bottom:10px}
@@ -8128,7 +8131,7 @@ async function markInquiryDone(rowNum, inquiryId){
     <div class="insq-body">
       <!-- א — פרטים אישיים -->
       <div class="quest-section open">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>א — פרטים אישיים</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>א — פרטים אישיים</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div class="quest-row"><div class="quest-field"><label>שם משפחה</label><input id="insq_last_name"></div><div class="quest-field"><label>שם פרטי</label><input id="insq_first_name"></div></div>
           <div class="quest-row"><div class="quest-field"><label>תעודת זהות</label><input id="insq_id" inputmode="numeric"></div><div class="quest-field"><label>תאריך לידה</label><input id="insq_dob" type="date"></div></div>
@@ -8142,7 +8145,7 @@ async function markInquiryDone(rowNum, inquiryId){
       </div>
       <!-- בן/בת זוג -->
       <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>בן / בת זוג</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>בן / בת זוג</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div class="quest-row"><div class="quest-field"><label>שם משפחה</label><input id="insq_spouse_last"></div><div class="quest-field"><label>שם פרטי</label><input id="insq_spouse_first"></div></div>
           <div class="quest-row"><div class="quest-field"><label>ת.ז</label><input id="insq_spouse_id" inputmode="numeric"></div><div class="quest-field"><label>תאריך לידה</label><input id="insq_spouse_dob" type="date"></div></div>
@@ -8151,7 +8154,7 @@ async function markInquiryDone(rowNum, inquiryId){
       </div>
       <!-- ילדים -->
       <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ילדים קטינים</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ילדים קטינים</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div id="insq_kids_list"></div>
           <button class="quest-add-btn" onclick="insqAddKid()">+ הוסף ילד</button>
@@ -8159,7 +8162,7 @@ async function markInquiryDone(rowNum, inquiryId){
       </div>
       <!-- הכנסות -->
       <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ב — הכנסות</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ב — הכנסות</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div class="quest-field"><label>מקצוע</label><input id="insq_occupation"></div>
           <div class="quest-field"><label>שם המעסיק</label><input id="insq_employer"></div>
@@ -8173,7 +8176,7 @@ async function markInquiryDone(rowNum, inquiryId){
       </div>
       <!-- הוצאות -->
       <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ג — הוצאות חודשיות</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ג — הוצאות חודשיות</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div class="quest-row"><div class="quest-field"><label>שכ"ד ₪</label><input id="insq_rent" inputmode="numeric"></div><div class="quest-field"><label>ארנונה ₪</label><input id="insq_arnona" inputmode="numeric"></div></div>
           <div class="quest-row3"><div class="quest-field"><label>חשמל ₪</label><input id="insq_electric" inputmode="numeric"></div><div class="quest-field"><label>מים ₪</label><input id="insq_water" inputmode="numeric"></div><div class="quest-field"><label>גז ₪</label><input id="insq_gas" inputmode="numeric"></div></div>
@@ -8184,7 +8187,7 @@ async function markInquiryDone(rowNum, inquiryId){
       </div>
       <!-- נושים -->
       <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ד — נושים (חובות)</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ד — נושים (חובות)</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div id="insq_creditors_list"></div>
           <button class="quest-add-btn" onclick="insqAddCreditor()">+ הוסף נושה</button>
@@ -8192,7 +8195,7 @@ async function markInquiryDone(rowNum, inquiryId){
       </div>
       <!-- נכסים -->
       <div class="quest-section">
-        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ו — נכסים</span><span>▾</span></div>
+        <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')"><span>ו — נכסים</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveInsQuestionnaire()">שמירה</button>▾</span></div>
         <div class="quest-section-body">
           <div class="quest-field"><label>פרטי רכב</label><textarea id="insq_cars"></textarea></div>
           <div class="quest-field"><label>חשבונות בנק</label><textarea id="insq_banks"></textarea></div>

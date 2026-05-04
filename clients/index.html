@@ -20,6 +20,9 @@ img{pointer-events:none;-webkit-user-drag:none;user-drag:none;}
 /* Questionnaire styles */
 .quest-section{margin:0 0 12px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
 .quest-section-head{background:var(--slate);color:#fff;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.qs-save-btn{background:var(--green,#1a7a45);color:#fff;border:none;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border-radius:3px;}
+.qs-save-btn:active{transform:scale(.96);}
+.qs-head-end{display:flex;align-items:center;gap:8px;}
 .quest-section-body{padding:12px 14px;display:none;}
 .quest-section.open .quest-section-body{display:block;}
 .quest-field{margin-bottom:12px;}
@@ -670,7 +673,7 @@ input,textarea,button{font-family:inherit;}
           <!-- פרטים אישיים -->
           <div class="quest-section open">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>א — פרטים אישיים</span><span>▾</span>
+              <span>א — פרטים אישיים</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div class="quest-row">
@@ -708,7 +711,7 @@ input,textarea,button{font-family:inherit;}
           <!-- בן/בת זוג -->
           <div class="quest-section">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>בן / בת זוג</span><span>▾</span>
+              <span>בן / בת זוג</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div class="quest-row">
@@ -726,7 +729,7 @@ input,textarea,button{font-family:inherit;}
           <!-- ילדים -->
           <div class="quest-section">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>ילדים קטינים</span><span>▾</span>
+              <span>ילדים קטינים</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div id="q_kids_list"></div>
@@ -737,7 +740,7 @@ input,textarea,button{font-family:inherit;}
           <!-- הכנסות -->
           <div class="quest-section">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>ב — הכנסות</span><span>▾</span>
+              <span>ב — הכנסות</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div class="quest-field"><label>מקצוע</label><input id="q_occupation"></div>
@@ -765,7 +768,7 @@ input,textarea,button{font-family:inherit;}
           <!-- הוצאות -->
           <div class="quest-section">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>ג — הוצאות חודשיות</span><span>▾</span>
+              <span>ג — הוצאות חודשיות</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div class="quest-row">
@@ -792,7 +795,7 @@ input,textarea,button{font-family:inherit;}
           <!-- נושים -->
           <div class="quest-section">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>ד — נושים (חובות)</span><span>▾</span>
+              <span>ד — נושים (חובות)</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div id="q_creditors_list"></div>
@@ -803,7 +806,7 @@ input,textarea,button{font-family:inherit;}
           <!-- נכסים -->
           <div class="quest-section">
             <div class="quest-section-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>ו — נכסים</span><span>▾</span>
+              <span>ו — נכסים</span><span class="qs-head-end"><button class="qs-save-btn" onclick="event.stopPropagation();saveQuestionnaire()">שמירה</button>▾</span>
             </div>
             <div class="quest-section-body">
               <div class="quest-field"><label>פרטי רכב (לוחית, שנה, יצרן)</label>
