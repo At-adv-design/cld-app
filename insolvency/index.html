@@ -836,37 +836,29 @@ body.focus-mode-active{overflow:hidden;}
   <div id="active-filters-bar" style="position:fixed;top:0;left:0;right:0;z-index:97;display:none;flex-direction:column;background:var(--white);border-bottom:1px solid var(--border);box-shadow:0 2px 4px rgba(0,0,0,0.04);"></div>
   <div class="header">
     <div class="hdr-right">
-      <!-- Top row: status badges, count, refresh, theme, avatar -->
-      <div class="hdr-row-top">
-        <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
-        <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
-        <span class="hdr-count" id="total-count">טוען...</span>
-        <button class="hdr-btn" onclick="loadData()" title="רענן">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
-        </button>
-        <button id="pwa-install-btn" onclick="installPWA()" style="display:none;background:var(--slate);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;align-items:center;gap:4px;font-family:inherit">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          התקן
-        </button>
-        <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" title="פניות לקוחות" style="position:relative">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span id="inquiries-hdr-badge" style="display:none;position:absolute;top:-4px;left:-4px;min-width:14px;height:14px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:7px;padding:0 3px;line-height:14px;text-align:center;font-family:inherit"></span>
-        </button>
-        <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-        </button>
-        <div class="avatar" id="user-avatar" onclick="signOut()"></div>
-      </div>
-      <!-- Bottom row: pending approvals badge — sits on its own line so
-           the blinking attention-grabber doesn't crowd the count/refresh
-           controls above. Hidden via display:none until pending > 0. -->
-      <div class="hdr-row-bottom" style="display:none">
-        <button id="pending-approvals-badge" onclick="jumpToFirstPending()" title="מסמכים ממתינים לאישור" style="display:none;align-items:center;gap:4px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:inherit">
-          <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite"></span>
-          <span id="pending-approvals-count">0</span>
-        </button>
-      </div>
+      <span id="conn-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#f8d7da;color:#721c24;"></span>
+      <span id="queue-badge" style="display:none;align-items:center;padding:3px 8px;font-size:11px;font-weight:700;background:#fff3cd;color:#856404;"></span>
+      <span class="hdr-count" id="total-count">טוען...</span>
+      <button class="hdr-btn" onclick="loadData()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+      </button>
+      <button id="pwa-install-btn" onclick="installPWA()" style="display:none;background:var(--slate);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;align-items:center;gap:4px;font-family:inherit">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        התקן
+      </button>
+      <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" title="פניות לקוחות" style="position:relative">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span id="inquiries-hdr-badge" style="display:none;position:absolute;top:-4px;left:-4px;min-width:14px;height:14px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:7px;padding:0 3px;line-height:14px;text-align:center;font-family:inherit"></span>
+      </button>
+      <button id="pending-approvals-badge" onclick="jumpToFirstPending()" title="מסמכים ממתינים לאישור" style="display:none;align-items:center;gap:4px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:inherit;border-radius:4px">
+        <span style="width:6px;height:6px;background:#fff;border-radius:50%;display:inline-block;animation:pendingPulse 1.5s ease-in-out infinite"></span>
+        <span id="pending-approvals-count">0</span>
+      </button>
+      <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="signOut()"></div>
     </div>
     <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:80px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
   </div>

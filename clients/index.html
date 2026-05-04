@@ -619,7 +619,6 @@ input,textarea,button{font-family:inherit;}
   <div class="header">
     <div class="hdr-right">
       <div class="hdr-name-wrap">
-        <span class="hdr-name" id="topbar-name"></span>
         <button class="hdr-inquiry-btn" id="inquiry-open-btn" onclick="openInquiryModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>שלח פניה</button>
         <button class="hdr-collapse-btn" id="collapse-all-btn" onclick="collapseAll()" title="סגור הכל">סגור הכל</button>
       </div>
@@ -1069,7 +1068,7 @@ function showApp(){
 }
 function updateHeaderUser(){
   const name = (currentUser && currentUser.name) || '';
-  $('topbar-name').textContent = name;
+  // hdr-name span removed per user spec — name no longer surfaces here.
   // Compute avatar initials (up to 2 chars from the first words)
   const av = $('user-avatar');
   if(av){
@@ -1102,7 +1101,6 @@ async function loadData(silent){
     if(res.questionnaire) questData = res.questionnaire;
     if(res.name){
       currentUser.name=res.name;
-      $('topbar-name').textContent=res.name;
       saveSession(currentUser);
     }
     applyStageVisibility();
