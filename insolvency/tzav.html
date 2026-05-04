@@ -4299,11 +4299,24 @@ function _renderSupplDocsList(){
     const myPending  = pending.filter(p  => p.reqId === stableId);
     const myApproved = required
       .filter(x => x.id === stableId)
-      .flatMap(x => (x.files || []).filter(f => f.approved).map(f => ({
-        fileId: f.id, name: f.name, url: f.url,
-        reqId: stableId, reqText: r.text || '',
-        category: 'docs', approvedAt: f.approvedAt || x.approvedAt || 0
-      })));
+      .flatMap(x => {
+        if(x.mergedPdfId && x.status === 'approved'){
+          return [{
+            fileId: x.mergedPdfId,
+            name: x.mergedPdfName || ((x.text || 'מסמך') + '.pdf'),
+            url: x.mergedPdfUrl,
+            reqId: stableId, reqText: x.text || '',
+            category: 'docs',
+            approvedAt: x.mergedAt || x.approvedAt || 0,
+            isMerged: true
+          }];
+        }
+        return (x.files || []).filter(f => f.approved).map(f => ({
+          fileId: f.id, name: f.name, url: f.url,
+          reqId: stableId, reqText: x.text || '',
+          category: 'docs', approvedAt: f.approvedAt || x.approvedAt || 0
+        }));
+      });
     const myReject   = rejections.find(rj => rj.reqId === stableId);
     return `
       <div class="req-block" data-id="${esc(r.id)}">

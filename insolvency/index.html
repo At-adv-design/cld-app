@@ -4276,19 +4276,29 @@ function _renderSupplDocsList(){
   return required.map(r => {
     const stableId = idForReq(r);
     const myPending  = pending.filter(p  => p.reqId === stableId);
-    // Approved entries: extract individual file objects (not raw requirements)
-    // so the green approved row shows the actual file name + URL. The file
-    // entries come from CV's req.files[] where f.approved===true (set by
-    // Apps Script handleApproveItem) or from the flat supplDocsApproved
-    // returned by the Apps Script. Either source works; we prefer the live
-    // req.files because it's local and reflects the latest write.
+    // Approved entries: prefer the merged PDF (multi-file requirements),
+    // otherwise the individual approved files (single-file or per-file).
     const myApproved = required
       .filter(x => x.id === stableId)
-      .flatMap(x => (x.files || []).filter(f => f.approved).map(f => ({
-        fileId: f.id, name: f.name, url: f.url,
-        reqId: stableId, reqText: r.text || '',
-        category: 'docs', approvedAt: f.approvedAt || x.approvedAt || 0
-      })));
+      .flatMap(x => {
+        if(x.mergedPdfId && x.status === 'approved'){
+          // Merged PDF — single approved entry showing requirement-named file
+          return [{
+            fileId: x.mergedPdfId,
+            name: x.mergedPdfName || ((x.text || 'מסמך') + '.pdf'),
+            url: x.mergedPdfUrl,
+            reqId: stableId, reqText: x.text || '',
+            category: 'docs',
+            approvedAt: x.mergedAt || x.approvedAt || 0,
+            isMerged: true
+          }];
+        }
+        return (x.files || []).filter(f => f.approved).map(f => ({
+          fileId: f.id, name: f.name, url: f.url,
+          reqId: stableId, reqText: x.text || '',
+          category: 'docs', approvedAt: f.approvedAt || x.approvedAt || 0
+        }));
+      });
     const myReject   = rejections.find(rj => rj.reqId === stableId);
     return `
       <div class="req-block" data-id="${esc(r.id)}">

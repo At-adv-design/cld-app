@@ -171,16 +171,30 @@ function handleGetRequests(body){
   }));
   const docsApproved = [];
   docs.forEach(req => {
-    if(!Array.isArray(req.files)) return;
-    req.files.forEach(f => {
-      if(f.approved || req.status === 'approved'){
-        docsApproved.push({
-          fileId: f.id, name: f.name, url: f.url,
-          reqId: req.id, reqText: req.text || '',
-          approvedAt: f.approvedAt || req.approvedAt || 0
-        });
-      }
-    });
+    // Multi-file merged: single approved entry pointing to the merged PDF
+    if(req.mergedPdfId && req.status === 'approved'){
+      docsApproved.push({
+        fileId: req.mergedPdfId,
+        name: req.mergedPdfName || (req.text ? req.text + '.pdf' : 'מסמך.pdf'),
+        url: req.mergedPdfUrl,
+        reqId: req.id, reqText: req.text || '',
+        approvedAt: req.mergedAt || req.approvedAt || 0,
+        isMerged: true
+      });
+      return;
+    }
+    // Single-file (or per-file approved): one entry per approved file
+    if(Array.isArray(req.files)){
+      req.files.forEach(f => {
+        if(f.approved){
+          docsApproved.push({
+            fileId: f.id, name: f.name, url: f.url,
+            reqId: req.id, reqText: req.text || '',
+            approvedAt: f.approvedAt || req.approvedAt || 0
+          });
+        }
+      });
+    }
   });
 
   return {
@@ -486,11 +500,92 @@ function handleGetQuestionnaire(p){
   return { data: _parseObj(raw) };
 }
 
+// ─── Helper: merge multiple files in a requirement into a single PDF ──
+// Builds a temporary Google Doc, appends each image as one page, then
+// exports the Doc as PDF and saves it to "השלמת מסמכים" with the
+// requirement text as filename (sanitized + ".pdf"). Returns metadata
+// about the merged PDF or { success: false } on failure.
+//
+// PDFs in the input are skipped from the merge for now (would need
+// Drive.Files.copy + convert which adds complexity). They stay in
+// the pending folder as backup, visible separately.
+function _mergeReqFilesToPdf(req, clientFolder){
+  const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120) || 'מסמך';
+  const pdfName = sanitize(req.text || 'מסמך') + '.pdf';
+
+  const tempDocName = '_merge_temp_' + Date.now();
+  const tempDoc = DocumentApp.create(tempDocName);
+  const body = tempDoc.getBody();
+  body.clear();
+
+  let pageCount = 0;
+  const skipped = [];
+  // A4 portrait is ~595pt wide; with default margins ~520pt content area
+  const A4_WIDTH = 520;
+
+  (req.files || []).forEach((f, idx) => {
+    try {
+      const driveFile = DriveApp.getFileById(f.id);
+      const mime = driveFile.getMimeType() || '';
+
+      if(mime.indexOf('image/') === 0){
+        // Image: insert as a page
+        if(pageCount > 0) body.appendPageBreak();
+        const blob = driveFile.getBlob();
+        const para = body.appendParagraph('');
+        const img = para.appendInlineImage(blob);
+        // Compress: scale down to fit A4 width (preserves aspect ratio)
+        if(img.getWidth() > A4_WIDTH){
+          const ratio = A4_WIDTH / img.getWidth();
+          img.setWidth(A4_WIDTH).setHeight(Math.round(img.getHeight() * ratio));
+        }
+        pageCount++;
+      } else {
+        // PDF or other: skip for now
+        skipped.push({id: f.id, name: f.name, mime});
+      }
+    } catch(e){
+      Logger.log('merge: skip file ' + f.id + ' — ' + e);
+      skipped.push({id: f.id, name: f.name, error: String(e)});
+    }
+  });
+
+  if(pageCount === 0){
+    // Nothing to merge; clean up temp doc
+    try { DriveApp.getFileById(tempDoc.getId()).setTrashed(true); } catch(_){}
+    return { success: false, error: 'no_mergeable_files', skipped };
+  }
+
+  tempDoc.saveAndClose();
+
+  // Convert temp Doc to PDF blob
+  const docFile = DriveApp.getFileById(tempDoc.getId());
+  const pdfBlob = docFile.getAs(MimeType.PDF).setName(pdfName);
+
+  const finalFolder = _ensureFolder(clientFolder, 'השלמת מסמכים');
+  const mergedPdf = finalFolder.createFile(pdfBlob);
+  try { mergedPdf.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_){}
+
+  // Trash the temp Doc
+  try { docFile.setTrashed(true); } catch(_){}
+
+  return {
+    success: true,
+    pdfId: mergedPdf.getId(),
+    pdfName: pdfName,
+    pdfUrl: mergedPdf.getUrl(),
+    pageCount,
+    skipped
+  };
+}
+
 // ─── Action: approveItem ─────────────────────────────────────────────
-// For docs (and pre_order_docs): move the approved file from the pending
-// "מסמכים ששלח הלקוח" bin to the final "השלמת מסמכים" folder, mark it
-// locked, and update the file entry with the new id+url. Reports/info
-// just flip status.
+// Behavior depends on number of files in the requirement:
+//   - Single file: move the file from pending bin → "השלמת מסמכים"
+//   - Multiple files: merge images into one PDF in "השלמת מסמכים"
+//     with name = req.text. Originals stay in pending folder as backup
+//     (per user spec: pending files are never auto-deleted).
+// Reports/info just flip status.
 function handleApproveItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
@@ -501,30 +596,57 @@ function handleApproveItem(p){
   const req  = list.find(r => r.id === p.reqId);
   if(!req){ return {ok: true}; }
 
-  // For docs: physically move the approved file to the final folder
-  if((p.category === 'docs' || p.category === 'pre_order_docs') && p.fileId){
+  const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
+  const fileCount = (req.files || []).length;
+
+  if(isDocs && fileCount > 1){
+    // MULTI-FILE: merge into single PDF, keep originals in pending bin
+    try {
+      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+      const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+      const clientFolder = _ensureFolder(root, clientName);
+      const result = _mergeReqFilesToPdf(req, clientFolder);
+      if(result.success){
+        req.mergedPdfId = result.pdfId;
+        req.mergedPdfName = result.pdfName;
+        req.mergedPdfUrl = result.pdfUrl;
+        req.mergedAt = Date.now();
+        req.mergedSkipped = result.skipped;
+      }
+    } catch(e){ Logger.log('merge approve failed: ' + e); }
+  } else if(isDocs && p.fileId){
+    // SINGLE FILE: move to final folder (existing behavior)
     try{
       const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
       const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
       const clientFolder = _ensureFolder(root, clientName);
       const finalFolder  = _ensureFolder(clientFolder, 'השלמת מסמכים');
       const driveFile    = DriveApp.getFileById(p.fileId);
-      // Remove from current parent(s), add to final folder
+      // Rename to req.text + same extension
+      const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
+      const reqText = sanitize(req.text || '');
+      if(reqText){
+        const orig = driveFile.getName();
+        const ext = (orig.match(/\.[^.\/\\]+$/) || [''])[0];
+        const desiredName = reqText + ext;
+        if(driveFile.getName() !== desiredName){
+          try { driveFile.setName(desiredName); } catch(_){}
+        }
+      }
       const parents = driveFile.getParents();
       while(parents.hasNext()){
         const parent = parents.next();
         try{ parent.removeFile(driveFile); }catch(_){}
       }
       finalFolder.addFile(driveFile);
-      // Re-apply public link sharing in case the move reset it
       try { driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_) {}
-      // Mark file entry: locked + approved + capture new url
       const fileEntry = (req.files||[]).find(f => f.id === p.fileId);
       if(fileEntry){
         fileEntry.approved   = true;
         fileEntry.locked     = true;
         fileEntry.approvedAt = Date.now();
         fileEntry.url        = driveFile.getUrl();
+        fileEntry.name       = driveFile.getName();
       }
     }catch(e){ Logger.log('approve move failed: ' + e); }
   }
@@ -572,8 +694,20 @@ function handleUnapproveItem(p){
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
   if(req && req.status === 'approved'){
-    // For docs: move file back to pending bin and clear lock flags
-    if((p.category === 'docs' || p.category === 'pre_order_docs') && p.fileId){
+    const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
+
+    if(isDocs && req.mergedPdfId){
+      // MULTI-FILE unapprove: trash the merged PDF; originals are still
+      // sitting in the pending bin (we never moved them out), so they
+      // become visible again automatically.
+      try { DriveApp.getFileById(req.mergedPdfId).setTrashed(true); } catch(e){ Logger.log('unmerge failed: ' + e); }
+      delete req.mergedPdfId;
+      delete req.mergedPdfName;
+      delete req.mergedPdfUrl;
+      delete req.mergedAt;
+      delete req.mergedSkipped;
+    } else if(isDocs && p.fileId){
+      // SINGLE FILE unapprove: move file back to pending bin
       try{
         const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
         const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
