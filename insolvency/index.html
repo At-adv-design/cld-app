@@ -5871,8 +5871,13 @@ function _renderInfoQAList(){
     const id = q.id || ('qidx-'+idx);
     const text = q.question || q.text || '';
     const answer = q.answer || '';
-    const isOpen = !!_custState.infoQAOpen[id];
     const has = !!answer.trim();
+    // Auto-expand any question that has an answer — otherwise the lawyer has
+    // to click each green card to reveal what the client wrote, and easily
+    // misses answers entirely. Explicit collapse via toggle still wins (we
+    // store false in infoQAOpen).
+    const explicit = _custState.infoQAOpen[id];
+    const isOpen = explicit === undefined ? has : !!explicit;
     return `
       <div class="qa-card-l ${isOpen?'open':''} ${has?'has-answer':''}" data-qid="${esc(id)}">
         <div class="qa-head-l" onclick="toggleInfoQA('${esc(id)}')">
@@ -5884,6 +5889,7 @@ function _renderInfoQAList(){
           <svg class="qa-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
         <div class="qa-body-l">
+          ${has ? `<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px">תשובת הלקוח${q.answeredAt?' • '+new Date(q.answeredAt).toLocaleDateString('he-IL'):''}</div>` : ''}
           <textarea class="qa-a-input" placeholder="תשובה (אופציונלי — הלקוח ימלא, או רשום ישירות אם הוא עונה בטלפון)"
             oninput="updateInfoAnswer('${esc(id)}',${idx},this.value)">${esc(answer)}</textarea>
         </div>
