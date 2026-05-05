@@ -72,10 +72,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:flex-start;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1), height .2s ease, padding .2s ease, border-color .2s ease;will-change:transform;}
 /* Search-mode: when the user is typing in the search box, collapse the
    header + tabs so the cards list takes the full screen above the
-   on-screen keyboard. Triggered by adding `body.search-mode`. */
+   on-screen keyboard. The search-sticky bar pins to top:0 (was 137px
+   when header+tabs were visible). Cards scroll *underneath* the search
+   bar — never on top of it — because the sticky bar has its own z-index
+   and an opaque background. */
 body.search-mode .header{height:0;padding:0;border-bottom-color:transparent;overflow:hidden;}
 body.search-mode .tabs{display:none;}
 body.search-mode .filters-wrap{display:none;}
+body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-shadow:0 2px 6px rgba(31,30,27,0.06);}
 .header-spacer{display:none;}
 /* Logo is absolutely positioned — its location does NOT depend on what
    else lives in the header (icons, counters, badges). It anchors to the
