@@ -881,6 +881,31 @@ input,textarea,button{font-family:inherit;}
       </div>
     </div>
 
+    <!-- SIGNATURES (EE) — מסמכים לחתימה. Bottom-most card across all stages.
+         Lawyer uploads PDFs from the insolvency app; client opens, signs,
+         and submits back. -->
+    <div class="section" id="sec-signatures">
+      <div class="section-head" data-section-key="signatures">
+        <div class="left">
+          <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 18l4-4 4 4M12 14v8"/></svg>
+          </div>
+          <div>
+            <div class="section-title">מסמכים לחתימה</div>
+            <div class="section-meta" id="signatures-meta">טוען…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button onclick="event.stopPropagation();openInquiryModal('מסמכים לחתימה')" class="hdr-inquiry-btn" style="font-size:11px;padding:3px 8px" title="שלח פניה בעניין מסמכים לחתימה">פניה</button>
+          <span class="section-pending" id="signatures-pending" style="display:none"></span>
+          <svg class="section-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="req-list" id="signatures-list"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1098,6 +1123,7 @@ async function loadData(silent){
     dataInfo          = Array.isArray(res.info)          ? res.info          : [];
     dataPending       = Array.isArray(res.pending)       ? res.pending       : [];
     dataRejections    = Array.isArray(res.rejections)    ? res.rejections    : [];
+    dataSignatures    = Array.isArray(res.signatures)    ? res.signatures    : [];
     // Stage and questionnaire
     if(res.stage !== undefined){
       clientStage = res.stage || '';
@@ -1160,7 +1186,7 @@ function applyStageVisibility(){
 }
 
 /* ─── RENDER ─── */
-function render(){ renderReports(); renderDocs(); renderInfo(); }
+function render(){ renderReports(); renderDocs(); renderInfo(); renderSignatures(); }
 
 /* ─── REPORTS — past/current/future grouping ────────────────
    Visual model:
@@ -1550,6 +1576,153 @@ function renderInfo(){
   const pEl=$('info-pending');
   if(unanswered){ pEl.textContent='נותרו '+unanswered; pEl.style.display='inline-block'; }
   else pEl.style.display='none';
+}
+
+/* ── SIGNATURES ─────────────────────────────────────────────────────
+   Renders the מסמכים לחתימה card. Backed by `dataSignatures` (loaded
+   from getRequests as `signatures`). */
+let dataSignatures = [];
+function renderSignatures(){
+  const list = $('signatures-list');
+  if(!list) return;
+  const items = (dataSignatures||[]);
+  const cards = items.map((s, idx) => {
+    const f = (s.files && s.files[0]) || null;
+    const title = s.text || (f && f.name) || 'מסמך';
+    const isSigned = !!(s.signedAt || (f && f.signedAt));
+    return `
+      <div class="qa-card ${isSigned?'has-answer':''}">
+        <div class="qa-head" style="cursor:default">
+          <div class="qa-q">${esc(title)}</div>
+          <div class="qa-meta">
+            ${isSigned
+              ? '<span class="qa-status-pill answered">חתום</span>'
+              : '<span class="qa-status-pill empty" style="background:#f5e9c8;color:#8a6c1c;border-color:#e6cf8a">ממתין לחתימה</span>'}
+          </div>
+        </div>
+        <div class="qa-body" style="display:flex;flex-direction:column;gap:8px;padding:10px 14px">
+          ${f ? `<button onclick="openSignatureViewer(${idx})" style="background:var(--slate);color:#fff;border:none;border-radius:6px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5C21.3 7.6 17 4.5 12 4.5z"/><circle cx="12" cy="12" r="3"/></svg>פתח לחתימה</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+  list.innerHTML = cards || '<div class="empty">אין מסמכים לחתימה כרגע</div>';
+
+  const pending = items.filter(s => !s.signedAt && !((s.files||[])[0]||{}).signedAt).length;
+  const total   = items.length;
+  $('signatures-meta').textContent = total ? `${total - pending} חתומים מתוך ${total}` : 'אין מסמכים';
+  const pEl = $('signatures-pending');
+  if(pending){ pEl.textContent = pending + ' לחתימה'; pEl.style.display = 'inline-block'; }
+  else pEl.style.display = 'none';
+}
+
+/* Modal — preview PDF + canvas signature pad. Submits the signed PDF
+   back to the server, which stores it under "<client>/מסמכים לחתימה/חתומים". */
+function openSignatureViewer(idx){
+  const s = (dataSignatures||[])[idx];
+  if(!s){ toast('המסמך לא נמצא','error'); return; }
+  const f = (s.files && s.files[0]) || null;
+  if(!f || !f.id){ toast('הקובץ לא זמין','error'); return; }
+  if(s.signedAt || (f && f.signedAt)){ toast('המסמך כבר חתום','info'); window.open(f.url||`https://drive.google.com/file/d/${f.id}/view`,'_blank'); return; }
+  // Build modal lazily
+  let modal = document.getElementById('sig-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'sig-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.65);display:flex;flex-direction:column;align-items:stretch';
+    modal.innerHTML = `
+      <div style="background:var(--white);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div id="sig-modal-title" style="flex:1;font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        <button onclick="closeSignatureViewer()" style="background:var(--bg);border:1px solid var(--border);padding:6px 12px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px">סגור</button>
+      </div>
+      <iframe id="sig-modal-frame" style="flex:1;border:none;background:#222;width:100%"></iframe>
+      <div style="background:var(--white);padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">חתימה</div>
+        <canvas id="sig-canvas" width="600" height="120" style="background:var(--bg);border:1.5px dashed var(--border);border-radius:6px;width:100%;touch-action:none;cursor:crosshair"></canvas>
+        <div style="display:flex;gap:8px">
+          <button onclick="_sigClearCanvas()" style="background:var(--bg);border:1px solid var(--border);padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer">נקה</button>
+          <button id="sig-submit-btn" onclick="_sigSubmit()" style="flex:1;background:var(--slate);color:#fff;border:none;border-radius:6px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">חתום ושלח</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    _sigBindCanvas();
+  }
+  document.getElementById('sig-modal-title').textContent = s.text || (f.name || 'מסמך');
+  document.getElementById('sig-modal-frame').src = `https://drive.google.com/file/d/${f.id}/preview`;
+  _sigClearCanvas();
+  modal._sigIdx = idx;
+  modal.style.display = 'flex';
+}
+function closeSignatureViewer(){
+  const m = document.getElementById('sig-modal');
+  if(m) m.style.display = 'none';
+}
+let _sigDrawing = false, _sigHasInk = false;
+function _sigBindCanvas(){
+  const c = document.getElementById('sig-canvas');
+  if(!c) return;
+  // Resize canvas to match its CSS pixel size for crisp drawing.
+  const resize = () => {
+    const r = c.getBoundingClientRect();
+    c.width  = Math.round(r.width  * (window.devicePixelRatio || 1));
+    c.height = Math.round(r.height * (window.devicePixelRatio || 1));
+    const ctx = c.getContext('2d');
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.2; ctx.strokeStyle = '#1F1E1B';
+  };
+  resize();
+  window.addEventListener('resize', resize);
+  const start = e => { _sigDrawing = true; const p = _sigPos(e, c); const ctx = c.getContext('2d'); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  const move  = e => { if(!_sigDrawing) return; const p = _sigPos(e, c); const ctx = c.getContext('2d'); ctx.lineTo(p.x, p.y); ctx.stroke(); _sigHasInk = true; e.preventDefault(); };
+  const end   = () => { _sigDrawing = false; };
+  c.addEventListener('mousedown', start); c.addEventListener('mousemove', move); c.addEventListener('mouseup', end); c.addEventListener('mouseleave', end);
+  c.addEventListener('touchstart', start, {passive:false}); c.addEventListener('touchmove', move, {passive:false}); c.addEventListener('touchend', end);
+}
+function _sigPos(e, c){
+  const r = c.getBoundingClientRect();
+  const t = (e.touches && e.touches[0]) || e;
+  return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+function _sigClearCanvas(){
+  const c = document.getElementById('sig-canvas');
+  if(!c) return;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  _sigHasInk = false;
+}
+async function _sigSubmit(){
+  if(!_sigHasInk){ toast('יש לחתום בתיבה לפני השליחה','error'); return; }
+  const m = document.getElementById('sig-modal');
+  const idx = m && m._sigIdx;
+  const s = (dataSignatures||[])[idx];
+  if(!s){ toast('שגיאה — מסמך לא נמצא','error'); return; }
+  const f = (s.files && s.files[0]) || null;
+  if(!f || !f.id){ toast('הקובץ לא נמצא','error'); return; }
+  const btn = document.getElementById('sig-submit-btn');
+  btn.disabled = true; btn.textContent = 'שולח…';
+  try{
+    const dataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
+    const r = await api('submitSignature', {
+      token: currentUser.token,
+      reqId: s.id,
+      fileId: f.id,
+      signaturePngBase64: dataUrl.split(',')[1],
+      signedAt: Date.now()
+    });
+    if(r.ok){
+      toast('המסמך נחתם — תודה!','success');
+      closeSignatureViewer();
+      // Refresh the list
+      if(typeof loadAll === 'function') await loadAll();
+      else renderSignatures();
+    } else {
+      toast(r.error || 'שגיאה','error');
+    }
+  }catch(e){
+    toast(e.message || 'שגיאה','error');
+  }finally{
+    btn.disabled = false; btn.textContent = 'חתום ושלח';
+  }
 }
 /* Per-question open state. Persist across re-renders, not across reloads. */
 const _infoOpen = {};

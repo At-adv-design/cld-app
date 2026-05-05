@@ -55,6 +55,7 @@ function doPost(e){
     else if(action === 'closeReport')       result = handleCloseReport(body);
     else if(action === 'createCalendarEvent') result = handleCreateCalendarEvent(body);
     else if(action === 'sendWhatsApp')        result = handleSendWhatsApp(body);
+    else if(action === 'submitSignature')     result = handleSubmitSignature(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -180,6 +181,65 @@ function _adminListSecretKeys(){
      GREEN_API_INSTANCE = <set in Script Properties UI>
      GREEN_API_TOKEN    = <set in Script Properties UI>
 */
+/* ───────── handleSubmitSignature ─────────
+   Client submits a signed document. Body:
+     { token, reqId, fileId, signaturePngBase64, signedAt }
+   We:
+   1. Verify the client's token (only the right client can sign).
+   2. Find the requirement entry in column EE.
+   3. Save the signature PNG to the client's "מסמכים לחתימה/חתומים/" folder
+      with a name like "<reqText>_signature.png" alongside the original PDF
+      reference. (PDF signature overlay can be added later — see PHASE 2 note.)
+   4. Update the EE JSON entry with signedAt + signaturePngId + IP/email
+      attestation, locking the entry as 'signed'. */
+function handleSubmitSignature(body){
+  const t = _verifyToken(body.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!body.signaturePngBase64) throw new Error('חסרה חתימה');
+  const reqId  = body.reqId  || '';
+  const fileId = body.fileId || '';
+  if(!reqId) throw new Error('מסמך לא מזוהה');
+
+  const sheet = _sheet();
+  const cell  = sheet.getRange(t.rowNum, COL.SIGS_DOCS);
+  const list  = _parseList(cell.getValue());
+  const req   = list.find(r => r.id === reqId);
+  if(!req) throw new Error('המסמך לא נמצא');
+  const f0    = (req.files && req.files[0]) || null;
+  if(!f0) throw new Error('הקובץ לא קיים');
+  if(req.signedAt || (f0 && f0.signedAt)) throw new Error('המסמך כבר חתום');
+
+  // Build folder structure: <client>/מסמכים לחתימה/חתומים/
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'לקוח';
+  const root        = DriveApp.getFolderById(DRIVE_ROOT_ID);
+  const clientFolder= _ensureFolder(root, clientName);
+  const sigsRoot    = _ensureFolder(clientFolder, 'מסמכים לחתימה');
+  const signedFolder= _ensureFolder(sigsRoot, 'חתומים');
+
+  // Save signature image
+  const sigBlob = Utilities.newBlob(Utilities.base64Decode(body.signaturePngBase64), 'image/png',
+    (req.text || 'מסמך') + '_signature.png');
+  const sigFile = signedFolder.createFile(sigBlob);
+  try { sigFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_) {}
+
+  // Attestation metadata
+  const ts = body.signedAt || Date.now();
+  if(!f0.signedAt)        f0.signedAt = ts;
+  if(!f0.signedPngId)     f0.signedPngId = sigFile.getId();
+  if(!f0.signedPngUrl)    f0.signedPngUrl = sigFile.getUrl();
+  req.signedAt    = ts;
+  req.status      = 'signed';
+  req.attestation = {
+    timestamp: ts,
+    rowNum:    t.rowNum,
+    // We don't have the client's IP here (Apps Script web apps don't get
+    // the real client IP), but we record the user agent client-side.
+  };
+  cell.setValue(JSON.stringify(list));
+  _audit('submitSignature', '#' + t.rowNum, {reqId, fileId});
+  return { signed: true, signedAt: ts, signaturePngUrl: sigFile.getUrl() };
+}
+
 function handleSendWhatsApp(body){
   const auth = _verifyLawyerToken(body.accessToken);
   if(!auth || !auth.ok){
