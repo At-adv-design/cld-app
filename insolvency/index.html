@@ -5178,14 +5178,16 @@ function _renderSupplDocsList(){
   const pending   = (_custState.pending||[]).filter(p => p.category === 'docs');
   const rejections= _custState.rejections || [];
 
-  if(!required.length){
+  if(!required.length && !pending.length){
     return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו דרישות — ערוך את הרשימה בכרטיס הלקוח.</div>';
   }
 
   const idForReq = r => r.id && !String(r.id).startsWith('tmp-') ? r.id : ('r0-'+_hashReqId(r.text||''));
-  return required.map(r => {
+  const matchedReqIds = new Set();
+  const reqsHtml = required.map(r => {
     const stableId = idForReq(r);
     const myPending  = pending.filter(p  => p.reqId === stableId);
+    myPending.forEach(p => matchedReqIds.add(p.reqId));
     // Approved entries: prefer the merged PDF (multi-file requirements),
     // otherwise the individual approved files (single-file or per-file).
     const myApproved = required
@@ -5224,6 +5226,23 @@ function _renderSupplDocsList(){
         ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
       </div>`;
   }).join('');
+
+  // Orphan pending files: client uploaded a doc whose reqId doesn't match any
+  // current requirement (requirement was deleted/renamed after upload). Without
+  // this fallback, the lawyer would see no approve/reject buttons and the file
+  // would be stuck in limbo. Render them in their own block so the lawyer can
+  // approve/reject from the same UI.
+  const orphans = pending.filter(p => !matchedReqIds.has(p.reqId));
+  let orphanHtml = '';
+  if(orphans.length){
+    orphanHtml = `
+      <div style="margin-top:12px;padding:8px;background:var(--orange-bg);border:1px solid #E8D8B5;border-radius:4px">
+        <div style="font-size:11px;color:var(--orange);font-weight:700;margin-bottom:6px">קבצים ממתינים ללא דרישה תואמת (${orphans.length})</div>
+        ${_renderReqAttachments({pending:orphans, approved:[], rejection:null})}
+      </div>`;
+  }
+
+  return reqsHtml + orphanHtml;
 }
 
 function updateSupplDocText(id, val){
