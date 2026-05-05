@@ -1419,6 +1419,7 @@ body.focus-mode-active{overflow:hidden;}
         <div class="log-title" style="font-size:15px">אגף לקוח</div>
         <div class="log-sub" id="customer-area-name" style="margin-top:2px"></div>
       </div>
+      <button id="cust-refresh-btn" onclick="refreshCustomerArea()" title="רענן את כל הנתונים של הלקוח" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--slate);white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:5px"><svg id="cust-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg><span>רענון</span></button>
       <button onclick="custCloseAllSections()" title="סגור את כל הכרטיסים" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--muted);white-space:nowrap;flex-shrink:0">סגור הכל</button>
     </div>
     <!-- Scrollable body -->
@@ -4523,6 +4524,72 @@ function renderCustomerArea(){
       _custState.infoQAOpen = {};
     }
     if(typeof renderCustomerArea === 'function') renderCustomerArea();
+  };
+
+  /* Header refresh button: re-fetch the entire sheet, rebuild this client's
+     state from the fresh data, collapse every section, and re-render —
+     all without leaving the customer area. The lawyer can immediately
+     drill into the now-current numbers. */
+  window.refreshCustomerArea = async function(){
+    if(!_custState) return;
+    const rowNum = _custState.rowNum;
+    const btn  = document.getElementById('cust-refresh-btn');
+    const icon = document.getElementById('cust-refresh-icon');
+    if(btn) btn.disabled = true;
+    if(icon){ icon.style.transition = 'transform .8s linear'; icon.style.transform = 'rotate(360deg)'; }
+    try{
+      // Persist any unsaved input the lawyer just typed (info Q&A debounce
+      // is 800ms — flushing here avoids losing it across the reload).
+      if(typeof _infoSaveTimer !== 'undefined' && _infoSaveTimer){
+        clearTimeout(_infoSaveTimer); _infoSaveTimer = null;
+        if(typeof saveInfoQuestions === 'function') saveInfoQuestions(false);
+      }
+      // Pull the entire sheet again — this is the same path the main
+      // list uses, so allClients ends up fresh after.
+      await loadData();
+      const c = (allClients||[]).find(x => x.rowNum === rowNum);
+      if(!c){
+        showToast('הלקוח לא נמצא בנתונים החדשים','err');
+        return;
+      }
+      // Rebuild _custState from fresh data, collapsing all sections so the
+      // lawyer sees the layout cleanly and clicks into what they need.
+      _custState = {
+        rowNum,
+        name: c.name||'',
+        username: c.customerUsername||'',
+        password: c.customerPassword||'',
+        active:   c.customerActive===true,
+        stage:    c.clientStage||'',
+        reportDocs:        JSON.parse(JSON.stringify(c.reportDocs||[])),
+        supplDocs:         JSON.parse(JSON.stringify(c.supplDocs||[])),
+        infoQs:            JSON.parse(JSON.stringify(c.infoQs||[])),
+        reportDocsByNum:   JSON.parse(JSON.stringify(c.reportDocsByNum||[])),
+        supplDocsRequired: JSON.parse(JSON.stringify(c.supplDocsRequired||[])),
+        supplDocsApproved: JSON.parse(JSON.stringify(c.supplDocsApproved||[])),
+        rejections:        JSON.parse(JSON.stringify(c.rejections||[])),
+        inquiries:         JSON.parse(JSON.stringify(c.inquiries||[])),
+        signatures:        JSON.parse(JSON.stringify(c.signatures||[])),
+        pending:           [],
+        pendingLoading:    true,
+        openReportNum:     null,
+        // Force everything collapsed on refresh (per user request).
+        openSections:      {reports:false, docs:false, info:false, signatures:false, drive:false, creds:false, stage:false, questionnaire:false},
+        bvRaw: c.bvRaw||'',
+        bwRaw: c.bwRaw||'',
+      };
+      _saveCustSectionState();
+      document.getElementById('customer-area-name').textContent = c.name || '';
+      renderCustomerArea();
+      // Refresh pending uploads (in-flight customer files in Drive inboxes).
+      try{ if(typeof loadCustomerPending === 'function') await loadCustomerPending(); }catch(_){}
+      showToast('הנתונים עודכנו','ok');
+    }catch(e){
+      showToast('שגיאה בעדכון הנתונים','err');
+    }finally{
+      if(btn) btn.disabled = false;
+      if(icon){ setTimeout(()=>{ icon.style.transition='none'; icon.style.transform='rotate(0deg)'; }, 800); }
+    }
   };
 
   // Total pending count for the small banner at the top
