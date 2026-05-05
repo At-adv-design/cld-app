@@ -1674,7 +1674,7 @@ const REDIRECT=location.origin+location.pathname;
 const ALLOWED=['avi@t-adv.co.il','office@t-adv.co.il','tal.adv.offc2@gmail.com','avi.t.razr@gmail.com'];
 
 // Columns (0-based)
-const C_NAME=23,C_CASE=66;  // X — client name (per user 2026-05-04: 'איקס הוא שם הלקוח')
+const C_NAME=22,C_CASE=66;  // W — client name (canonical mapping)
 const C_PHONE=21;      // V: client phone
 // Operations section ("ביצועים" — entered via 4 logo taps)
 const C_X=23;          // X: cumulative summary log (first 2 lines preserved)
@@ -3339,7 +3339,7 @@ async function transferToInsolvency(rowNum){
     const updates = [];
     const pad = (col) => `${SHEET_ID}/values/${col}4?valueInputOption=USER_ENTERED`;
     const writes = [
-      ['X', c.name||''],       // X = client name (canonical per user)
+      ['W', c.name||''],       // W = client name (canonical)
       ['V', c.phone||''],      // V = phone
     ];
     await Promise.all(writes.map(([col, val])=>
