@@ -95,8 +95,29 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .lm-red{color:var(--red);}
 
 /* HEADER */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
-.hdr-right{display:flex;gap:6px;align-items:center;}
+.header{
+  background:var(--white);height:96px;padding:0 16px;
+  display:flex;align-items:center;justify-content:flex-start;
+  position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);
+  position:relative;
+}
+.hdr-right{
+  display:flex;gap:6px;align-items:center;
+  max-width:50%;
+  overflow-x:auto;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+}
+/* Logo locked at center of the left half — same standard across all apps. */
+.header > img[alt*="טל"]{
+  position:absolute;
+  left:25%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  height:80px;
+  object-fit:contain;
+  pointer-events:none;
+}
 .hdr-count{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px;font-weight:600;padding:0 10px;font-family:inherit;display:inline-flex;align-items:center;height:32px;border-radius:4px;}
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
 .hdr-btn svg{width:15px;height:15px;}
