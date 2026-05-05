@@ -236,6 +236,11 @@ input,textarea,button{font-family:inherit;}
   z-index:2;
 }
 .section-head *{pointer-events:none !important;}
+/* …but BUTTONS inside the head MUST stay clickable (e.g. the פניה button).
+   Without this override, the rule above blocks the click and the inquiry
+   modal never opens. */
+.section-head button{pointer-events:auto !important;}
+.section-head button *{pointer-events:none !important;}
 .section-head:active{background:var(--bg);}
 .section-head .left{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
 .section-icon{

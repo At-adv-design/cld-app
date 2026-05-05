@@ -31,6 +31,7 @@ const COL = {
   CW_INFO:       101,   // CW ג€” JSON (info questions)
   CX_STAGE:      133,   // EC (0-based 132) ג€” stage: '' | 'pre_order' | 'commercial'
   CY_QUEST:      134,   // ED (0-based 133) ג€” questionnaire JSON (form 45 data)
+  SIGS_DOCS:     135,   // EE ג€” signature documents JSON: [{id,text,files:[{id,name,url,ts,signedAt?}]}]
   CZ_INQUIRIES:  136,   // EF ג€” client inquiries JSON array
 };
 
@@ -266,12 +267,14 @@ function handleGetRequests(body){
   const t = _verifyToken(body.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  const row = sheet.getRange(t.rowNum, 1, 1, COL.CY_QUEST).getValues()[0];
+  // Read up to SIGS_DOCS so the signatures column comes back too.
+  const row = sheet.getRange(t.rowNum, 1, 1, COL.SIGS_DOCS).getValues()[0];
   const stage = (row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
 
-  const reports = _parseList(row[COL.CU_REPORTS-1]);
-  const docs    = _parseList(row[COL.CV_DOCS-1]);
-  const info    = _parseList(row[COL.CW_INFO-1]);
+  const reports    = _parseList(row[COL.CU_REPORTS-1]);
+  const docs       = _parseList(row[COL.CV_DOCS-1]);
+  const info       = _parseList(row[COL.CW_INFO-1]);
+  const signatures = _parseList(row[COL.SIGS_DOCS-1]);
 
   const pending = [], rejections = [];
   const _collect = (list, category) => {
@@ -333,7 +336,7 @@ function handleGetRequests(body){
   });
 
   return {
-    reports, docs, info,
+    reports, docs, info, signatures,
     docsRequired, docsApproved,
     name:    row[COL.NAME-1] || '',
     stage:   stage,
@@ -412,7 +415,7 @@ function handleUploadFile(p){
   const stampedName = file.getName(); // Drive may have added " (1)" on collision
 
   // Update requirement entry in sheet
-  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS, signatures: COL.SIGS_DOCS};
   const colIdx = colMap[p.category] || COL.CV_DOCS;
   const cell = sheet.getRange(t.rowNum, colIdx);
   const list = _parseList(cell.getValue());
@@ -725,7 +728,7 @@ function handleApproveItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS, signatures: COL.SIGS_DOCS};
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
@@ -819,7 +822,7 @@ function handleRejectItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS, signatures: COL.SIGS_DOCS};
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
@@ -845,7 +848,7 @@ function handleUnapproveItem(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
+  const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS, signatures: COL.SIGS_DOCS};
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
   const list = _parseList(cell.getValue());
   const req  = list.find(r => r.id === p.reqId);
