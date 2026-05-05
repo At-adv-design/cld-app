@@ -434,48 +434,87 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .chip.red.active{background:var(--red);border-color:var(--red);}
 .chip.orange.active{background:var(--orange);border-color:var(--orange);}
 
-/* FILTER DROPDOWNS — native <select> elements styled to look like form fields.
-   Native is the right choice here: instantly recognizable, no learning curve,
-   touch-friendly (mobile shows the OS picker), no focus-trap bugs. */
-.filter-select{
-  display:inline-flex;align-items:center;gap:6px;
+/* MODE-CHIP ROW — sits directly under the search bar.
+   פוטנציאליים at visual left, גבייה at visual right (RTL). */
+.mode-row{justify-content:space-between;}
+.mode-chip{
+  font-size:13px;font-weight:700;padding:8px 16px;
+  border-radius:6px;cursor:pointer;
+  border:1.5px solid var(--border);background:var(--white);
+  color:var(--text);
+  box-shadow:0 1px 2px rgba(31,30,27,0.04);
+  transition:all .12s;
+}
+.mode-chip:hover{border-color:var(--slate);}
+.mode-chip.active{background:var(--slate);color:#fff;border-color:var(--slate);}
+
+/* CUSTOM DROPDOWN FILTERS — expand-downward panel with all options visible.
+   Trigger looks like a real form field; clicking flips the chevron and
+   slides the option panel down underneath. */
+.dd-filter{position:relative;display:inline-block;}
+.dd-trigger{
+  display:inline-flex;align-items:center;gap:8px;
   background:var(--white);border:1.5px solid var(--border);
-  padding:0 4px 0 10px;height:36px;
+  padding:0 10px;height:38px;
   border-radius:6px;
-  font-family:inherit;
+  font-family:inherit;cursor:pointer;
+  color:var(--text);white-space:nowrap;
   box-shadow:0 1px 2px rgba(31,30,27,0.04);
   transition:border-color .12s;
 }
-.filter-select:hover{border-color:var(--slate);}
-.filter-select:focus-within{border-color:var(--slate);}
-.filter-select .fs-label{
+.dd-trigger:hover,.dd-trigger:focus{border-color:var(--slate);outline:none;}
+.dd-trigger .dd-label{
   color:var(--muted);font-weight:600;font-size:11px;
-  letter-spacing:.2px;white-space:nowrap;
+  letter-spacing:.2px;
 }
-.filter-select select{
-  background:transparent;border:none;outline:none;
-  font-family:inherit;font-size:13px;font-weight:700;
-  color:var(--text);
-  padding:0 18px 0 6px; /* extra inline-end padding for the native arrow */
-  height:32px;cursor:pointer;direction:rtl;
-  /* Hide the default arrow on some browsers, then re-add ours */
-  -webkit-appearance:none;-moz-appearance:none;appearance:none;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B6A65' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat:no-repeat;
-  background-position:left 0 center;
-  background-size:11px 11px;
+.dd-trigger .dd-val{
+  font-weight:700;color:var(--text);font-size:13px;
+  padding:3px 10px;background:var(--bg);border-radius:4px;
+  min-width:32px;text-align:center;transition:all .12s;
 }
-/* When the select has a non-default value, paint it like a colored chip
-   inside the field — keeps the whole row visually scannable. */
-.filter-select.has-active{border-color:var(--slate);}
-.filter-select.has-active select{
-  background-color:var(--slate);color:#fff;border-radius:4px;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+.dd-trigger .dd-arr{
+  width:12px;height:12px;color:var(--muted);
+  transition:transform .18s ease;flex-shrink:0;stroke-width:2.5;
 }
-.filter-select.has-active.color-red{border-color:var(--red);}
-.filter-select.has-active.color-red select{background-color:var(--red);}
-.filter-select.has-active.color-orange{border-color:var(--orange);}
-.filter-select.has-active.color-orange select{background-color:var(--orange);}
+.dd-filter.open .dd-trigger{border-color:var(--slate);background:var(--bg);}
+.dd-filter.open .dd-arr{transform:rotate(180deg);}
+.dd-trigger.has-active{border-color:var(--slate);}
+.dd-trigger.has-active .dd-val{background:var(--slate);color:#fff;}
+.dd-trigger.has-active.color-red{border-color:var(--red);}
+.dd-trigger.has-active.color-red .dd-val{background:var(--red);color:#fff;}
+.dd-trigger.has-active.color-orange{border-color:var(--orange);}
+.dd-trigger.has-active.color-orange .dd-val{background:var(--orange);color:#fff;}
+/* The expanded panel — slightly wider than the trigger, opens downward. */
+.dd-panel{
+  position:absolute;top:calc(100% + 6px);right:0;
+  min-width:140px;
+  background:var(--white);border:1px solid var(--border);
+  border-radius:6px;padding:6px;
+  box-shadow:0 8px 28px rgba(31,30,27,0.14),0 2px 6px rgba(31,30,27,0.06);
+  z-index:200;
+  display:none;flex-direction:column;gap:2px;
+  /* slide-in animation */
+  opacity:0;transform:translateY(-4px);
+  transition:opacity .15s ease,transform .15s ease;
+}
+.dd-filter.open .dd-panel{display:flex;opacity:1;transform:translateY(0);}
+.dd-opt{
+  font-size:14px;font-weight:600;
+  padding:9px 14px;border-radius:5px;cursor:pointer;
+  color:var(--text);text-align:right;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  transition:background .1s;
+}
+.dd-opt:hover{background:var(--bg);}
+.dd-opt.active{background:var(--slate);color:#fff;}
+.dd-opt.active.color-red{background:var(--red);}
+.dd-opt.active.color-orange{background:var(--orange);}
+.dd-opt-tag{
+  font-size:11px;font-weight:700;padding:2px 6px;
+  border-radius:3px;background:var(--bg);color:var(--muted);
+  min-width:20px;text-align:center;
+}
+.dd-opt.active .dd-opt-tag{background:rgba(255,255,255,.25);color:#fff;}
 
 /* STATS */
 .stats-bar{background:var(--white);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;font-size:11px;font-weight:500;color:var(--muted);overflow-x:auto;}
@@ -925,65 +964,82 @@ body.focus-mode-active{overflow:hidden;}
       </div>
     </div>
     <div class="filters-wrap">
-      <!-- 4 native <select> filters + 2 mode-toggle chips (גבייה,
-           פוטנציאליים) at the visual end. Native selects are recognizable
-           as "tap me to pick a value" and on mobile open the OS picker. -->
+      <!-- Row 1 (under search): mode toggles. RTL — DOM order = visual order
+           reversed: גבייה first = visual right, פוטנציאליים last = visual left,
+           with auto-margin pushing them apart. -->
+      <div class="filter-row mode-row" id="mode-row">
+        <div class="mode-chip" id="collection-chip" onclick="toggleCollectionView()">גבייה</div>
+        <div class="mode-chip" id="potential-chip" onclick="togglePotentialMode()">פוטנציאליים</div>
+      </div>
+      <!-- Row 2: 4 custom dropdown filters that expand downward with all
+           options visible. Click trigger → panel slides down. -->
       <div class="filter-row" id="main-filter-row">
-        <label class="filter-select" id="df-reports">
-          <span class="fs-label">דוחות</span>
-          <select onchange="setReportFilter(this.value, this)">
-            <option value="all">הכל</option>
-            <option value="1">1 דוח חסר</option>
-            <option value="2">2 דוחות</option>
-            <option value="3">3 דוחות</option>
-            <option value="4">4 דוחות</option>
-            <option value="5">5 דוחות</option>
-            <option value="6">6 דוחות</option>
-          </select>
-        </label>
-        <label class="filter-select" id="df-docs">
-          <span class="fs-label">מסמכים</span>
-          <select onchange="setF('docs', this.value)">
-            <option value="all">הכל</option>
-            <option value="urgent">דחוף</option>
-            <option value="warning">בטיפול</option>
-          </select>
-        </label>
-        <label class="filter-select" id="df-srv">
-          <span class="fs-label">מסירה</span>
-          <select onchange="setF('srv', this.value)">
-            <option value="all">הכל</option>
-            <option value="urgent">דחוף</option>
-            <option value="warning">בטיפול</option>
-          </select>
-        </label>
-        <label class="filter-select" id="df-inj">
-          <span class="fs-label">עיכוב</span>
-          <select onchange="setF('inj', this.value)">
-            <option value="all">הכל</option>
-            <option value="urgent">דחוף</option>
-          </select>
-        </label>
-        <!-- Visual-end mode chips (RTL: left edge). margin-inline-start:auto
-             pushes them to the far visual end so they're always reachable. -->
-        <div class="chip" id="collection-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">גבייה</div>
-        <div class="chip" id="potential-chip" onclick="togglePotentialMode()">פוטנציאליים</div>
+        <div class="dd-filter" id="df-reports" data-type="reports">
+          <button type="button" class="dd-trigger" onclick="toggleDD(event,this)">
+            <span class="dd-label">דוחות</span><span class="dd-val">הכל</span>
+            <svg class="dd-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-opt active" data-val="all" onclick="pickReports(this,'all','הכל')">הכל</div>
+            <div class="dd-opt" data-val="1" onclick="pickReports(this,1,'1 חסר')"><span>דוח אחד חסר</span><span class="dd-opt-tag">1</span></div>
+            <div class="dd-opt" data-val="2" onclick="pickReports(this,2,'2 חסרים')"><span>2 דוחות חסרים</span><span class="dd-opt-tag">2</span></div>
+            <div class="dd-opt" data-val="3" onclick="pickReports(this,3,'3 חסרים')"><span>3 דוחות חסרים</span><span class="dd-opt-tag">3</span></div>
+            <div class="dd-opt" data-val="4" onclick="pickReports(this,4,'4 חסרים')"><span>4 דוחות חסרים</span><span class="dd-opt-tag">4</span></div>
+            <div class="dd-opt" data-val="5" onclick="pickReports(this,5,'5 חסרים')"><span>5 דוחות חסרים</span><span class="dd-opt-tag">5</span></div>
+            <div class="dd-opt" data-val="6" onclick="pickReports(this,6,'6 חסרים')"><span>6 דוחות חסרים</span><span class="dd-opt-tag">6</span></div>
+          </div>
+        </div>
+        <div class="dd-filter" id="df-docs" data-type="docs">
+          <button type="button" class="dd-trigger" onclick="toggleDD(event,this)">
+            <span class="dd-label">מסמכים</span><span class="dd-val">הכל</span>
+            <svg class="dd-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-opt active" data-val="all" onclick="pickF('docs',this,'all','הכל')">הכל</div>
+            <div class="dd-opt" data-val="urgent" onclick="pickF('docs',this,'urgent','דחוף')">דחוף</div>
+            <div class="dd-opt" data-val="warning" onclick="pickF('docs',this,'warning','בטיפול')">בטיפול</div>
+          </div>
+        </div>
+        <div class="dd-filter" id="df-srv" data-type="srv">
+          <button type="button" class="dd-trigger" onclick="toggleDD(event,this)">
+            <span class="dd-label">מסירה</span><span class="dd-val">הכל</span>
+            <svg class="dd-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-opt active" data-val="all" onclick="pickF('srv',this,'all','הכל')">הכל</div>
+            <div class="dd-opt" data-val="urgent" onclick="pickF('srv',this,'urgent','דחוף')">דחוף</div>
+            <div class="dd-opt" data-val="warning" onclick="pickF('srv',this,'warning','בטיפול')">בטיפול</div>
+          </div>
+        </div>
+        <div class="dd-filter" id="df-inj" data-type="inj">
+          <button type="button" class="dd-trigger" onclick="toggleDD(event,this)">
+            <span class="dd-label">עיכוב</span><span class="dd-val">הכל</span>
+            <svg class="dd-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-opt active" data-val="all" onclick="pickF('inj',this,'all','הכל')">הכל</div>
+            <div class="dd-opt" data-val="urgent" onclick="pickF('inj',this,'urgent','דחוף')">דחוף</div>
+          </div>
+        </div>
       </div>
       <!-- Collection-mode row: shown only when גבייה is on. -->
       <div class="filter-row" id="collection-filter-row" style="display:none">
-        <label class="filter-select" id="df-coll">
-          <span class="fs-label">פיגורים</span>
-          <select onchange="setCollFilter(this.value, this)">
-            <option value="all">הכל</option>
-            <option value="1">1 פיגור</option>
-            <option value="2">2 פיגורים</option>
-            <option value="3">3 פיגורים</option>
-            <option value="4">4 פיגורים</option>
-            <option value="5">5 פיגורים</option>
-            <option value="6">6 פיגורים</option>
-          </select>
-        </label>
-        <div class="chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור גבייה</div>
+        <div class="dd-filter" id="df-coll" data-type="coll">
+          <button type="button" class="dd-trigger" onclick="toggleDD(event,this)">
+            <span class="dd-label">פיגורים</span><span class="dd-val">הכל</span>
+            <svg class="dd-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dd-panel">
+            <div class="dd-opt active" data-val="all" onclick="pickColl(this,'all','הכל')">הכל</div>
+            <div class="dd-opt" data-val="1" onclick="pickColl(this,1,'1 פיגור')"><span>פיגור אחד</span><span class="dd-opt-tag">1</span></div>
+            <div class="dd-opt" data-val="2" onclick="pickColl(this,2,'2 פיגורים')"><span>2 פיגורים</span><span class="dd-opt-tag">2</span></div>
+            <div class="dd-opt" data-val="3" onclick="pickColl(this,3,'3 פיגורים')"><span>3 פיגורים</span><span class="dd-opt-tag">3</span></div>
+            <div class="dd-opt" data-val="4" onclick="pickColl(this,4,'4 פיגורים')"><span>4 פיגורים</span><span class="dd-opt-tag">4</span></div>
+            <div class="dd-opt" data-val="5" onclick="pickColl(this,5,'5 פיגורים')"><span>5 פיגורים</span><span class="dd-opt-tag">5</span></div>
+            <div class="dd-opt" data-val="6" onclick="pickColl(this,6,'6 פיגורים')"><span>6 פיגורים</span><span class="dd-opt-tag">6</span></div>
+          </div>
+        </div>
+        <div class="mode-chip" id="collection-close-chip" onclick="toggleCollectionView()" style="margin-inline-start:auto">✕ סגור גבייה</div>
       </div>
     </div>
     <div class="stats-bar">
@@ -2587,34 +2643,62 @@ function fmtDate(s){
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────────────
-/* Paint the wrapper of a native <select> based on the chosen value.
-   `colorWhen` says which colors to apply for which option values. */
-function _paintFilterSelect(selectEl, val, colorMap){
-  const wrap = selectEl.closest('.filter-select');
+/* Open/close a custom dropdown. Closes any other open dropdown so only one
+   panel is visible at once. */
+function toggleDD(e, btn){
+  if(e) e.stopPropagation();
+  const wrap = btn.closest('.dd-filter');
   if(!wrap) return;
-  const isActive = val !== 'all';
-  wrap.classList.toggle('has-active', isActive);
-  wrap.classList.remove('color-red','color-orange');
-  const color = colorMap && colorMap[val];
-  if(isActive && color) wrap.classList.add('color-' + color);
+  const wasOpen = wrap.classList.contains('open');
+  document.querySelectorAll('.dd-filter.open').forEach(w=>w.classList.remove('open'));
+  if(!wasOpen) wrap.classList.add('open');
+}
+/* Click anywhere outside any dropdown closes them all. */
+document.addEventListener('click', e=>{
+  if(e.target.closest('.dd-filter')) return;
+  document.querySelectorAll('.dd-filter.open').forEach(w=>w.classList.remove('open'));
+});
+/* Apply the picked option visually: highlight the chosen .dd-opt, paint
+   the trigger value, then close the panel. */
+function _applyPick(optEl, displayText, color){
+  const wrap = optEl.closest('.dd-filter');
+  if(!wrap) return;
+  // Mark the active option
+  wrap.querySelectorAll('.dd-opt').forEach(o=>{
+    o.classList.remove('active','color-red','color-orange');
+  });
+  optEl.classList.add('active');
+  if(color) optEl.classList.add('color-' + color);
+  // Paint the trigger
+  const trigger = wrap.querySelector('.dd-trigger');
+  const valSpan = trigger.querySelector('.dd-val');
+  if(valSpan) valSpan.textContent = displayText;
+  trigger.classList.remove('has-active','color-red','color-orange');
+  const isActive = (optEl.dataset.val !== 'all');
+  if(isActive){
+    trigger.classList.add('has-active');
+    if(color) trigger.classList.add('color-' + color);
+  }
+  // Close the panel
+  wrap.classList.remove('open');
 }
 
-function setReportFilter(val, selectEl){
-  // val from native select is a string; coerce to number for non-"all"
+function pickReports(optEl, val, displayText){
   fReport = (val === 'all') ? 'all' : Number(val);
-  if(selectEl && selectEl.tagName === 'SELECT'){
-    _paintFilterSelect(selectEl, val, {1:'red',2:'red',3:'red',4:'red',5:'red',6:'red'});
-  }
+  _applyPick(optEl, displayText, val==='all' ? null : 'red');
   applyFilters();
 }
-function setF(type, val){
+function pickF(type, optEl, val, displayText){
   if(type==='docs') fDocs=val;
   else if(type==='inj') fInj=val;
   else if(type==='srv') fSrv=val;
-  // Find the <select> for this filter type and paint its wrapper
-  const wrap = document.getElementById('df-' + (type==='docs'?'docs':type==='srv'?'srv':type==='inj'?'inj':type));
-  const sel = wrap && wrap.querySelector('select');
-  if(sel) _paintFilterSelect(sel, val, {urgent:'red', warning:'orange'});
+  const color = val==='all' ? null : (val==='urgent' ? 'red' : 'orange');
+  _applyPick(optEl, displayText, color);
+  applyFilters();
+}
+function pickColl(optEl, val, displayText){
+  fColl = (val === 'all') ? 'all' : Number(val);
+  _applyPick(optEl, displayText, val==='all' ? null : 'red');
   applyFilters();
 }
 /* Update the global pending-approvals badge in the header. Counts up
@@ -2733,8 +2817,9 @@ function togglePotentialMode(){
   _potentialMode = !_potentialMode;
   const chip = document.getElementById('potential-chip');
   if(chip) chip.classList.toggle('active', _potentialMode);
-  // In potential mode: hide non-docs filter selects + collection chip; keep
-  // docs filter + potential chip visible.
+  // In potential mode: hide non-docs filter dropdowns + the גבייה chip;
+  // keep docs filter + potential chip visible. Use empty string to fall
+  // back to CSS default.
   ['df-reports','df-srv','df-inj','collection-chip'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = _potentialMode ? 'none' : '';
@@ -2745,26 +2830,29 @@ function togglePotentialMode(){
 
 function toggleCollectionView(){
   collectionMode=!collectionMode;
+  // Toggle the active style on the גבייה chip
+  const collChip = document.getElementById('collection-chip');
+  if(collChip) collChip.classList.toggle('active', collectionMode);
+  // Hide main filter row + mode row when in collection mode (close chip is in coll row)
   const main=document.getElementById('main-filter-row');
+  const modeRow=document.getElementById('mode-row');
   const coll=document.getElementById('collection-filter-row');
-  if(main) main.style.display = collectionMode ? 'none' : '';
-  if(coll) coll.style.display = collectionMode ? 'flex' : 'none';
+  if(main)    main.style.display    = collectionMode ? 'none' : '';
+  if(modeRow) modeRow.style.display = collectionMode ? 'none' : '';
+  if(coll)    coll.style.display    = collectionMode ? 'flex' : 'none';
   // Reset the missed-payments filter back to "הכל"
   fColl='all';
-  const collSel = coll && coll.querySelector('select');
-  if(collSel){
-    collSel.value = 'all';
-    _paintFilterSelect(collSel, 'all', {});
+  if(coll){
+    coll.querySelectorAll('.dd-opt').forEach(o=>{
+      o.classList.remove('active','color-red','color-orange');
+      if(o.dataset.val === 'all') o.classList.add('active');
+    });
+    const collTrigger = coll.querySelector('.dd-trigger');
+    const collVal = collTrigger && collTrigger.querySelector('.dd-val');
+    if(collVal) collVal.textContent = 'הכל';
+    if(collTrigger) collTrigger.classList.remove('has-active','color-red','color-orange');
   }
   updateStatsBarMode();
-  applyFilters();
-}
-
-function setCollFilter(val, selectEl){
-  fColl = (val === 'all') ? 'all' : Number(val);
-  if(selectEl && selectEl.tagName === 'SELECT'){
-    _paintFilterSelect(selectEl, val, {1:'red',2:'red',3:'red',4:'red',5:'red',6:'red'});
-  }
   applyFilters();
 }
 
