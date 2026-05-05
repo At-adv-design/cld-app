@@ -4905,10 +4905,16 @@ function _renderReqAttachments(o){
     </div>`;
 }
 
-/* Encode a value for use as a JS arg in an onclick attribute. */
+/* Encode a value for use as a JS arg in an onclick attribute.
+   IMPORTANT: encodeURIComponent does NOT escape the apostrophe character.
+   We're embedding the result inside a single-quoted JS string, so an
+   apostrophe in (e.g.) a file name like "O'Brien_doc.pdf" would terminate
+   the string early and silently kill the onclick handler — that's why
+   the approve/reject buttons would do nothing for some pending docs.
+   Replace ' with %27 manually so decodeURIComponent restores it. */
 function _jsArg(obj){
   return "JSON.parse(decodeURIComponent('" +
-    encodeURIComponent(JSON.stringify(obj)) + "'))";
+    encodeURIComponent(JSON.stringify(obj)).replace(/'/g, '%27') + "'))";
 }
 
 /* ── Q&A (CW info questions) ─────────────────────────────────
