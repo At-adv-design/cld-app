@@ -4793,24 +4793,40 @@ function _renderSignaturesSectionBody(){
   const renderRow = ({s, idx}) => {
     const f = (s.files && s.files[0]) || null;
     const signed = isSignedItem(s);
+    const approved = !!s.approved;
     const dateLabel = signed
       ? (s.signedAt ? new Date(s.signedAt).toLocaleDateString('he-IL') : '')
       : (f && f.ts ? new Date(f.ts).toLocaleDateString('he-IL') : '');
-    const dateText  = signed ? `נחתם ${esc(dateLabel)}` : (dateLabel ? `נשלח ${esc(dateLabel)}` : '');
-    const statusBadge = signed
-      ? '<span style="font-size:10px;color:var(--green);font-weight:700;background:var(--green-bg);border:1px solid var(--green-border);padding:2px 7px;border-radius:3px;pointer-events:none">חתום</span>'
-      : '<span style="font-size:10px;color:var(--orange);font-weight:700;background:var(--orange-bg);border:1px solid var(--orange-border);padding:2px 7px;border-radius:3px;pointer-events:none">ממתין</span>';
+    const approvedLabel = approved && s.approvedAt
+      ? new Date(s.approvedAt).toLocaleDateString('he-IL') : '';
+    const dateText  = approved
+      ? `אושר ${esc(approvedLabel)}`
+      : (signed ? `נחתם ${esc(dateLabel)}` : (dateLabel ? `נשלח ${esc(dateLabel)}` : ''));
+    const statusBadge = approved
+      ? '<span style="font-size:10px;color:#fff;font-weight:700;background:var(--green);border:1px solid var(--green);padding:2px 7px;border-radius:3px;pointer-events:none">אושר</span>'
+      : (signed
+        ? '<span style="font-size:10px;color:var(--green);font-weight:700;background:var(--green-bg);border:1px solid var(--green-border);padding:2px 7px;border-radius:3px;pointer-events:none">חתום</span>'
+        : '<span style="font-size:10px;color:var(--orange);font-weight:700;background:var(--orange-bg);border:1px solid var(--orange-border);padding:2px 7px;border-radius:3px;pointer-events:none">ממתין</span>');
+    // Approve + reject buttons appear only for signed-but-not-yet-approved
+    // rows. Approve moves the signed PDF to the client's root folder; reject
+    // trashes the signed PDF and resets the row to pending so the client
+    // can re-sign.
+    const actionBtns = (signed && !approved)
+      ? `<button type="button" onclick="event.stopPropagation();_approveSignatureDoc(${idx})" title="אשר והעבר לתיקיית הלקוח" style="background:var(--green);border:1px solid var(--green);color:#fff;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border-radius:3px;pointer-events:auto;flex-shrink:0">✓ אשר</button>
+         <button type="button" onclick="event.stopPropagation();_rejectSignatureDoc(${idx})" title="דחה את החתימה — מסמך יחזור לחתימה מחדש" style="background:transparent;border:1px solid var(--red);color:var(--red);padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border-radius:3px;pointer-events:auto;flex-shrink:0">✗ דחה</button>`
+      : '';
     // Use a single onclick on the row wrapper that delegates to the right
     // action based on which child was clicked. This is more click-tolerant
     // than nested buttons whose pointer-events can get blocked by parent
     // CSS rules. Trash button has its own onclick + stopPropagation.
     return `
-      <div onclick="_openSignatureFile(${idx})" style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;pointer-events:auto" title="פתח את המסמך">
+      <div onclick="_openSignatureFile(${idx})" style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;pointer-events:auto;flex-wrap:wrap" title="פתח את המסמך">
         <div style="flex:1;min-width:0;pointer-events:none">
           <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
         </div>
         ${statusBadge}
+        ${actionBtns}
         <button type="button" onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;pointer-events:auto;flex-shrink:0">${ICON.trash||'×'}</button>
       </div>`;
   };
@@ -4959,6 +4975,62 @@ async function _removeSignatureDoc(idx){
   _custState.signatures = list;
   renderCustomerArea();
   showToast(isSigned ? 'מסמך חתום הוסר מהרשימה' : 'המסמך הוסר','ok');
+}
+
+/* Approve a signed document: physically moves the signed PDF from the
+   working "<client>/מסמכים לחתימה/חתומים/" folder into the client's
+   ROOT folder (where final/binding docs live), and marks the entry
+   approved. After this the row shows "אושר" instead of "חתום" and the
+   approve/reject buttons disappear. */
+async function _approveSignatureDoc(idx){
+  if(!_custState) return;
+  const s = (_custState.signatures || [])[idx];
+  if(!s) return;
+  if(!confirm('לאשר את המסמך ולהעביר לתיקיית הלקוח?')) return;
+  showToast('מאשר…','info');
+  try{
+    const token = await _custGetToken();
+    const r = await _custApi('approveSignature', {token, sigId: s.id});
+    s.approved = true;
+    s.approvedAt = (r && r.approvedAt) || Date.now();
+    s.status = 'approved';
+    renderCustomerArea();
+    showToast('הקובץ אושר והועבר לתיקיית הלקוח','ok');
+  }catch(e){
+    showToast('שגיאה באישור: ' + (e.message || e), 'err');
+  }
+}
+
+/* Reject an already-signed document: trashes the signed PDF/PNG and
+   resets the entry to PENDING so the client can re-sign. The original
+   unsigned PDF in "ממתינים" is preserved. Use when the signature is
+   illegible or in the wrong place. */
+async function _rejectSignatureDoc(idx){
+  if(!_custState) return;
+  const s = (_custState.signatures || [])[idx];
+  if(!s) return;
+  const reason = prompt('סיבת הדחייה (תוצג ללקוח כשייכנס לחתום מחדש):', 'יש לחתום מחדש');
+  if(reason === null) return;
+  showToast('דוחה…','info');
+  try{
+    const token = await _custGetToken();
+    await _custApi('rejectSignature', {token, sigId: s.id, reason: (reason||'').trim()});
+    delete s.signedAt;
+    if(s.files && s.files[0]){
+      delete s.files[0].signedFileId;
+      delete s.files[0].signedFileUrl;
+      delete s.files[0].signedAt;
+      delete s.files[0].signedPngId;
+      delete s.files[0].signedPngUrl;
+    }
+    s.status = 'pending';
+    s.rejectionReason = (reason||'').trim();
+    s.rejectedAt = Date.now();
+    renderCustomerArea();
+    showToast('הקובץ נדחה — הלקוח יידרש לחתום מחדש','ok');
+  }catch(e){
+    showToast('שגיאה בדחייה: ' + (e.message || e), 'err');
+  }
 }
 
 /* Body of the per-reports section: 6 cards (one per report). */

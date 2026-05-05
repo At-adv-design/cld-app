@@ -56,6 +56,8 @@ function doPost(e){
     else if(action === 'createCalendarEvent') result = handleCreateCalendarEvent(body);
     else if(action === 'sendWhatsApp')        result = handleSendWhatsApp(body);
     else if(action === 'submitSignature')     result = handleSubmitSignature(body);
+    else if(action === 'approveSignature')    result = handleApproveSignature(body);
+    else if(action === 'rejectSignature')     result = handleRejectSignature(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -283,6 +285,109 @@ function handleSubmitSignature(body){
     signedFileUrl: signedPdfFile ? signedPdfFile.getUrl() : null,
     signaturePngUrl: signaturePngFile ? signaturePngFile.getUrl() : null
   };
+}
+
+/* ───────── handleApproveSignature ─────────
+   Lawyer approves a signed document and moves it out of the working
+   "מסמכים לחתימה/חתומים/" folder into the client's ROOT folder, where
+   final/binding docs live (per the routing rules: opening orders, fee
+   agreements, notices). Marks the entry approved with a timestamp so
+   the lawyer's UI can show "אושר 12/05/2026" and skip showing the
+   approve button on this row again.
+   Body: { token, sigId } */
+function handleApproveSignature(body){
+  const t = _verifyToken(body.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sigId = body.sigId || '';
+  if(!sigId) throw new Error('מסמך לא מזוהה');
+  const sheet = _sheet();
+  const cell  = sheet.getRange(t.rowNum, COL.SIGS_DOCS);
+  const list  = _parseList(cell.getValue());
+  const req   = list.find(r => r.id === sigId);
+  if(!req) throw new Error('המסמך לא נמצא');
+  const f0    = (req.files && req.files[0]) || null;
+  if(!f0) throw new Error('הקובץ לא קיים');
+  if(!(req.signedAt || f0.signedAt)) throw new Error('המסמך לא חתום עדיין');
+
+  const fileId = f0.signedFileId || f0.id;
+  if(!fileId) throw new Error('מזהה קובץ חסר');
+
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'לקוח';
+  const root         = DriveApp.getFolderById(DRIVE_ROOT_ID);
+  const clientFolder = _ensureFolder(root, clientName);
+
+  try{
+    const driveFile = DriveApp.getFileById(fileId);
+    const parents = driveFile.getParents();
+    while(parents.hasNext()){
+      const parent = parents.next();
+      try{ parent.removeFile(driveFile); }catch(_){}
+    }
+    clientFolder.addFile(driveFile);
+    try { driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_){}
+    if(f0.signedFileId){
+      f0.signedFileUrl = driveFile.getUrl();
+    } else {
+      f0.url = driveFile.getUrl();
+    }
+  }catch(e){
+    throw new Error('שגיאה בהעברת הקובץ: ' + (e.message || e));
+  }
+
+  const ts = Date.now();
+  req.approved   = true;
+  req.approvedAt = ts;
+  req.status     = 'approved';
+  cell.setValue(JSON.stringify(list));
+  _audit('approveSignature', '#' + t.rowNum, {sigId, fileId});
+  return {approved: true, approvedAt: ts};
+}
+
+/* ───────── handleRejectSignature ─────────
+   Lawyer rejects an already-signed document (illegible signature, signed
+   wrong place, etc.). Trashes the signed PDF/PNG, clears the signing
+   metadata so the entry returns to PENDING state. The original unsigned
+   PDF in "מסמכים לחתימה/ממתינים/" is preserved so the client can re-sign.
+   Body: { token, sigId, reason? } */
+function handleRejectSignature(body){
+  const t = _verifyToken(body.token);
+  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  const sigId = body.sigId || '';
+  if(!sigId) throw new Error('מסמך לא מזוהה');
+  const sheet = _sheet();
+  const cell  = sheet.getRange(t.rowNum, COL.SIGS_DOCS);
+  const list  = _parseList(cell.getValue());
+  const req   = list.find(r => r.id === sigId);
+  if(!req) throw new Error('המסמך לא נמצא');
+  const f0    = (req.files && req.files[0]) || null;
+  if(!f0) throw new Error('הקובץ לא קיים');
+  if(!(req.signedAt || f0.signedAt)) throw new Error('המסמך לא חתום');
+
+  // Trash the signed PDF + signature PNG (audit-trail copy). The original
+  // unsigned PDF (f0.id) stays in "ממתינים" so client can re-sign.
+  if(f0.signedFileId){
+    try{ DriveApp.getFileById(f0.signedFileId).setTrashed(true); }catch(_){}
+  }
+  if(f0.signedPngId){
+    try{ DriveApp.getFileById(f0.signedPngId).setTrashed(true); }catch(_){}
+  }
+
+  // Reset to pending state. Record the rejection so the lawyer + client
+  // know what happened (shown next to the doc on re-sign).
+  delete f0.signedFileId;
+  delete f0.signedFileUrl;
+  delete f0.signedPngId;
+  delete f0.signedPngUrl;
+  delete f0.signedAt;
+  delete req.signedAt;
+  delete req.attestation;
+  req.status = 'pending';
+  req.rejectionReason = (body.reason || '').toString().slice(0, 300);
+  req.rejectedAt = Date.now();
+
+  cell.setValue(JSON.stringify(list));
+  _audit('rejectSignature', '#' + t.rowNum, {sigId, reason: req.rejectionReason});
+  return {rejected: true};
 }
 
 function handleSendWhatsApp(body){
