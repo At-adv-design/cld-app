@@ -665,6 +665,18 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
   min-width:14px;text-align:center;
 }
 .client-name{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
+/* Waiting tag — small amber badge that appears next to the client name
+   when the client is in waitingSet AND the user is searching across
+   all tabs. Lets the lawyer know the result is from the ממתינים tab. */
+.waiting-tag{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--orange-bg);color:var(--orange);
+  border:1px solid var(--orange-border);
+  font-size:10px;font-weight:700;
+  padding:1px 6px;border-radius:3px;
+  flex-shrink:0;letter-spacing:.2px;
+}
+
 /* Stage tag — single Hebrew letter (ר/צ/מ) in a small neutral badge.
    No color; just a quiet visual marker so the lawyer can scan stages
    without taking up real space. Hover/long-press shows the full label. */
@@ -2044,12 +2056,49 @@ let _t1Value=0;
 // to prevent multiple reloads piling up after consecutive refresh button
 // taps or transient errors.
 let _loadDataTimer=null;
-let waitingSet=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
-// Per-row timestamp of when each client was moved into the waiting list.
-// Used to sort the waiting list newest-first. Rows that existed in
-// waitingSet before this map was introduced get timestamp 0 (sorted to
-// the bottom) until the user moves them again.
-let waitingTs = JSON.parse(localStorage.getItem('ins_waiting_ts')||'{}');
+/* ─── WAITING STATE — stable identity keys ─────────────────────────────
+   The waiting status (and its move-time) used to be keyed by rowNum.
+   That was unsafe: deleting/inserting/reordering rows in the sheet
+   shifts rowNums, so the status migrated to whoever ended up in that
+   row. Now we key by a stable "client identity" string built from name
+   + phone (case-insensitive, whitespace-collapsed).
+   `waitingSet` is the Set of identity strings.
+   `waitingTs`  is identity → ms-timestamp of move-to-waiting.
+   localStorage keys bumped to v2 so the old rowNum data is ignored. */
+function _clientKey(c){
+  if(!c) return '';
+  const norm = s => (s||'').toString().toLowerCase().replace(/\s+/g,' ').trim();
+  const phone = (c.phone||'').toString().replace(/\D/g,'');
+  return norm(c.name) + '|' + phone;
+}
+let waitingSet = new Set(JSON.parse(localStorage.getItem('ins_waiting_v2')||'[]'));
+let waitingTs  = JSON.parse(localStorage.getItem('ins_waiting_ts_v2')||'{}');
+/* One-shot migration: if the old rowNum-based keys exist and the new
+   ones don't, we'll convert as soon as allClients is loaded. The flag
+   below tells loadData() to attempt migration on its next run. */
+let _waitingMigrationPending = !localStorage.getItem('ins_waiting_v2')
+  && !!localStorage.getItem('ins_waiting');
+function _runWaitingMigration(){
+  if(!_waitingMigrationPending) return;
+  if(!Array.isArray(allClients) || allClients.length === 0) return;
+  const oldRows = JSON.parse(localStorage.getItem('ins_waiting')||'[]');
+  const oldTs   = JSON.parse(localStorage.getItem('ins_waiting_ts')||'{}');
+  const byRow = new Map(allClients.map(c => [c.rowNum, c]));
+  const newKeys = [], newTs = {};
+  oldRows.forEach(rn => {
+    const c = byRow.get(rn);
+    if(!c) return;
+    const k = _clientKey(c);
+    if(!k) return;
+    newKeys.push(k);
+    newTs[k] = oldTs[rn] || 0;
+  });
+  waitingSet = new Set(newKeys);
+  waitingTs  = newTs;
+  localStorage.setItem('ins_waiting_v2',     JSON.stringify(newKeys));
+  localStorage.setItem('ins_waiting_ts_v2',  JSON.stringify(newTs));
+  _waitingMigrationPending = false;
+}
 let curTab='main';
 // Tasks section (hidden by 4 logo taps)
 let logoTapCount=0;
@@ -2527,7 +2576,11 @@ async function loadData(){
     _t1Value=parseFloat((t1Row[19]||'').toString().replace(/[^0-9.\-]/g,''))||0;
     const rows=allRows.slice(2);
     allClients=rows.map((row,i)=>parseClient(row,i+3)).filter(c=>c&&c.name&&c.name.trim());
-    const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+    // One-shot migration: convert old rowNum-keyed waiting state to
+    // stable name+phone-keyed state. Runs only on first load that has
+    // old data and no new data.
+    _runWaitingMigration();
+    const active=allClients.filter(c=>!waitingSet.has(_clientKey(c)));
     document.getElementById('total-count').textContent=active.length;
     updateWaitingTab();
     updateStats(active);
@@ -2984,7 +3037,7 @@ function applyFilters(){
   // marker so the lawyer knows to switch tabs to act on them.
   const active = q
     ? allClients.slice()
-    : allClients.filter(c => !waitingSet.has(c.rowNum));
+    : allClients.filter(c => !waitingSet.has(_clientKey(c)));
   // In collection mode: skip all the regular filters, only check
   // (a) inCollection (S > 0), (b) text search, (c) missed-payment count.
   if(collectionMode){
@@ -3403,6 +3456,7 @@ function renderCards(clients){
           <div class="client-info">
             <!-- Name on its own line at the top -->
             <div class="client-name-row"><div class="client-name">${esc(c.name)}</div>
+              ${waitingSet.has(_clientKey(c)) ? '<span class="waiting-tag" title="לקוח זה נמצא בלשונית הממתינים">ממתין</span>' : ''}
               ${(()=>{
                 const stage = c.clientStage;
                 const letter = stage==='pre_order' ? 'צ' : stage==='commercial' ? 'מ' : 'ר';
@@ -3482,7 +3536,7 @@ function renderCards(clients){
 function renderWaiting(){
   const list=document.getElementById('waiting-list');
   const q=(document.getElementById('search').value||'').toLowerCase().trim();
-  let waiting=allClients.filter(c=>waitingSet.has(c.rowNum));
+  let waiting=allClients.filter(c=>waitingSet.has(_clientKey(c)));
   if(q){
     waiting=waiting.filter(c=>{
       const haystack=[c.name,c.caseNum,c.log,c.docsList,c.opsLog,c.callLog]
@@ -3493,7 +3547,7 @@ function renderWaiting(){
   // Sort newest-moved first. Clients moved to waiting before the timestamp
   // map existed get ts=0 and fall to the bottom — they'll resurface to the
   // top the next time the user actively moves them.
-  waiting.sort((a,b) => (waitingTs[b.rowNum]||0) - (waitingTs[a.rowNum]||0));
+  waiting.sort((a,b) => (waitingTs[_clientKey(b)]||0) - (waitingTs[_clientKey(a)]||0));
   if(!waiting.length){list.innerHTML='<div class="empty">אין תיקים'+(q?' תואמים לחיפוש':' בהמתנה')+'</div>';return;}
   list.innerHTML='';
   waiting.forEach(c=>{
@@ -3567,24 +3621,30 @@ function initSwipe(wrap,rowNum,action){
 }
 
 function moveToWaiting(rowNum){
-  waitingSet.add(rowNum);
-  waitingTs[rowNum] = Date.now();   // mark move time so list sorts newest-first
-  localStorage.setItem('ins_waiting',JSON.stringify([...waitingSet]));
-  localStorage.setItem('ins_waiting_ts',JSON.stringify(waitingTs));
-  // Remove from DOM immediately
+  const c = allClients.find(x => x.rowNum === rowNum);
+  const key = _clientKey(c);
+  if(!key){ showToast('לא ניתן להעביר — חסר שם/טלפון יציב','err'); return; }
+  waitingSet.add(key);
+  waitingTs[key] = Date.now();
+  localStorage.setItem('ins_waiting_v2',    JSON.stringify([...waitingSet]));
+  localStorage.setItem('ins_waiting_ts_v2', JSON.stringify(waitingTs));
   const el=document.querySelector(`[data-row="${rowNum}"]`);
   if(el)el.closest('.swipe-wrap').remove();
-  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  const active=allClients.filter(c=>!waitingSet.has(_clientKey(c)));
   document.getElementById('total-count').textContent=active.length;
   updateWaitingTab();
   showToast('תיק הועבר להמתנה');
 }
 
 function restoreClient(rowNum){
-  waitingSet.delete(rowNum);
-  delete waitingTs[rowNum];
-  localStorage.setItem('ins_waiting',JSON.stringify([...waitingSet]));
-  localStorage.setItem('ins_waiting_ts',JSON.stringify(waitingTs));
+  const c = allClients.find(x => x.rowNum === rowNum);
+  const key = _clientKey(c);
+  if(key){
+    waitingSet.delete(key);
+    delete waitingTs[key];
+    localStorage.setItem('ins_waiting_v2',    JSON.stringify([...waitingSet]));
+    localStorage.setItem('ins_waiting_ts_v2', JSON.stringify(waitingTs));
+  }
   const el=document.querySelector(`[data-row="${rowNum}"]`);
   if(el)el.closest('.swipe-wrap').remove();
   updateWaitingTab();
@@ -5119,7 +5179,7 @@ function rerenderCard(rowNum){
   // after any single-card refresh too. For the waiting tab, render directly
   // since applyFilters drives the active tab only.
   if(typeof activeTab !== 'undefined' && activeTab === 'waiting'){
-    if(typeof renderCards === 'function') renderCards(allClients.filter(c => waitingSet.has(c.rowNum)));
+    if(typeof renderCards === 'function') renderCards(allClients.filter(c => waitingSet.has(_clientKey(c))));
   } else if(typeof applyFilters === 'function'){
     applyFilters();
   }
@@ -6080,7 +6140,7 @@ function exitTasksSection(){
   // Pop the tasks history entry
   if(history.state&&history.state.page==='tasks') popHistorySilently();
   // Refresh counter
-  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  const active=allClients.filter(c=>!waitingSet.has(_clientKey(c)));
   document.getElementById('total-count').textContent=active.length;
 }
 
