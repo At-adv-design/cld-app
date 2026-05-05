@@ -6381,6 +6381,13 @@ function openDrivePreview(file){
   ext.href=file.webViewLink || ('https://drive.google.com/file/d/'+file.id+'/view');
   const body=document.getElementById('drive-preview-body');
   m.style.display='flex';
+  // Reset approve/reject buttons by default — callers (previewCustomerFile,
+  // _jumpToNextPendingOrClose) that need them shown will opt in afterward.
+  // Without this, opening a file from the Drive browser or signed list
+  // would inherit the buttons from a previous pending-doc preview, letting
+  // the lawyer "approve" a doc that's already in the final folder.
+  _setPreviewActionButtons(false);
+  _previewingFile = null;
   if(history.state && history.state.page === 'drive-preview'){
     history.replaceState({page:'drive-preview'},'');
   } else {
@@ -6417,6 +6424,12 @@ function openDrivePreview(file){
 }
 function closeDrivePreview(){
   document.getElementById('drive-preview-modal').style.display='none';
+  // Free Drive's heavy iframe runtime by pointing it at a blank page.
+  // Otherwise repeated open/close cycles in one session pile up Drive's
+  // preview JS in memory and the lawyer's customer area starts to feel
+  // sluggish ("cards don't open" after a while).
+  const iframe = document.getElementById('drive-preview-iframe');
+  if(iframe){ try { iframe.src = 'about:blank'; } catch(_){} }
   if(history.state && history.state.page === 'drive-preview') popHistorySilently();
 }
 
@@ -8087,6 +8100,9 @@ window.addEventListener('popstate',()=>{
     document.getElementById('drive-preview-modal').style.display === 'flex';
   if(drivePreviewOpen){
     document.getElementById('drive-preview-modal').style.display = 'none';
+    // Free Drive's iframe runtime so it doesn't leak across sessions.
+    const ifr = document.getElementById('drive-preview-iframe');
+    if(ifr){ try { ifr.src = 'about:blank'; } catch(_){} }
     return;
   }
   const driveBrowserOpen = document.getElementById('drive-browser-modal') &&
