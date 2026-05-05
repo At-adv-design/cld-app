@@ -979,6 +979,43 @@ body.focus-mode-active{overflow:hidden;}
 .quest-add-btn{border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:4px;padding:6px;width:100%;font-size:12px;cursor:pointer;margin-bottom:6px;font-family:inherit}
 .quest-creditor{border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:8px;background:var(--bg)}
 .quest-creditor-title{font-size:12px;font-weight:700;color:var(--slate);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+/* QUESTIONNAIRE DOC SLOTS — attachment placeholders inside each section.
+   Tapping a slot will eventually hook up to the existing docs-upload
+   module (handled in a later iteration). For now the click shows a
+   toast so the layout/UX can be reviewed. */
+.quest-docs-block{
+  margin-top:14px;padding:10px;
+  border:1px dashed var(--border);border-radius:5px;background:var(--white);
+}
+.quest-docs-title{
+  font-size:11px;font-weight:700;color:var(--muted);
+  letter-spacing:.3px;margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.quest-docs-title::before{content:"📎";}
+.quest-doc-slot{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;margin-bottom:6px;
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  cursor:pointer;transition:border-color .12s, background .12s;
+  font-family:inherit;
+}
+.quest-doc-slot:hover,.quest-doc-slot:focus{border-color:var(--slate);background:var(--white);}
+.quest-doc-slot:last-child{margin-bottom:0;}
+.quest-doc-slot .qds-icon{
+  width:24px;height:24px;flex-shrink:0;
+  background:var(--bg);border:1px solid var(--border);border-radius:3px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:12px;color:var(--muted);
+}
+.quest-doc-slot .qds-label{flex:1;font-size:12px;font-weight:600;color:var(--text);line-height:1.3;}
+.quest-doc-slot .qds-status{
+  font-size:10px;font-weight:700;color:var(--muted);
+  padding:2px 7px;background:var(--white);border:1px solid var(--border);
+  border-radius:3px;white-space:nowrap;
+}
+.quest-doc-slot.attached .qds-status{color:var(--green);border-color:var(--green-border);}
+.quest-doc-slot.attached .qds-icon{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 
 </style>
 </head>
@@ -8758,6 +8795,13 @@ async function markInquiryDone(rowNum, inquiryId){
           <div class="quest-row"><div class="quest-field"><label>מיקוד</label><input id="insq_zip" inputmode="numeric"></div><div class="quest-field"><label>מספר חדרים</label><input id="insq_apt_rooms" inputmode="decimal"></div></div>
           <div class="quest-field"><label>זכויות בדירה</label><select id="insq_apt_rights"><option value="">בחר...</option><option>שוכר</option><option>בעלות מלאה</option><option>בעלות חלקית</option><option>גר עם הורים</option></select></div>
           <div class="quest-row"><div class="quest-field"><label>טלפון</label><input id="insq_phone" type="tel"></div><div class="quest-field"><label>דוא"ל</label><input id="insq_email" type="email"></div></div>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_id_card')"><span class="qds-icon">🪪</span><span class="qds-label">צילום תעודת זהות + ספח</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_residence')"><span class="qds-icon">🏠</span><span class="qds-label">אישור תושבות / נסח טאבו של מקום מגורים</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_marital_cert')"><span class="qds-icon">💍</span><span class="qds-label">תעודת נישואין / גירושין (אם רלוונטי)</span><span class="qds-status">לפי עניין</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_rent_contract')"><span class="qds-icon">📄</span><span class="qds-label">חוזה שכירות (אם שוכר)</span><span class="qds-status">לפי עניין</span></button>
+          </div>
         </div>
       </div>
       <!-- בן/בת זוג -->
@@ -8767,6 +8811,10 @@ async function markInquiryDone(rowNum, inquiryId){
           <div class="quest-row"><div class="quest-field"><label>שם משפחה</label><input id="insq_spouse_last"></div><div class="quest-field"><label>שם פרטי</label><input id="insq_spouse_first"></div></div>
           <div class="quest-row"><div class="quest-field"><label>ת.ז</label><input id="insq_spouse_id" inputmode="numeric"></div><div class="quest-field"><label>תאריך לידה</label><input id="insq_spouse_dob" type="date"></div></div>
           <div class="quest-field"><label>טלפון</label><input id="insq_spouse_phone" type="tel"></div>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_spouse_id')"><span class="qds-icon">🪪</span><span class="qds-label">צילום ת.ז של בן/בת זוג + ספח</span><span class="qds-status">נדרש</span></button>
+          </div>
         </div>
       </div>
       <!-- ילדים -->
@@ -8775,6 +8823,10 @@ async function markInquiryDone(rowNum, inquiryId){
         <div class="quest-section-body">
           <div id="insq_kids_list"></div>
           <button class="quest-add-btn" onclick="insqAddKid()">+ הוסף ילד</button>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_kids_birth')"><span class="qds-icon">👶</span><span class="qds-label">תעודות לידה — לכל ילד קטין</span><span class="qds-status">נדרש</span></button>
+          </div>
         </div>
       </div>
       <!-- הכנסות -->
@@ -8789,6 +8841,14 @@ async function markInquiryDone(rowNum, inquiryId){
           <div class="quest-field"><label>מעסיק בן/בת זוג</label><input id="insq_spouse_employer"></div>
           <div class="quest-row"><div class="quest-field"><label>שכר ברוטו ₪</label><input id="insq_spouse_salary_gross" inputmode="numeric"></div><div class="quest-field"><label>שכר נטו ₪</label><input id="insq_spouse_salary_net" inputmode="numeric"></div></div>
           <div class="quest-row"><div class="quest-field"><label>קצבת ילדים ₪</label><input id="insq_child_allowance" inputmode="numeric"></div><div class="quest-field"><label>קצבת נכות/זקנה ₪</label><input id="insq_disability" inputmode="numeric"></div></div>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_salary_12mo')"><span class="qds-icon">💰</span><span class="qds-label">12 תלושי שכר אחרונים — שלך</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_spouse_salary_12mo')"><span class="qds-icon">💰</span><span class="qds-label">12 תלושי שכר אחרונים — בן/בת זוג</span><span class="qds-status">לפי עניין</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_form_106')"><span class="qds-icon">🧾</span><span class="qds-label">טופס 106 — 3 שנים אחרונות</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_btl_statement')"><span class="qds-icon">📊</span><span class="qds-label">תדפיס ביטוח לאומי — קצבאות מהשנה האחרונה</span><span class="qds-status">לפי עניין</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_self_employed_tax')"><span class="qds-icon">📑</span><span class="qds-label">דוחות מס שנתיים (אם עצמאי)</span><span class="qds-status">לפי עניין</span></button>
+          </div>
         </div>
       </div>
       <!-- הוצאות -->
@@ -8800,6 +8860,12 @@ async function markInquiryDone(rowNum, inquiryId){
           <div class="quest-row"><div class="quest-field"><label>כלכלה ₪</label><input id="insq_food" inputmode="numeric"></div><div class="quest-field"><label>רכב+דלק ₪</label><input id="insq_car" inputmode="numeric"></div></div>
           <div class="quest-row"><div class="quest-field"><label>ביגוד ₪</label><input id="insq_clothing" inputmode="numeric"></div><div class="quest-field"><label>חינוך ₪</label><input id="insq_education" inputmode="numeric"></div></div>
           <div class="quest-field"><label>הוצאות אחרות</label><textarea id="insq_other_exp"></textarea></div>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_arnona_bill')"><span class="qds-icon">🏛️</span><span class="qds-label">חשבון ארנונה אחרון</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_utilities_bills')"><span class="qds-icon">💡</span><span class="qds-label">חשבונות חשמל/מים/גז (אחרונים)</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_car_insurance')"><span class="qds-icon">🚗</span><span class="qds-label">ביטוח רכב + רישיון</span><span class="qds-status">לפי עניין</span></button>
+          </div>
         </div>
       </div>
       <!-- נושים -->
@@ -8808,6 +8874,12 @@ async function markInquiryDone(rowNum, inquiryId){
         <div class="quest-section-body">
           <div id="insq_creditors_list"></div>
           <button class="quest-add-btn" onclick="insqAddCreditor()">+ הוסף נושה</button>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_creditor_papers')"><span class="qds-icon">📜</span><span class="qds-label">מסמכי חוב — חוזי הלוואה / כרטיסי אשראי / חשבוניות</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_court_papers')"><span class="qds-icon">⚖️</span><span class="qds-label">כתבי תביעה / פסקי דין (אם יש)</span><span class="qds-status">לפי עניין</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_executions')"><span class="qds-icon">📋</span><span class="qds-label">נסחי תיקי הוצאה לפועל פתוחים</span><span class="qds-status">לפי עניין</span></button>
+          </div>
         </div>
       </div>
       <!-- נכסים -->
@@ -8817,6 +8889,13 @@ async function markInquiryDone(rowNum, inquiryId){
           <div class="quest-field"><label>פרטי רכב</label><textarea id="insq_cars"></textarea></div>
           <div class="quest-field"><label>חשבונות בנק</label><textarea id="insq_banks"></textarea></div>
           <div class="quest-field"><label>נדל"ן</label><select id="insq_realestate"><option value="לא">לא</option><option value="כן">כן</option></select></div>
+          <div class="quest-docs-block">
+            <div class="quest-docs-title">מסמכים נדרשים בפרק זה</div>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_bank_statements_12mo')"><span class="qds-icon">🏦</span><span class="qds-label">תדפיסי בנק 12 חודשים אחרונים — לכל חשבון</span><span class="qds-status">נדרש</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_car_license')"><span class="qds-icon">🚗</span><span class="qds-label">רישיון רכב</span><span class="qds-status">לפי עניין</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_realestate_tabu')"><span class="qds-icon">🏘️</span><span class="qds-label">נסח טאבו — אם יש נכס בבעלות</span><span class="qds-status">לפי עניין</span></button>
+            <button type="button" class="quest-doc-slot" onclick="openQuestDocUpload('doc_insurance_policies')"><span class="qds-icon">🛡️</span><span class="qds-label">פוליסות ביטוח חיים / קופות גמל / קרנות פנסיה</span><span class="qds-status">לפי עניין</span></button>
+          </div>
         </div>
       </div>
     </div>
@@ -8827,6 +8906,55 @@ async function markInquiryDone(rowNum, inquiryId){
 /* ══ INSOLVENCY QUESTIONNAIRE MODAL ══════════════════════════════ */
 let _insqRowNum = null;
 let _insqKidCount = 0, _insqCredCount = 0;
+
+/* QUEST_DOC_REQUIREMENTS — single source of truth for document slots
+   inside the questionnaire. Each entry has:
+     key      — unique id used by the upload module (and matched against
+                the docs requirements list for consistency).
+     section  — which form 45 chapter the doc belongs to.
+     label    — Hebrew label shown to the lawyer + client.
+     required — 'always' / 'conditional' (whether the doc is mandatory).
+   Order matches the order doc-slots appear inside each section, which
+   should match the order the items will appear in the docs requirements
+   list — that's the consistency invariant the user asked for. */
+const QUEST_DOC_REQUIREMENTS = [
+  // Section א — personal
+  {key:'doc_id_card',             section:'personal',  label:'צילום תעודת זהות + ספח',                    required:'always'},
+  {key:'doc_residence',           section:'personal',  label:'אישור תושבות / נסח טאבו של מקום מגורים',     required:'always'},
+  {key:'doc_marital_cert',        section:'personal',  label:'תעודת נישואין / גירושין',                   required:'conditional'},
+  {key:'doc_rent_contract',       section:'personal',  label:'חוזה שכירות',                              required:'conditional'},
+  // Spouse
+  {key:'doc_spouse_id',           section:'spouse',    label:'צילום ת.ז של בן/בת זוג + ספח',              required:'conditional'},
+  // Kids
+  {key:'doc_kids_birth',          section:'kids',      label:'תעודות לידה ילדים קטינים',                   required:'conditional'},
+  // Section ב — income
+  {key:'doc_salary_12mo',         section:'income',    label:'12 תלושי שכר אחרונים — שלך',               required:'always'},
+  {key:'doc_spouse_salary_12mo',  section:'income',    label:'12 תלושי שכר אחרונים — בן/בת זוג',         required:'conditional'},
+  {key:'doc_form_106',            section:'income',    label:'טופס 106 — 3 שנים אחרונות',               required:'always'},
+  {key:'doc_btl_statement',       section:'income',    label:'תדפיס ביטוח לאומי — קצבאות',               required:'conditional'},
+  {key:'doc_self_employed_tax',   section:'income',    label:'דוחות מס שנתיים — אם עצמאי',               required:'conditional'},
+  // Section ג — expenses
+  {key:'doc_arnona_bill',         section:'expenses',  label:'חשבון ארנונה אחרון',                       required:'always'},
+  {key:'doc_utilities_bills',     section:'expenses',  label:'חשבונות חשמל / מים / גז',                  required:'always'},
+  {key:'doc_car_insurance',       section:'expenses',  label:'ביטוח רכב + רישיון',                      required:'conditional'},
+  // Section ד — creditors
+  {key:'doc_creditor_papers',     section:'creditors', label:'מסמכי חוב — חוזים / כרטיסי אשראי / חשבוניות', required:'always'},
+  {key:'doc_court_papers',        section:'creditors', label:'כתבי תביעה / פסקי דין',                    required:'conditional'},
+  {key:'doc_executions',          section:'creditors', label:'נסחי תיקי הוצאה לפועל פתוחים',              required:'conditional'},
+  // Section ו — assets
+  {key:'doc_bank_statements_12mo',section:'assets',    label:'תדפיסי בנק 12 חודשים אחרונים — לכל חשבון', required:'always'},
+  {key:'doc_car_license',         section:'assets',    label:'רישיון רכב',                              required:'conditional'},
+  {key:'doc_realestate_tabu',     section:'assets',    label:'נסח טאבו — אם יש נכס בבעלות',              required:'conditional'},
+  {key:'doc_insurance_policies',  section:'assets',    label:'פוליסות ביטוח חיים / קופות גמל / פנסיה',   required:'conditional'},
+];
+
+/* Placeholder — the actual upload module will be wired here next iteration.
+   For now show a toast so the layout is testable. */
+function openQuestDocUpload(docKey){
+  const req = QUEST_DOC_REQUIREMENTS.find(r => r.key === docKey);
+  if(!req){ showToast('דרישה לא מוכרת: '+docKey, 'err'); return; }
+  showToast('העלאת מסמך: ' + req.label + ' (יחובר למודול המסמכים בשלב הבא)', 'ok');
+}
 
 function openInsQuestModal(rowNum){
   const c = allClients.find(x=>x.rowNum===rowNum);
