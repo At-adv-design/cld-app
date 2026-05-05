@@ -161,6 +161,22 @@ function _audit(action, identity, detail){
   }catch(_){}
 }
 
+/* One-time helper — run this function from the Apps Script editor
+   to trigger Google's "Authorization required" dialog for the new
+   script.external_request scope. Hits a harmless public endpoint;
+   the actual return value doesn't matter, only that UrlFetchApp.fetch
+   is invoked once with the user's authorization. */
+function _authBootstrap(){
+  try{
+    const r = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?access_token=invalid', {muteHttpExceptions: true});
+    Logger.log('Auth bootstrap OK — UrlFetchApp authorized. HTTP ' + r.getResponseCode());
+    return 'OK — UrlFetchApp permission granted';
+  }catch(e){
+    Logger.log('Auth bootstrap exception: ' + e);
+    throw e;
+  }
+}
+
 /* Generic admin setter for Script Properties. Takes the name + value as
    parameters from `clasp run` so secrets never sit in source. After
    the values are set this function can stay (it's harmless) — running

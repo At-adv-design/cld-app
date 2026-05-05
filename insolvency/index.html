@@ -4706,27 +4706,46 @@ function _signaturesBadge(){
 }
 function _renderSignaturesSectionBody(){
   const list = (_custState && _custState.signatures) || [];
+  // Split into pending vs signed so each gets its own clearly-labeled
+  // sub-list. Pending sits on top (action items); signed below (archive).
+  const isSignedItem = s => {
+    const f = (s.files && s.files[0]) || null;
+    return !!(s.signedAt || (f && f.signedAt));
+  };
+  const pending = list.map((s, idx) => ({s, idx})).filter(x => !isSignedItem(x.s));
+  const signed  = list.map((s, idx) => ({s, idx})).filter(x =>  isSignedItem(x.s));
+
+  const renderRow = ({s, idx}) => {
+    const f = (s.files && s.files[0]) || null;
+    const signed = isSignedItem(s);
+    const dateLabel = signed
+      ? (s.signedAt ? new Date(s.signedAt).toLocaleDateString('he-IL') : '')
+      : (f && f.ts ? new Date(f.ts).toLocaleDateString('he-IL') : '');
+    const dateText  = signed ? `נחתם ${esc(dateLabel)}` : (dateLabel ? `נשלח ${esc(dateLabel)}` : '');
+    const statusBadge = signed
+      ? '<span style="font-size:10px;color:var(--green);font-weight:700;background:var(--green-bg);border:1px solid var(--green-border);padding:2px 7px;border-radius:3px">חתום</span>'
+      : '<span style="font-size:10px;color:var(--orange);font-weight:700;background:var(--orange-bg);border:1px solid var(--orange-border);padding:2px 7px;border-radius:3px">ממתין</span>';
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
+        <button onclick="event.stopPropagation();_openSignatureFile(${idx})" title="פתח את המסמך" style="flex:1;background:transparent;border:none;text-align:right;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:2px;min-width:0">
+          <span style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.text || (f && f.name) || 'מסמך')}</span>
+          ${dateText?`<span style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</span>`:''}
+        </button>
+        ${statusBadge}
+        <button onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center">${ICON.trash||'×'}</button>
+      </div>`;
+  };
+
   let html = '';
-  if(list.length){
-    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">';
-    list.forEach((s, idx) => {
-      const f = (s.files && s.files[0]) || null;
-      const isSigned = !!(s.signedAt || (f && f.signedAt));
-      const statusLabel = isSigned
-        ? '<span style="font-size:10px;color:var(--green);font-weight:700;background:var(--green-bg);border:1px solid var(--green-border);padding:2px 7px;border-radius:3px">חתום</span>'
-        : '<span style="font-size:10px;color:var(--orange);font-weight:700;background:var(--orange-bg);border:1px solid var(--orange-border);padding:2px 7px;border-radius:3px">ממתין</span>';
-      const dateLabel = f && f.ts ? new Date(f.ts).toLocaleDateString('he-IL') : '';
-      html += `
-        <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
-          <button onclick="event.stopPropagation();_openSignatureFile(${idx})" style="flex:1;background:transparent;border:none;text-align:right;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:2px;min-width:0">
-            <span style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.text || (f && f.name) || 'מסמך')}</span>
-            ${dateLabel?`<span style="font-size:10px;color:var(--muted);font-weight:500">נשלח ${esc(dateLabel)}</span>`:''}
-          </button>
-          ${statusLabel}
-          <button onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center">${ICON.trash||'×'}</button>
-        </div>`;
-    });
-    html += '</div>';
+  if(pending.length){
+    html += `
+      <div style="font-size:11px;color:var(--orange);font-weight:700;letter-spacing:.3px;margin-bottom:6px">ממתינים לחתימת הלקוח (${pending.length})</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">${pending.map(renderRow).join('')}</div>`;
+  }
+  if(signed.length){
+    html += `
+      <div style="font-size:11px;color:var(--green);font-weight:700;letter-spacing:.3px;margin-bottom:6px">חתומים (${signed.length})</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">${signed.map(renderRow).join('')}</div>`;
   }
   html += `
     <input type="file" id="sig-upload-input" accept="application/pdf,.pdf" style="display:none" onchange="_handleSigUpload(event)"/>
@@ -4832,12 +4851,19 @@ function _openSignatureFile(idx){
   } else if(useUrl){ window.open(useUrl, '_blank'); }
 }
 async function _removeSignatureDoc(idx){
-  if(!confirm('למחוק מסמך זה מהרשימה? הקובץ יישאר ב-Drive.')) return;
+  const s = (_custState.signatures || [])[idx];
+  if(!s) return;
+  const isSigned = !!(s.signedAt || ((s.files||[])[0]||{}).signedAt);
+  const msg = isSigned
+    ? 'למחוק את המסמך החתום מהרשימה? הקובץ עצמו יישאר ב-Drive בתיקייה "מסמכים לחתימה/חתומים".'
+    : 'למחוק מסמך זה מהרשימה? הקובץ יישאר ב-Drive.';
+  if(!confirm(msg)) return;
   const list = (_custState.signatures || []).slice();
   list.splice(idx, 1);
   await _saveSignaturesColumn(list);
   _custState.signatures = list;
   renderCustomerArea();
+  showToast(isSigned ? 'מסמך חתום הוסר מהרשימה' : 'המסמך הוסר','ok');
 }
 
 /* Body of the per-reports section: 6 cards (one per report). */
