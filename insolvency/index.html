@@ -4420,21 +4420,21 @@ function renderCustomerArea(){
 
   const credsBadge = _custState.active ? '<span style="color:var(--green);font-weight:700">פעיל</span>' : '<span style="color:var(--muted)">לא פעיל</span>';
 
+  // Stage selector — rendered below the credentials section now (not at the
+  // top). This is the HTML that gets inserted there.
+  const _stageLabels = {'':'רגיל','pre_order':'צו פתיחה','commercial':'מסחרי'};
+  const _stageButtonsHtml = ['','pre_order','commercial'].map(v => {
+    const sel = (_custState.stage||'') === v;
+    return `<button type="button" onclick="setClientStage(${_custState.rowNum},'${v}')"
+      style="font-size:13px;font-weight:700;padding:8px 14px;border-radius:4px;cursor:pointer;
+      border:1.5px solid var(--border);
+      background:${sel?'var(--slate)':'var(--white)'};color:${sel?'#fff':'var(--text)'};
+      flex:1;min-width:80px;transition:.15s;font-family:inherit">${_stageLabels[v]}</button>`;
+  }).join('');
+  const _currentStageLabel = _stageLabels[_custState.stage||''] || 'רגיל';
+  const _stageBadge = `<span style="font-size:11px;font-weight:700;color:var(--slate)">${_currentStageLabel}</span>`;
+
   body.innerHTML = `
-    <!-- Stage selector + meeting button -->
-    <div style="display:flex;gap:8px;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;">
-      <span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center;">שלב:</span>
-      ${['','pre_order','commercial'].map(v => {
-        const labels = {'':'רגיל','pre_order':'צו פתיחה','commercial':'מסחרי'};
-        const colors = {'':'var(--muted)','pre_order':'var(--blue)','commercial':'var(--orange)'};
-        const sel = (_custState.stage||'')=== v;
-        return `<button onclick="setClientStage(${_custState.rowNum},'${v}')"
-          style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;border:1.5px solid ${colors[v]};
-          background:${sel?colors[v]:'transparent'};color:${sel?'#fff':colors[v]};transition:.15s">
-          ${labels[v]}
-        </button>`;
-      }).join('')}
-    </div>
     ${_custState.pendingLoading ? `
       <div style="padding:14px 12px;font-size:11px;color:var(--muted);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
         <div class="spinner" style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite"></div>
@@ -4492,6 +4492,11 @@ function renderCustomerArea(){
         <span>אפשר ללקוח להיכנס לאפליקציה</span>
       </label>
       <button class="cust-save-btn" onclick="saveCustomerCreds()" style="margin-top:10px">שמור פרטי כניסה</button>
+    `)}
+
+    ${sect('stage', 'שלב הלקוח', _stageBadge, `
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${_stageButtonsHtml}</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:8px">בחר את שלב הטיפול הנוכחי של הלקוח. אינדיקציית האות (ר/צ/מ) על הכרטיס משתנה בהתאם.</div>
     `)}
   `;
 
