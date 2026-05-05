@@ -4841,6 +4841,15 @@ async function _handleSigUpload(ev){
   if(!/pdf$/i.test(file.name) && file.type !== 'application/pdf'){
     showToast('יש להעלות קובץ PDF בלבד','err'); return;
   }
+  // Let the lawyer rename the document before upload. Cancel = abort,
+  // empty = keep original. Default = current filename without .pdf.
+  const origBase = file.name.replace(/\.pdf$/i, '');
+  const input = prompt('שם המסמך לחתימה (יוצג ללקוח וישמש כשם הקובץ ב-Drive):', origBase);
+  if(input === null) return; // user cancelled
+  const newBase = (input.trim() || origBase).replace(/\.pdf$/i, '');
+  const renamed = (newBase === origBase)
+    ? file
+    : new File([file], newBase + '.pdf', {type: file.type || 'application/pdf'});
   showToast('מעלה את המסמך…','ok');
   try{
     // 1. Ensure folder structure: <client>/מסמכים לחתימה/ממתינים/
@@ -4850,12 +4859,12 @@ async function _handleSigUpload(ev){
     const sigsRoot = await driveEnsureFolder(clientFolder.id, 'מסמכים לחתימה');
     const pendingFolder = await driveEnsureFolder(sigsRoot.id, 'ממתינים');
     // 2. Upload the PDF to "ממתינים"
-    const uploaded = await driveUploadFile(pendingFolder.id, file);
+    const uploaded = await driveUploadFile(pendingFolder.id, renamed);
     // 3. Append entry to column EE (signatures JSON)
     const list = Array.isArray(_custState.signatures) ? _custState.signatures.slice() : [];
     const entry = {
       id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
-      text: file.name.replace(/\.pdf$/i, ''),
+      text: newBase,
       files: [{ id: uploaded.id, name: uploaded.name, url: uploaded.webViewLink || uploaded.url || '', ts: Date.now() }],
       status: 'pending'
     };
