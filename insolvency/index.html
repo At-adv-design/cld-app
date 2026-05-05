@@ -624,17 +624,34 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
    border — stacking from bottom up in a fixed order:
      bottom = דוחות, then מסמכים, then אישורי מסירה, then עיכוב הליכים.
    Column-reverse keeps the bottom-up order natural in DOM order. */
-.client-flags{
-  display:flex;flex-direction:column-reverse;align-items:flex-end;
-  gap:3px;flex-shrink:0;
-  align-self:stretch;justify-content:flex-end;
-  padding-bottom:2px;
+/* OLD vertical .client-flags column — kept for backward compatibility,
+   hidden visually. Replaced by .client-badges row at bottom of the card. */
+.client-flags{display:none;}
+.client-flag{display:none;}
+/* CLIENT BADGES — uniform red pills at the bottom of each card. Order in
+   DOM matches the filter row in the header (דוחות → מסמכים → מסירה →
+   עיכוב), so in RTL they appear visually right-to-left in that same order.
+   Only categories with active urgency are rendered, and they "compress
+   to the right" (justify-content:flex-start = visual-right in RTL). */
+.client-badges{
+  display:flex;flex-direction:row;flex-wrap:wrap;gap:5px;
+  padding:8px 14px 10px;
+  border-top:1px solid var(--border);
+  background:var(--white);
+  justify-content:flex-start; /* visual-right in RTL */
+}
+.client-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--red);color:#fff;
+  font-size:11px;font-weight:700;letter-spacing:.2px;
+  padding:4px 10px;border-radius:12px;
+  white-space:nowrap;line-height:1.2;
   pointer-events:none;
 }
-.client-flag{
-  font-size:10px;font-weight:700;color:var(--red);
-  white-space:nowrap;line-height:1.2;
-  letter-spacing:.2px;
+.client-badge .badge-count{
+  background:rgba(255,255,255,0.25);
+  padding:1px 6px;border-radius:8px;
+  font-size:10.5px;font-weight:800;
 }
 .client-name{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
 .client-name-row{display:flex;align-items:center;gap:6px;}
@@ -3309,6 +3326,13 @@ function renderCards(clients){
             <button class="log-btn${c.bvRaw?' has-log':''}" onclick="event.stopPropagation();openMeetingPicker(${c.rowNum},this.dataset.bv,this.dataset.bw)" data-bv="${esc(c.bvRaw||'')}" data-bw="${esc(c.bwRaw||'')}" title="קביעת פגישה${c.bvRaw?' — '+esc(c.bvRaw)+(c.bwRaw?' '+esc(c.bwRaw):''):''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;display:block"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="15" x2="12" y2="15" stroke-width="2.5"/></svg>${c.bvRaw?'<span class="log-dot"></span>':''}</button>
           </div>
         </div>
+        ${(c.overdueCount>0 || c.docsHighUrgent || c.docsLowUrgent || c.srvUrgent || c.srvWarning || c.injUrgent) ? `
+        <div class="client-badges">
+          ${c.overdueCount>0    ? `<div class="client-badge"><span>דוחות</span><span class="badge-count">${c.overdueCount}</span></div>` : ''}
+          ${(c.docsHighUrgent||c.docsLowUrgent) ? '<div class="client-badge">מסמכים</div>' : ''}
+          ${(c.srvUrgent||c.srvWarning)         ? '<div class="client-badge">מסירה</div>'  : ''}
+          ${c.injUrgent                          ? '<div class="client-badge">עיכוב</div>'  : ''}
+        </div>` : ''}
         ${bodyHtml}
       </div>`;
 
