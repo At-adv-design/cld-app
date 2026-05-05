@@ -2917,6 +2917,20 @@ function applyFilters(){
     if(fSrv==='warning'&&!c.srvWarning)return false;
     return true;
   });
+  // Sort by visible-badge count, descending. Cards with the most red
+  // badges (urgency markers shown on the card) bubble to the top; cards
+  // with no badges fall to the bottom. Same logic that drives the
+  // .client-badges row inside each card — same 4 conditions.
+  filtered.sort((a,b)=>{
+    const ca = (a.overdueCount>0?1:0) + ((a.docsHighUrgent||a.docsLowUrgent)?1:0)
+             + ((a.srvUrgent||a.srvWarning)?1:0)             + (a.injUrgent?1:0);
+    const cb = (b.overdueCount>0?1:0) + ((b.docsHighUrgent||b.docsLowUrgent)?1:0)
+             + ((b.srvUrgent||b.srvWarning)?1:0)             + (b.injUrgent?1:0);
+    if(cb !== ca) return cb - ca;
+    // Tiebreaker — overdueCount itself, so 6-overdue beats 1-overdue
+    // when both have the same number of badge categories.
+    return (b.overdueCount||0) - (a.overdueCount||0);
+  });
   renderCards(filtered);
   if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
 }
