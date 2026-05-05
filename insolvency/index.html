@@ -6856,20 +6856,28 @@ async function _sendInsMeetingWhatsApp(name, phone, dateStr, timeStr){
     `\n` +
     `אם נתקעים בלי וויז תתקשרו בבקשה למשרד 048251453 ונדריך אתכם \n` +
     `*אשרו שקיבלתם בהודעה חוזרת בבקשה*`;
+  // Try the secure backend (Apps Script proxy) first; if it fails for any
+  // reason — missing permission, network blip, scope not granted — fall
+  // back to the direct Green API call so the meeting confirmation still
+  // reaches the client. The fallback uses the legacy constants kept in
+  // source until backend auth is fully wired.
+  let backendOk = false;
   try{
-    // Route through Apps Script so the Green API token stays server-side.
     if(typeof _sendWhatsAppViaBackend === 'function'){
       const r = await _sendWhatsAppViaBackend(phone, msg);
-      if(!r || !r.ok) console.warn('[mtgWA] backend failed', r);
-      return;
+      if(r && r.ok){ backendOk = true; }
+      else console.warn('[mtgWA] backend failed, falling back to direct Green API:', r && r.error);
     }
-    // Legacy fallback — only if backend route is unavailable
+  }catch(e){ console.warn('[mtgWA] backend exception, falling back:', e); }
+  if(backendOk) return;
+  try{
     const p = phone.replace(/\D/g,'');
     const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
-    await fetch(`https://api.green-api.com/waInstance${GREEN_API_INSTANCE}/sendMessage/${GREEN_API_TOKEN}`,
-      { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({chatId:`${intl}@c.us`, message:msg}) });
-  }catch(e){ console.warn('WA send failed:', e); }
+    const utf8Body = new TextEncoder().encode(JSON.stringify({chatId:`${intl}@c.us`, message:msg}));
+    const r2 = await fetch(`https://api.green-api.com/waInstance${GREEN_API_INSTANCE}/sendMessage/${GREEN_API_TOKEN}`,
+      { method:'POST', headers:{'Content-Type':'application/json; charset=utf-8'}, body: utf8Body });
+    if(!r2.ok) console.warn('[mtgWA] direct Green API failed:', r2.status, await r2.text());
+  }catch(e){ console.warn('[mtgWA] direct Green API exception:', e); }
 }
 
 async function _createCalendarEventDirect(summary, startIso, endIso, description){
