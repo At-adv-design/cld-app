@@ -69,7 +69,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* HEADER — sticky like leads/clients/potential. Auto-hide animation
    (translateY via --shell-offset) is shared with tabs/filters so they
    slide together when scrolling down. */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:flex-start;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:flex-start;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1), height .2s ease, padding .2s ease, border-color .2s ease;will-change:transform;}
+/* Search-mode: when the user is typing in the search box, collapse the
+   header + tabs so the cards list takes the full screen above the
+   on-screen keyboard. Triggered by adding `body.search-mode`. */
+body.search-mode .header{height:0;padding:0;border-bottom-color:transparent;overflow:hidden;}
+body.search-mode .tabs{display:none;}
+body.search-mode .filters-wrap{display:none;}
 .header-spacer{display:none;}
 /* Logo is absolutely positioned — its location does NOT depend on what
    else lives in the header (icons, counters, badges). It anchors to the
@@ -1127,7 +1133,7 @@ body.focus-mode-active{overflow:hidden;}
       <div style="display:flex;gap:6px;align-items:center">
         <div class="search-box" style="flex:1">
           <span style="color:var(--muted);display:inline-flex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-          <input type="search" id="search" placeholder="חיפוש שם לקוח או מספר תיק..." oninput="applyFilters()"/>
+          <input type="search" id="search" placeholder="חיפוש שם לקוח או מספר תיק..." oninput="applyFilters()" onfocus="document.body.classList.add('search-mode')" onblur="setTimeout(()=>{ if(!document.getElementById('search').value) document.body.classList.remove('search-mode') }, 150)"/>
         </div>
         <button onclick="collapseAllSections()" title="סגור הכל" style="flex-shrink:0;background:var(--bg);border:1px solid var(--border);padding:0 10px;height:32px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--muted);white-space:nowrap;border-radius:4px">סגור הכל</button>
       </div>

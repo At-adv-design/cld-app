@@ -2,7 +2,7 @@
  * Apps Script backend for the customer-facing app.
  *
  * Deploy as a Web App:
- *   - Deploy → New deployment → type: Web app
+ *   - Deploy ג†’ New deployment ג†’ type: Web app
  *   - Execute as: Me (your email)
  *   - Who has access: Anyone
  *
@@ -12,29 +12,29 @@
  *   - uploadFile         { token, category, reqId, reportNum?, filename, mimeType, dataBase64 }
  *   - submitAnswer       { token, reqId, answer }
  *   - removeFile         { token, category, reqId, fileId }
- *   - saveQuestionnaire  { token, data }           ← NEW
- *   - getQuestionnaire   { token }                 ← NEW
+ *   - saveQuestionnaire  { token, data }           ג† NEW
+ *   - getQuestionnaire   { token }                 ג† NEW
  */
 
-// ─── CONFIG ─────────────────────────────────────────────────────────
+// ג”€ג”€ג”€ CONFIG ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 const SHEET_ID = '1ixQ0iImkxI1YiTrX_dFsSxVTISUyfCEYpKt1C2EWtLE';
 const DRIVE_ROOT_ID = '1RitBIq8HXTVymhalA34HS4BRyfOzT6lq';
 
 // 1-based column indexes
 const COL = {
-  NAME:           23,   // W (1-based) — client display name (canonical)
-  CR_USER:        96,   // CR — username
-  CS_PASS:        97,   // CS — password
-  CT_ACTIVE:      98,   // CT — TRUE/FALSE
-  CU_REPORTS:     99,   // CU — JSON (reports docs)
-  CV_DOCS:       100,   // CV — JSON (supplemental docs)
-  CW_INFO:       101,   // CW — JSON (info questions)
-  CX_STAGE:      133,   // EC (0-based 132) — stage: '' | 'pre_order' | 'commercial'
-  CY_QUEST:      134,   // ED (0-based 133) — questionnaire JSON (form 45 data)
-  CZ_INQUIRIES:  136,   // EF — client inquiries JSON array
+  NAME:           23,   // W (1-based) ג€” client display name (canonical)
+  CR_USER:        96,   // CR ג€” username
+  CS_PASS:        97,   // CS ג€” password
+  CT_ACTIVE:      98,   // CT ג€” TRUE/FALSE
+  CU_REPORTS:     99,   // CU ג€” JSON (reports docs)
+  CV_DOCS:       100,   // CV ג€” JSON (supplemental docs)
+  CW_INFO:       101,   // CW ג€” JSON (info questions)
+  CX_STAGE:      133,   // EC (0-based 132) ג€” stage: '' | 'pre_order' | 'commercial'
+  CY_QUEST:      134,   // ED (0-based 133) ג€” questionnaire JSON (form 45 data)
+  CZ_INQUIRIES:  136,   // EF ג€” client inquiries JSON array
 };
 
-// ─── HTTP entrypoints ────────────────────────────────────────────────
+// ג”€ג”€ג”€ HTTP entrypoints ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function doPost(e){
   try{
     const body = JSON.parse(e.postData.contents);
@@ -53,6 +53,7 @@ function doPost(e){
     else if(action === 'sendInquiry')       result = handleSendInquiry(body);
     else if(action === 'closeReport')       result = handleCloseReport(body);
     else if(action === 'createCalendarEvent') result = handleCreateCalendarEvent(body);
+    else if(action === 'sendWhatsApp')        result = handleSendWhatsApp(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -67,7 +68,7 @@ function doGet(){
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────
+// ג”€ג”€ג”€ Helpers ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function _sheet(){ return SpreadsheetApp.openById(SHEET_ID).getSheets()[0]; }
 
 function _findRowByCreds(username, password){
@@ -83,6 +84,122 @@ function _findRowByCreds(username, password){
     }
   }
   return null;
+}
+
+/* ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ SECURITY HELPERS ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
+   Added 2026-05-05 as part of security hardening.
+   - Lawyer-side endpoints (sendWhatsApp, ג€¦) require a Google OAuth bearer
+     token from the lawyer's UI. We verify the token via Google's
+     tokeninfo endpoint and check the email against an allowlist.
+   - Login attempts are rate-limited per username via PropertiesService:
+     5 failed attempts in 15 minutes ג‡’ further attempts blocked. */
+const LAWYER_ALLOWLIST = [
+  'avi@t-adv.co.il',
+  'avi.t.adv@gmail.com'
+];
+
+function _verifyLawyerToken(accessToken){
+  if(!accessToken) return null;
+  try{
+    const r = UrlFetchApp.fetch(
+      'https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(accessToken),
+      {muteHttpExceptions: true}
+    );
+    if(r.getResponseCode() !== 200) return null;
+    const info = JSON.parse(r.getContentText());
+    const email = (info.email || '').toLowerCase();
+    if(!LAWYER_ALLOWLIST.includes(email)) return null;
+    return {email, info};
+  }catch(_){ return null; }
+}
+
+/* Login rate limit. Stored as `login_fail_<username>` ג†’ JSON {n, t}.
+   After RATE_LIMIT_MAX failures within RATE_LIMIT_WINDOW_MS, login is
+   refused for that username until the window expires. */
+const RATE_LIMIT_MAX        = 5;
+const RATE_LIMIT_WINDOW_MS  = 15 * 60 * 1000;
+
+function _loginRateState(username){
+  const key = 'login_fail_' + (username||'').trim().toLowerCase().substring(0,40);
+  const props = PropertiesService.getScriptProperties();
+  const raw = props.getProperty(key);
+  if(!raw) return {key, props, n:0, t:0};
+  try{
+    const obj = JSON.parse(raw);
+    if(Date.now() - obj.t > RATE_LIMIT_WINDOW_MS) return {key, props, n:0, t:0};
+    return Object.assign({key, props}, obj);
+  }catch(_){ return {key, props, n:0, t:0}; }
+}
+function _loginRateRecord(state, success){
+  if(success){
+    state.props.deleteProperty(state.key);
+    return;
+  }
+  const next = {n: state.n + 1, t: Date.now()};
+  state.props.setProperty(state.key, JSON.stringify(next));
+}
+function _loginRateBlocked(state){
+  return state.n >= RATE_LIMIT_MAX && (Date.now() - state.t) <= RATE_LIMIT_WINDOW_MS;
+}
+
+/* Audit log ג€” appends one row to a sheet named "audit_log" in the same
+   spreadsheet. Created on first call. Don't throw if logging itself
+   fails; security is best-effort. */
+function _audit(action, identity, detail){
+  try{
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sh = ss.getSheetByName('audit_log');
+    if(!sh){
+      sh = ss.insertSheet('audit_log');
+      sh.appendRow(['timestamp','action','identity','detail']);
+    }
+    sh.appendRow([new Date(), action, identity || '', JSON.stringify(detail || {}).substring(0, 1000)]);
+  }catch(_){}
+}
+
+/* Generic admin setter for Script Properties. Takes the name + value as
+   parameters from `clasp run` so secrets never sit in source. After
+   the values are set this function can stay (it's harmless) — running
+   it again just overwrites the property. */
+function _adminSetSecret(name, value){
+  if(!name) throw new Error('name required');
+  PropertiesService.getScriptProperties().setProperty(name, String(value || ''));
+  return 'set ' + name + ' (' + (value ? value.length : 0) + ' chars)';
+}
+function _adminListSecretKeys(){
+  return Object.keys(PropertiesService.getScriptProperties().getProperties());
+}
+
+/* ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ handleSendWhatsApp ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
+   Lawyer-only endpoint. Reads the Green API instance + token from
+   PropertiesService (NEVER from source). Validates caller via OAuth.
+   Set up: in Apps Script editor ג†’ Project Settings ג†’ Script Properties
+     GREEN_API_INSTANCE = <set in Script Properties UI>
+     GREEN_API_TOKEN    = <set in Script Properties UI>
+*/
+function handleSendWhatsApp(body){
+  const auth = _verifyLawyerToken(body.accessToken);
+  if(!auth){ _audit('sendWhatsApp_unauthorized', '', {phone: body && body.phone}); throw new Error('unauthorized'); }
+  const phone = (body.phone||'').toString().replace(/\D/g,'');
+  const message = (body.message||'').toString();
+  if(!phone || !message) throw new Error('missing phone or message');
+  const intl = phone.startsWith('0') ? '972' + phone.substring(1) : phone;
+  const props = PropertiesService.getScriptProperties();
+  const inst  = props.getProperty('GREEN_API_INSTANCE');
+  const tok   = props.getProperty('GREEN_API_TOKEN');
+  if(!inst || !tok){ throw new Error('green api not configured (set Script Properties GREEN_API_INSTANCE + GREEN_API_TOKEN)'); }
+  const url = 'https://api.green-api.com/waInstance' + inst + '/sendMessage/' + tok;
+  const resp = UrlFetchApp.fetch(url, {
+    method: 'POST',
+    contentType: 'application/json; charset=utf-8',
+    payload: JSON.stringify({chatId: intl + '@c.us', message: message}),
+    muteHttpExceptions: true
+  });
+  const code = resp.getResponseCode();
+  const txt  = resp.getContentText();
+  _audit('sendWhatsApp', auth.email, {phone: intl, code, msgLen: message.length});
+  if(code >= 300) throw new Error('green api ' + code + ': ' + txt.substring(0, 300));
+  return {sent: true, response: JSON.parse(txt)};
 }
 
 function _parseList(raw){
@@ -112,12 +229,25 @@ function _verifyToken(token){
   }catch(_){ return null; }
 }
 
-// ─── Action: login ───────────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: login ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleLogin(body){
   const username = body.username, password = body.password;
-  if(!username || !password) throw new Error('הזן שם משתמש וסיסמה');
+  if(!username || !password) throw new Error('׳”׳–׳ ׳©׳ ׳׳©׳×׳׳© ׳•׳¡׳™׳¡׳׳”');
+  // Rate-limit per username ג€” block after RATE_LIMIT_MAX failed attempts
+  // in RATE_LIMIT_WINDOW_MS. Bots / brute-forcers get nothing useful.
+  const rate = _loginRateState(username);
+  if(_loginRateBlocked(rate)){
+    _audit('login_blocked_rate_limit', username, {attempts: rate.n});
+    throw new Error('׳™׳•׳×׳¨ ׳׳“׳™ ׳ ׳™׳¡׳™׳•׳ ׳•׳× ׳›׳ ׳™׳¡׳” ׳›׳•׳©׳׳™׳. ׳ ׳¡׳” ׳©׳•׳‘ ׳‘׳¢׳•׳“ 15 ׳“׳§׳•׳×.');
+  }
   const found = _findRowByCreds(username, password);
-  if(!found) throw new Error('שם משתמש או סיסמה שגויים, או שחיבור לקוח לא הופעל');
+  if(!found){
+    _loginRateRecord(rate, false);
+    _audit('login_failed', username, {attempts: rate.n + 1});
+    throw new Error('׳©׳ ׳׳©׳×׳׳© ׳׳• ׳¡׳™׳¡׳׳” ׳©׳’׳•׳™׳™׳, ׳׳• ׳©׳—׳™׳‘׳•׳¨ ׳׳§׳•׳— ׳׳ ׳”׳•׳₪׳¢׳');
+  }
+  _loginRateRecord(rate, true);
+  _audit('login_success', username, {row: found.rowNum});
   const name  = found.row[COL.NAME-1] || '';
   const stage = (found.row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
   return {
@@ -131,10 +261,10 @@ function handleLogin(body){
   };
 }
 
-// ─── Action: getRequests ─────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: getRequests ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleGetRequests(body){
   const t = _verifyToken(body.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const row = sheet.getRange(t.rowNum, 1, 1, COL.CY_QUEST).getValues()[0];
   const stage = (row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
@@ -149,7 +279,7 @@ function handleGetRequests(body){
       const rn = req.reportNum || null;
       if(req.status === 'uploaded' && Array.isArray(req.files)){
         req.files.forEach(f => {
-          // Skip files already individually approved — they'll appear in
+          // Skip files already individually approved ג€” they'll appear in
           // docsApproved instead of the pending list.
           if(f.approved) return;
           pending.push({
@@ -180,7 +310,7 @@ function handleGetRequests(body){
     if(req.mergedPdfId && req.status === 'approved'){
       docsApproved.push({
         fileId: req.mergedPdfId,
-        name: req.mergedPdfName || (req.text ? req.text + '.pdf' : 'מסמך.pdf'),
+        name: req.mergedPdfName || (req.text ? req.text + '.pdf' : '׳׳¡׳׳.pdf'),
         url: req.mergedPdfUrl,
         reqId: req.id, reqText: req.text || '',
         approvedAt: req.mergedAt || req.approvedAt || 0,
@@ -212,46 +342,46 @@ function handleGetRequests(body){
   };
 }
 
-// ─── Action: uploadFile ──────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: uploadFile ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleUploadFile(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳׳ ׳©׳';
 
   // Two-stage flow:
-  //   Pending review → "מסמכים ששלח הלקוח" (pending bin)
-  //   After approval → "השלמת מסמכים" (final, locked)
+  //   Pending review ג†’ "׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—" (pending bin)
+  //   After approval ג†’ "׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳" (final, locked)
   // Reports and info still use the old per-stage subfolders.
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
   let target;
   if(p.category === 'reports'){
-    const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
-    const reportsRoot = _ensureFolder(inboxFolder, 'מסמכי דוחות');
-    target = _ensureFolder(reportsRoot, 'דוח ' + (p.reportNum || '?'));
+    const inboxFolder = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳”׳×׳§׳‘׳׳• ׳׳”׳׳§׳•׳—');
+    const reportsRoot = _ensureFolder(inboxFolder, '׳׳¡׳׳›׳™ ׳“׳•׳—׳•׳×');
+    target = _ensureFolder(reportsRoot, '׳“׳•׳— ' + (p.reportNum || '?'));
   } else if(p.category === 'docs'){
-    // PENDING bin — stays here until lawyer approves; then file moves to השלמת מסמכים
-    target = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
+    // PENDING bin ג€” stays here until lawyer approves; then file moves to ׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳
+    target = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—');
   } else if(p.category === 'info'){
-    const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
-    target = _ensureFolder(inboxFolder, 'השלמת פרטים');
+    const inboxFolder = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳”׳×׳§׳‘׳׳• ׳׳”׳׳§׳•׳—');
+    target = _ensureFolder(inboxFolder, '׳”׳©׳׳׳× ׳₪׳¨׳˜׳™׳');
   } else if(p.category === 'pre_order_docs'){
-    target = _ensureFolder(clientFolder, 'צו פתיחה');
+    target = _ensureFolder(clientFolder, '׳¦׳• ׳₪׳×׳™׳—׳”');
   } else {
-    throw new Error('קטגוריה לא תקינה');
+    throw new Error('׳§׳˜׳’׳•׳¨׳™׳” ׳׳ ׳×׳§׳™׳ ׳”');
   }
 
   // Filename: use the requirement text (sanitized) as the canonical name.
   // Falls back to the client's filename if reqText is missing.
   // Drive auto-appends "(1)", "(2)" on name collision so we don't need a
   // timestamp prefix. The result for the user/lawyer is a clean filename
-  // like "תלוש שכר אחרון.pdf" instead of "040526113200_תלוש שכר אחרון.pdf".
+  // like "׳×׳׳•׳© ׳©׳›׳¨ ׳׳—׳¨׳•׳.pdf" instead of "040526113200_׳×׳׳•׳© ׳©׳›׳¨ ׳׳—׳¨׳•׳.pdf".
   const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
   const reqLabel = sanitize(p.reqText || '');
   const fallback = sanitize(p.filename || 'file');
   // Preserve the extension from p.filename if present, otherwise infer
-  // from mimeType (image/jpeg → .jpg, application/pdf → .pdf, …).
+  // from mimeType (image/jpeg ג†’ .jpg, application/pdf ג†’ .pdf, ג€¦).
   const m = (p.filename || '').match(/\.[^.\/\\]+$/);
   let ext = m ? m[0] : '';
   if(!ext){
@@ -297,15 +427,15 @@ function handleUploadFile(p){
   return { fileId: file.getId(), fileUrl: file.getUrl(), fileName: stampedName };
 }
 
-// ─── Action: submitAnswer ────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: submitAnswer ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleSubmitAnswer(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const cell  = sheet.getRange(t.rowNum, COL.CW_INFO);
   const list  = _parseList(cell.getValue());
   const req   = list.find(r => r.id === p.reqId);
-  if(!req) throw new Error('פריט לא נמצא');
+  if(!req) throw new Error('׳₪׳¨׳™׳˜ ׳׳ ׳ ׳׳¦׳');
   req.answer     = String(p.answer || '');
   req.status     = 'uploaded';
   req.answeredAt = Date.now();
@@ -313,10 +443,10 @@ function handleSubmitAnswer(p){
   return {ok: true};
 }
 
-// ─── Action: removeFile ──────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: removeFile ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleRemoveFile(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO};
   const cell   = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
@@ -326,7 +456,7 @@ function handleRemoveFile(p){
   const file = req.files.find(f => f.id === p.fileId);
   // LOCK: an approved file cannot be removed by the client.
   if(file && (file.locked || file.approvedAt)){
-    throw new Error('הקובץ כבר אושר ולא ניתן להסירו');
+    throw new Error('׳”׳§׳•׳‘׳¥ ׳›׳‘׳¨ ׳׳•׳©׳¨ ׳•׳׳ ׳ ׳™׳×׳ ׳׳”׳¡׳™׳¨׳•');
   }
   const idx = req.files.findIndex(f => f.id === p.fileId);
   if(idx >= 0){
@@ -338,11 +468,11 @@ function handleRemoveFile(p){
   return {ok: true};
 }
 
-// ─── Action: closeReport ─────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: closeReport ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleCloseReport(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
-  if(!p.reportNum) throw new Error('מספר דוח חסר');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
+  if(!p.reportNum) throw new Error('׳׳¡׳₪׳¨ ׳“׳•׳— ׳—׳¡׳¨');
   const sheet = _sheet();
   const repCell = sheet.getRange(t.rowNum, COL.CU_REPORTS);
   const repList = _parseList(repCell.getValue());
@@ -360,14 +490,14 @@ function handleCloseReport(p){
   return {ok: true};
 }
 
-// ─── Action: saveQuestionnaire ───────────────────────────────────────
+// ג”€ג”€ג”€ Action: saveQuestionnaire ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleSaveQuestionnaire(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
-  if(!p.data || typeof p.data !== 'object') throw new Error('נתוני שאלון חסרים');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
+  if(!p.data || typeof p.data !== 'object') throw new Error('׳ ׳×׳•׳ ׳™ ׳©׳׳׳•׳ ׳—׳¡׳¨׳™׳');
   p.data._savedAt = new Date().toISOString();
   const sheet = _sheet();
-  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'לקוח';
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳§׳•׳—';
   sheet.getRange(t.rowNum, COL.CY_QUEST).setValue(JSON.stringify(p.data));
   // Also write to a Google Sheet in the client's Drive folder
   try{ _saveQuestToSheet(clientName, p.data); }catch(e){ Logger.log('Sheet save failed: '+e); }
@@ -377,8 +507,8 @@ function handleSaveQuestionnaire(p){
 function _saveQuestToSheet(clientName, d){
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
-  const tzavFolder   = _ensureFolder(clientFolder, 'צו פתיחה');
-  const sheetName    = 'שאלון — ' + clientName;
+  const tzavFolder   = _ensureFolder(clientFolder, '׳¦׳• ׳₪׳×׳™׳—׳”');
+  const sheetName    = '׳©׳׳׳•׳ ג€” ' + clientName;
 
   // Find existing sheet or create new one
   let ss;
@@ -393,44 +523,44 @@ function _saveQuestToSheet(clientName, d){
   const ws = ss.getActiveSheet();
 
   const sections = [
-    { title: 'פרטים אישיים', rows: [
-      ['שם משפחה', d.last_name], ['שם פרטי', d.first_name],
-      ['מספר ת.ז', d.id], ['תאריך לידה', d.dob],
-      ['מין', d.gender], ['מצב משפחתי', d.marital],
-      ['ארץ לידה', d.birth_country], ['תאריך עלייה', d.aliya_date],
-      ['כתובת', d.address], ['מיקוד', d.zip],
-      ['חדרים', d.apt_rooms], ['זכויות בדירה', d.apt_rights],
-      ['טלפון', d.phone], ['אימייל', d.email],
+    { title: '׳₪׳¨׳˜׳™׳ ׳׳™׳©׳™׳™׳', rows: [
+      ['׳©׳ ׳׳©׳₪׳—׳”', d.last_name], ['׳©׳ ׳₪׳¨׳˜׳™', d.first_name],
+      ['׳׳¡׳₪׳¨ ׳×.׳–', d.id], ['׳×׳׳¨׳™׳ ׳׳™׳“׳”', d.dob],
+      ['׳׳™׳', d.gender], ['׳׳¦׳‘ ׳׳©׳₪׳—׳×׳™', d.marital],
+      ['׳׳¨׳¥ ׳׳™׳“׳”', d.birth_country], ['׳×׳׳¨׳™׳ ׳¢׳׳™׳™׳”', d.aliya_date],
+      ['׳›׳×׳•׳‘׳×', d.address], ['׳׳™׳§׳•׳“', d.zip],
+      ['׳—׳“׳¨׳™׳', d.apt_rooms], ['׳–׳›׳•׳™׳•׳× ׳‘׳“׳™׳¨׳”', d.apt_rights],
+      ['׳˜׳׳₪׳•׳', d.phone], ['׳׳™׳׳™׳™׳', d.email],
     ]},
-    { title: 'פרטי בן/בת זוג', rows: [
-      ['שם משפחה', d.spouse_last], ['שם פרטי', d.spouse_first],
-      ['ת.ז', d.spouse_id], ['תאריך לידה', d.spouse_dob],
-      ['טלפון', d.spouse_phone],
+    { title: '׳₪׳¨׳˜׳™ ׳‘׳/׳‘׳× ׳–׳•׳’', rows: [
+      ['׳©׳ ׳׳©׳₪׳—׳”', d.spouse_last], ['׳©׳ ׳₪׳¨׳˜׳™', d.spouse_first],
+      ['׳×.׳–', d.spouse_id], ['׳×׳׳¨׳™׳ ׳׳™׳“׳”', d.spouse_dob],
+      ['׳˜׳׳₪׳•׳', d.spouse_phone],
     ]},
-    { title: 'תעסוקה', rows: [
-      ['עיסוק', d.occupation], ['מעסיק', d.employer],
-      ['כתובת עבודה', d.work_address], ['תאריך תחילת עבודה', d.work_start],
-      ['משכורת ברוטו', d.salary_gross], ['משכורת נטו', d.salary_net],
-      ['מעסיק בן/בת זוג', d.spouse_employer],
-      ['משכורת בן/בת זוג ברוטו', d.spouse_salary_gross],
-      ['משכורת בן/בת זוג נטו', d.spouse_salary_net],
-      ['קצבת ילדים', d.child_allowance], ['נכות', d.disability],
+    { title: '׳×׳¢׳¡׳•׳§׳”', rows: [
+      ['׳¢׳™׳¡׳•׳§', d.occupation], ['׳׳¢׳¡׳™׳§', d.employer],
+      ['׳›׳×׳•׳‘׳× ׳¢׳‘׳•׳“׳”', d.work_address], ['׳×׳׳¨׳™׳ ׳×׳—׳™׳׳× ׳¢׳‘׳•׳“׳”', d.work_start],
+      ['׳׳©׳›׳•׳¨׳× ׳‘׳¨׳•׳˜׳•', d.salary_gross], ['׳׳©׳›׳•׳¨׳× ׳ ׳˜׳•', d.salary_net],
+      ['׳׳¢׳¡׳™׳§ ׳‘׳/׳‘׳× ׳–׳•׳’', d.spouse_employer],
+      ['׳׳©׳›׳•׳¨׳× ׳‘׳/׳‘׳× ׳–׳•׳’ ׳‘׳¨׳•׳˜׳•', d.spouse_salary_gross],
+      ['׳׳©׳›׳•׳¨׳× ׳‘׳/׳‘׳× ׳–׳•׳’ ׳ ׳˜׳•', d.spouse_salary_net],
+      ['׳§׳¦׳‘׳× ׳™׳׳“׳™׳', d.child_allowance], ['׳ ׳›׳•׳×', d.disability],
     ]},
-    { title: 'הוצאות', rows: [
-      ['שכר דירה', d.rent], ['ארנונה', d.arnona],
-      ['חשמל', d.electric], ['מים', d.water], ['גז', d.gas],
-      ['מזון', d.food], ['רכב', d.car], ['הלבשה', d.clothing],
-      ['חינוך', d.education], ['אחר', d.other_exp],
+    { title: '׳”׳•׳¦׳׳•׳×', rows: [
+      ['׳©׳›׳¨ ׳“׳™׳¨׳”', d.rent], ['׳׳¨׳ ׳•׳ ׳”', d.arnona],
+      ['׳—׳©׳׳', d.electric], ['׳׳™׳', d.water], ['׳’׳–', d.gas],
+      ['׳׳–׳•׳', d.food], ['׳¨׳›׳‘', d.car], ['׳”׳׳‘׳©׳”', d.clothing],
+      ['׳—׳™׳ ׳•׳', d.education], ['׳׳—׳¨', d.other_exp],
     ]},
-    { title: 'נכסים', rows: [
-      ['רכבים', d.cars], ['חשבונות בנק', d.banks],
-      ['נדלן', d.realestate],
+    { title: '׳ ׳›׳¡׳™׳', rows: [
+      ['׳¨׳›׳‘׳™׳', d.cars], ['׳—׳©׳‘׳•׳ ׳•׳× ׳‘׳ ׳§', d.banks],
+      ['׳ ׳“׳׳', d.realestate],
     ]},
   ];
 
   let row = 1;
   // Title row
-  ws.getRange(row, 1, 1, 2).merge().setValue('שאלון לקוח — ' + clientName)
+  ws.getRange(row, 1, 1, 2).merge().setValue('׳©׳׳׳•׳ ׳׳§׳•׳— ג€” ' + clientName)
     .setFontSize(14).setFontWeight('bold')
     .setBackground('#1a1a2e').setFontColor('#ffffff');
   ws.getRange(row, 1, 1, 2).setHorizontalAlignment('center');
@@ -452,14 +582,14 @@ function _saveQuestToSheet(clientName, d){
 
   // Children
   if(Array.isArray(d.children) && d.children.length){
-    ws.getRange(row, 1, 1, 4).merge().setValue('ילדים')
+    ws.getRange(row, 1, 1, 4).merge().setValue('׳™׳׳“׳™׳')
       .setFontSize(12).setFontWeight('bold')
       .setBackground('#3a5ba0').setFontColor('#ffffff');
     row++;
-    ws.getRange(row, 1).setValue('שם משפחה').setFontWeight('bold').setBackground('#e8edf5');
-    ws.getRange(row, 2).setValue('שם פרטי').setFontWeight('bold').setBackground('#e8edf5');
-    ws.getRange(row, 3).setValue('ת.ז').setFontWeight('bold').setBackground('#e8edf5');
-    ws.getRange(row, 4).setValue('תאריך לידה').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 1).setValue('׳©׳ ׳׳©׳₪׳—׳”').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 2).setValue('׳©׳ ׳₪׳¨׳˜׳™').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 3).setValue('׳×.׳–').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 4).setValue('׳×׳׳¨׳™׳ ׳׳™׳“׳”').setFontWeight('bold').setBackground('#e8edf5');
     row++;
     d.children.forEach(kid => {
       ws.getRange(row,1).setValue(kid.last||'');
@@ -473,14 +603,14 @@ function _saveQuestToSheet(clientName, d){
 
   // Creditors
   if(Array.isArray(d.creditors) && d.creditors.length){
-    ws.getRange(row, 1, 1, 4).merge().setValue('נושים')
+    ws.getRange(row, 1, 1, 4).merge().setValue('׳ ׳•׳©׳™׳')
       .setFontSize(12).setFontWeight('bold')
       .setBackground('#3a5ba0').setFontColor('#ffffff');
     row++;
-    ws.getRange(row, 1).setValue('שם נושה').setFontWeight('bold').setBackground('#e8edf5');
-    ws.getRange(row, 2).setValue('סוג').setFontWeight('bold').setBackground('#e8edf5');
-    ws.getRange(row, 3).setValue('סכום ₪').setFontWeight('bold').setBackground('#e8edf5');
-    ws.getRange(row, 4).setValue('מצב').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 1).setValue('׳©׳ ׳ ׳•׳©׳”').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 2).setValue('׳¡׳•׳’').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 3).setValue('׳¡׳›׳•׳ ג‚×').setFontWeight('bold').setBackground('#e8edf5');
+    ws.getRange(row, 4).setValue('׳׳¦׳‘').setFontWeight('bold').setBackground('#e8edf5');
     row++;
     d.creditors.forEach(cr => {
       ws.getRange(row,1).setValue(cr.name||'');
@@ -496,17 +626,17 @@ function _saveQuestToSheet(clientName, d){
   ws.setRightToLeft(true);
 }
 
-// ─── Action: getQuestionnaire ────────────────────────────────────────
+// ג”€ג”€ג”€ Action: getQuestionnaire ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleGetQuestionnaire(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const raw = sheet.getRange(t.rowNum, COL.CY_QUEST).getValue();
   return { data: _parseObj(raw) };
 }
 
-// ─── Helper: append a single file to req's merge Doc, re-export PDF ───
-// Per user spec 2026-05-04 — incremental merge: each approval adds one
+// ג”€ג”€ג”€ Helper: append a single file to req's merge Doc, re-export PDF ג”€ג”€ג”€
+// Per user spec 2026-05-04 ג€” incremental merge: each approval adds one
 // page to the growing PDF (instead of waiting for all approvals).
 //
 // Input: req (mutated), single file id to append, clientFolder.
@@ -514,8 +644,8 @@ function handleGetQuestionnaire(p){
 //
 // PDF inputs are skipped (would need Drive.Files.copy + convert).
 function _appendFileToMergedPdf(req, fileId, clientFolder){
-  const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120) || 'מסמך';
-  const pdfName = sanitize(req.text || 'מסמך') + '.pdf';
+  const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120) || '׳׳¡׳׳';
+  const pdfName = sanitize(req.text || '׳׳¡׳׳') + '.pdf';
   const A4_WIDTH = 520;
 
   let driveFile;
@@ -527,7 +657,7 @@ function _appendFileToMergedPdf(req, fileId, clientFolder){
     return { success: false, error: 'file_not_found', detail: String(e) };
   }
   if(mime.indexOf('image/') !== 0){
-    // Non-image (PDF/other): skip merge — return signal so caller treats
+    // Non-image (PDF/other): skip merge ג€” return signal so caller treats
     // the approve as a regular single-file approval (file stays separate).
     return { success: false, error: 'non_image' };
   }
@@ -564,7 +694,7 @@ function _appendFileToMergedPdf(req, fileId, clientFolder){
 
   // Re-export Doc as PDF (replaces previous PDF)
   const pdfBlob = DriveApp.getFileById(doc.getId()).getAs(MimeType.PDF).setName(pdfName);
-  const finalFolder = _ensureFolder(clientFolder, 'השלמת מסמכים');
+  const finalFolder = _ensureFolder(clientFolder, '׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳');
 
   // Trash the previous PDF, if any
   if(req.mergedPdfId){
@@ -582,18 +712,18 @@ function _appendFileToMergedPdf(req, fileId, clientFolder){
   };
 }
 
-// ─── Action: approveItem ─────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: approveItem ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 // Per-file approval. Each click approves ONE file in the requirement.
 // When EVERY file in req.files becomes approved (and there's more than
 // one), the script then auto-merges them into a single PDF, trashes
 // the originals from Drive, and replaces req.files with [mergedPdf].
 //
-// User spec 2026-05-04: 'עולים שני המסמכים בנפרד וניתן לאשר אותם בנפרד.
-// לאחר שמאושרים כל המסמכים הם מצורפים לקובץ pdf אחד ונמחקים יתר
-// המסמכים גם מהתיקייה וגם מהרישום'.
+// User spec 2026-05-04: '׳¢׳•׳׳™׳ ׳©׳ ׳™ ׳”׳׳¡׳׳›׳™׳ ׳‘׳ ׳₪׳¨׳“ ׳•׳ ׳™׳×׳ ׳׳׳©׳¨ ׳׳•׳×׳ ׳‘׳ ׳₪׳¨׳“.
+// ׳׳׳—׳¨ ׳©׳׳׳•׳©׳¨׳™׳ ׳›׳ ׳”׳׳¡׳׳›׳™׳ ׳”׳ ׳׳¦׳•׳¨׳₪׳™׳ ׳׳§׳•׳‘׳¥ pdf ׳׳—׳“ ׳•׳ ׳׳—׳§׳™׳ ׳™׳×׳¨
+// ׳”׳׳¡׳׳›׳™׳ ׳’׳ ׳׳”׳×׳™׳§׳™׳™׳” ׳•׳’׳ ׳׳”׳¨׳™׳©׳•׳'.
 function handleApproveItem(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
@@ -602,7 +732,7 @@ function handleApproveItem(p){
   if(!req){ return {ok: true}; }
 
   const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
-  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳׳ ׳©׳';
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
 
@@ -640,10 +770,10 @@ function handleApproveItem(p){
       }
     }
 
-    // PDF / other input: just move to השלמת מסמכים, mark as approved (separate)
+    // PDF / other input: just move to ׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳, mark as approved (separate)
     if(!isImageMerged){
       try{
-        const finalFolder = _ensureFolder(clientFolder, 'השלמת מסמכים');
+        const finalFolder = _ensureFolder(clientFolder, '׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳');
         const driveFile   = DriveApp.getFileById(p.fileId);
         const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
         const reqText = sanitize(req.text || '');
@@ -684,10 +814,10 @@ function handleApproveItem(p){
   return {ok: true};
 }
 
-// ─── Action: rejectItem ──────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: rejectItem ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleRejectItem(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
@@ -707,13 +837,13 @@ function handleRejectItem(p){
   return {ok: true};
 }
 
-// ─── Action: unapproveItem ───────────────────────────────────────────
+// ג”€ג”€ג”€ Action: unapproveItem ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 // Reverses an approval. For docs: physically move the file back from
-// "השלמת מסמכים" to the pending bin "מסמכים ששלח הלקוח" and clear the
+// "׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳" to the pending bin "׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—" and clear the
 // locked/approved flags on the file entry.
 function handleUnapproveItem(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const colMap = {reports: COL.CU_REPORTS, docs: COL.CV_DOCS, info: COL.CW_INFO, pre_order_docs: COL.CV_DOCS};
   const cell = sheet.getRange(t.rowNum, colMap[p.category] || COL.CV_DOCS);
@@ -728,13 +858,13 @@ function handleUnapproveItem(p){
   const fileId = p.fileId;
 
   if(isDocs && fileId){
-    // Move the file back to pending bin (works for merged PDF too —
-    // it now lives in השלמת מסמכים after merge; this moves it back).
+    // Move the file back to pending bin (works for merged PDF too ג€”
+    // it now lives in ׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳ after merge; this moves it back).
     try{
-      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
+      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳׳ ׳©׳';
       const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
       const clientFolder  = _ensureFolder(root, clientName);
-      const pendingFolder = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
+      const pendingFolder = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—');
       const driveFile     = DriveApp.getFileById(fileId);
       const parents = driveFile.getParents();
       while(parents.hasNext()){
@@ -760,25 +890,25 @@ function handleUnapproveItem(p){
     delete req.approvedAt;
     delete req.approvedFileId;
   }
-  // Note: req.mergedPdfId stays set even after unapprove — the merged
+  // Note: req.mergedPdfId stays set even after unapprove ג€” the merged
   // PDF still exists in Drive (now back in pending bin). User can
   // re-approve it (single-file flow) or reject it (trashes the PDF).
   cell.setValue(JSON.stringify(list));
   return {ok: true};
 }
 
-// ─── Action: sendInquiry ─────────────────────────────────────────────
+// ג”€ג”€ג”€ Action: sendInquiry ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 // Stores a client inquiry in column CZ (1-based 136)
 function handleSendInquiry(p){
   const t = _verifyToken(p.token);
-  if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
+  if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
   const CZ_INQUIRIES = 136;
   const cell = sheet.getRange(t.rowNum, CZ_INQUIRIES);
   const list = _parseList(cell.getValue());
   const entry = {
     id:      Utilities.getUuid(),
-    context: p.context || 'כללי',
+    context: p.context || '׳›׳׳׳™',
     message: p.message || '',
     ts:      Date.now(),
     done:    false,
@@ -789,9 +919,9 @@ function handleSendInquiry(p){
   return {ok: true};
 }
 
-// ─── Action: createCalendarEvent ─────────────────────────────────────
+// ג”€ג”€ג”€ Action: createCalendarEvent ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleCreateCalendarEvent(p){
-  const title = p.title || 'פגישה';
+  const title = p.title || '׳₪׳’׳™׳©׳”';
   const start = new Date(p.start);
   const end   = new Date(p.end);
   const description = p.description || '';
