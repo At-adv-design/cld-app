@@ -2991,13 +2991,14 @@ function toggleCollectionView(){
   // Toggle the active style on the גבייה chip
   const collChip = document.getElementById('collection-chip');
   if(collChip) collChip.classList.toggle('active', collectionMode);
-  // Hide main filter row + mode row when in collection mode (close chip is in coll row)
+  // Hide main filter row when in collection mode. The mode-row (chips for
+  // גבייה+פוטנציאליים) stays permanently hidden — those toggles live in
+  // the logo-tap modal now. Don't touch mode-row display here, or exiting
+  // collection mode would un-hide it (visible regression).
   const main=document.getElementById('main-filter-row');
-  const modeRow=document.getElementById('mode-row');
   const coll=document.getElementById('collection-filter-row');
-  if(main)    main.style.display    = collectionMode ? 'none' : '';
-  if(modeRow) modeRow.style.display = collectionMode ? 'none' : '';
-  if(coll)    coll.style.display    = collectionMode ? 'flex' : 'none';
+  if(main) main.style.display = collectionMode ? 'none' : '';
+  if(coll) coll.style.display = collectionMode ? 'flex' : 'none';
   // Reset the missed-payments filter back to "הכל"
   fColl='all';
   if(coll){
