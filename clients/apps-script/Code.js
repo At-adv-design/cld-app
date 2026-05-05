@@ -31,7 +31,7 @@ const COL = {
   CW_INFO:       101,   // CW ג€” JSON (info questions)
   CX_STAGE:      133,   // EC (0-based 132) ג€” stage: '' | 'pre_order' | 'commercial'
   CY_QUEST:      134,   // ED (0-based 133) ג€” questionnaire JSON (form 45 data)
-  SIGS_DOCS:     135,   // EE ג€” signature documents JSON: [{id,text,files:[{id,name,url,ts,signedAt?}]}]
+  SIGS_DOCS:     117,   // DM (1-based) ג€” signature documents JSON: [{id,text,files:[{id,name,url,ts,signedAt?}]}]
   CZ_INQUIRIES:  136,   // EF ג€” client inquiries JSON array
 };
 
@@ -332,8 +332,11 @@ function handleGetRequests(body){
   const t = _verifyToken(body.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  // Read up to SIGS_DOCS so the signatures column comes back too.
-  const row = sheet.getRange(t.rowNum, 1, 1, COL.SIGS_DOCS).getValues()[0];
+  // Read up to the highest column we care about. SIGS_DOCS is at DM (117)
+  // — earlier than CY_QUEST (134) and CZ_INQUIRIES (136) — so we use the
+  // max so all later columns come back too.
+  const MAX_COL = Math.max(COL.SIGS_DOCS, COL.CY_QUEST, COL.CZ_INQUIRIES);
+  const row = sheet.getRange(t.rowNum, 1, 1, MAX_COL).getValues()[0];
   const stage = (row[COL.CX_STAGE-1] || '').toString().trim().toLowerCase();
 
   const reports    = _parseList(row[COL.CU_REPORTS-1]);
