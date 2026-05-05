@@ -1625,7 +1625,13 @@ function openSignatureViewer(idx){
   if(!s){ toast('המסמך לא נמצא','error'); return; }
   const f = (s.files && s.files[0]) || null;
   if(!f || !f.id){ toast('הקובץ לא זמין','error'); return; }
-  if(s.signedAt || (f && f.signedAt)){ toast('המסמך כבר חתום','info'); window.open(f.url||`https://drive.google.com/file/d/${f.id}/view`,'_blank'); return; }
+  if(s.signedAt || (f && f.signedAt)){
+    // Already signed — open the signed PDF instead of the original.
+    const id = f.signedFileId || f.id;
+    const url = f.signedFileUrl || f.url || `https://drive.google.com/file/d/${id}/view`;
+    window.open(url, '_blank');
+    return;
+  }
   // Build modal lazily
   let modal = document.getElementById('sig-modal');
   if(!modal){

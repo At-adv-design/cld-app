@@ -195,10 +195,13 @@ function _adminListSecretKeys(){
 function handleSubmitSignature(body){
   const t = _verifyToken(body.token);
   if(!t) throw new Error('פג תוקף הכניסה — התחבר מחדש');
-  if(!body.signaturePngBase64) throw new Error('חסרה חתימה');
   const reqId  = body.reqId  || '';
   const fileId = body.fileId || '';
   if(!reqId) throw new Error('מסמך לא מזוהה');
+  // Accept either:
+  //   (preferred) signedPdfBase64 — full signed PDF produced client-side
+  //   (fallback)  signaturePngBase64 — just the signature image
+  if(!body.signedPdfBase64 && !body.signaturePngBase64) throw new Error('חסרה חתימה');
 
   const sheet = _sheet();
   const cell  = sheet.getRange(t.rowNum, COL.SIGS_DOCS);
@@ -216,28 +219,54 @@ function handleSubmitSignature(body){
   const sigsRoot    = _ensureFolder(clientFolder, 'מסמכים לחתימה');
   const signedFolder= _ensureFolder(sigsRoot, 'חתומים');
 
-  // Save signature image
-  const sigBlob = Utilities.newBlob(Utilities.base64Decode(body.signaturePngBase64), 'image/png',
-    (req.text || 'מסמך') + '_signature.png');
-  const sigFile = signedFolder.createFile(sigBlob);
-  try { sigFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_) {}
+  const ts = body.signedAt || Date.now();
+  let signedPdfFile = null, signaturePngFile = null;
+
+  if(body.signedPdfBase64){
+    // The client-side flow used pdf-lib to embed the signature; we get a
+    // ready-to-store PDF. Save with "_חתום.pdf" suffix.
+    const baseName = (req.text || 'מסמך').replace(/\.pdf$/i, '');
+    const pdfBlob = Utilities.newBlob(
+      Utilities.base64Decode(body.signedPdfBase64),
+      'application/pdf',
+      baseName + '_חתום.pdf'
+    );
+    signedPdfFile = signedFolder.createFile(pdfBlob);
+    try { signedPdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_){}
+    f0.signedFileId  = signedPdfFile.getId();
+    f0.signedFileUrl = signedPdfFile.getUrl();
+  }
+
+  if(body.signaturePngBase64){
+    // Always also store the bare signature PNG (audit trail / fallback).
+    const sigBlob = Utilities.newBlob(
+      Utilities.base64Decode(body.signaturePngBase64), 'image/png',
+      (req.text || 'מסמך') + '_signature.png'
+    );
+    signaturePngFile = signedFolder.createFile(sigBlob);
+    try { signaturePngFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_){}
+    f0.signedPngId  = signaturePngFile.getId();
+    f0.signedPngUrl = signaturePngFile.getUrl();
+  }
 
   // Attestation metadata
-  const ts = body.signedAt || Date.now();
-  if(!f0.signedAt)        f0.signedAt = ts;
-  if(!f0.signedPngId)     f0.signedPngId = sigFile.getId();
-  if(!f0.signedPngUrl)    f0.signedPngUrl = sigFile.getUrl();
+  if(!f0.signedAt) f0.signedAt = ts;
   req.signedAt    = ts;
   req.status      = 'signed';
   req.attestation = {
     timestamp: ts,
     rowNum:    t.rowNum,
-    // We don't have the client's IP here (Apps Script web apps don't get
-    // the real client IP), but we record the user agent client-side.
+    sigPos:    body.sigPos || req.sigPos || null,
+    userAgent: (body.userAgent || '').toString().substring(0, 200),
+    method:    body.signedPdfBase64 ? 'embedded-pdf' : 'png-only'
   };
   cell.setValue(JSON.stringify(list));
-  _audit('submitSignature', '#' + t.rowNum, {reqId, fileId});
-  return { signed: true, signedAt: ts, signaturePngUrl: sigFile.getUrl() };
+  _audit('submitSignature', '#' + t.rowNum, {reqId, fileId, method: req.attestation.method});
+  return {
+    signed: true, signedAt: ts,
+    signedFileUrl: signedPdfFile ? signedPdfFile.getUrl() : null,
+    signaturePngUrl: signaturePngFile ? signaturePngFile.getUrl() : null
+  };
 }
 
 function handleSendWhatsApp(body){

@@ -1040,6 +1040,16 @@ body.focus-mode-active{overflow:hidden;}
 .quest-doc-slot.attached .qds-icon{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
 
 </style>
+
+<!-- PDF.js — used to render PDF preview in the customer-area's "מסמכים
+     לחתימה" upload flow so the lawyer can click where the signature
+     should be placed. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if(window.pdfjsLib){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
 </head>
 <body>
 
@@ -1396,6 +1406,7 @@ body.focus-mode-active{overflow:hidden;}
         <div class="log-title" style="font-size:15px">אגף לקוח</div>
         <div class="log-sub" id="customer-area-name" style="margin-top:2px"></div>
       </div>
+      <button onclick="custCloseAllSections()" title="סגור את כל הכרטיסים" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--muted);white-space:nowrap;flex-shrink:0">סגור הכל</button>
     </div>
     <!-- Scrollable body -->
     <div id="customer-area-body" data-modal-scroll style="flex:1;overflow-y:auto;padding:0 2px;display:flex;flex-direction:column;gap:14px"></div>
@@ -4485,6 +4496,17 @@ function renderCustomerArea(){
 
   const open = _custState.openSections || {};
   const isOpen = key => !!open[key];
+  // Expose a one-click close-all helper used by the header button.
+  window.custCloseAllSections = function(){
+    if(_custState && _custState.openSections){
+      Object.keys(_custState.openSections).forEach(k => _custState.openSections[k] = false);
+      // Also collapse per-report opened state
+      _custState.openReportNum = null;
+      // Also collapse per-info Q&A
+      _custState.infoQAOpen = {};
+    }
+    if(typeof renderCustomerArea === 'function') renderCustomerArea();
+  };
 
   // Total pending count for the small banner at the top
   const pendingTotal = (_custState.pending||[]).length +
@@ -4787,9 +4809,14 @@ function _openSignatureFile(idx){
   if(!s) return;
   const f = (s.files && s.files[0]) || null;
   if(!f || !f.id){ showToast('הקובץ לא נמצא','err'); return; }
+  // If the document was already signed and we have a signed PDF stored,
+  // prefer that — the lawyer wants to see the signed version.
+  const useId  = f.signedFileId  || f.id;
+  const useUrl = f.signedFileUrl || f.url;
+  const useName= (f.signedFileId ? (f.name||'').replace(/\.pdf$/i,'') + '_חתום.pdf' : f.name);
   if(typeof openDrivePreview === 'function'){
-    openDrivePreview({id: f.id, name: f.name, mimeType: 'application/pdf', webViewLink: f.url});
-  } else if(f.url){ window.open(f.url, '_blank'); }
+    openDrivePreview({id: useId, name: useName, mimeType: 'application/pdf', webViewLink: useUrl});
+  } else if(useUrl){ window.open(useUrl, '_blank'); }
 }
 async function _removeSignatureDoc(idx){
   if(!confirm('למחוק מסמך זה מהרשימה? הקובץ יישאר ב-Drive.')) return;
@@ -6806,13 +6833,26 @@ function sendCollectionWA(name, phone){
 
 async function _sendInsMeetingWhatsApp(name, phone, dateStr, timeStr){
   if(!phone) return;
-  const p = phone.replace(/\D/g,'');
-  const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
-  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  // Same template as leads/_sendMeetingConfirmation — new office address
+  // (Markus 5 חיפה) + Waze link + confirmation request.
   const [d,m,y] = dateStr.split('/').map(Number);
-  const dow = new Date(y,m-1,d).getDay();
-  const msg = `◇ שלום ${name},\nנקבעה לך פגישה עם עורך דין אבי טל\nיום ${days[dow]} ${dateStr} בשעה ${timeStr}.\nכתובת: שדרות העצמאות 7, כפר סבא (קניון ערים).\nלאישור/שינוי: 04-8251453`;
+  const dShort = `${d}/${m}/${String(y).slice(2)}`;
+  const msg =
+    `∆ ◇ שלום. נקבעה לך פגישה עם עורך דין אבי טל ליום ${dShort} בשעה ${timeStr}\n` +
+    ` כתובת המשרד רחוב הרב מרכוס 5 חיפה. נא להודיע כאן אם יש שינוי מבחינתך. תודה ויום טוב. לנוחיותך קישור לוויז : https://maps.app.goo.gl/kQNwgpSebmYviPv88\n` +
+    `\n` +
+    `אם נתקעים בלי וויז תתקשרו בבקשה למשרד 048251453 ונדריך אתכם \n` +
+    `*אשרו שקיבלתם בהודעה חוזרת בבקשה*`;
   try{
+    // Route through Apps Script so the Green API token stays server-side.
+    if(typeof _sendWhatsAppViaBackend === 'function'){
+      const r = await _sendWhatsAppViaBackend(phone, msg);
+      if(!r || !r.ok) console.warn('[mtgWA] backend failed', r);
+      return;
+    }
+    // Legacy fallback — only if backend route is unavailable
+    const p = phone.replace(/\D/g,'');
+    const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
     await fetch(`https://api.green-api.com/waInstance${GREEN_API_INSTANCE}/sendMessage/${GREEN_API_TOKEN}`,
       { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({chatId:`${intl}@c.us`, message:msg}) });
