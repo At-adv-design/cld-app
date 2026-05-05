@@ -5593,25 +5593,101 @@ function _jsArg(obj){
 /* Render any unresolved client inquiries whose context matches `ctx`.
    Used to surface פניות from the customer app inside the matching
    section in the lawyer view (השלמת פרטים, השלמת מסמכים, וכו'). */
+function _fmtInqDate(ts){
+  const d = new Date(ts||Date.now());
+  return d.toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit'})
+       + ' ' + d.toLocaleTimeString('he',{hour:'2-digit',minute:'2-digit'});
+}
 function _renderInquiriesForContext(ctx){
   if(!_custState) return '';
-  const items = (_custState.inquiries||[]).filter(iq => !iq.done && (iq.context||'') === ctx);
-  if(!items.length) return '';
+  // Show ALL inquiries for this context (both pending and done) so the
+  // history stays visible. Pending first (newest first), then done.
+  const all = (_custState.inquiries||[]).filter(iq => (iq.context||'') === ctx);
+  if(!all.length) return '';
+  const pending = all.filter(iq => !iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const done    = all.filter(iq =>  iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const items   = pending.concat(done);
   return items.map(iq=>{
-    const d = new Date(iq.ts||Date.now());
-    const dt = d.toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit'})
-             + ' ' + d.toLocaleTimeString('he',{hour:'2-digit',minute:'2-digit'});
-    return `<div style="border:1px solid #E8D8B5;background:var(--orange-bg);border-radius:6px;padding:9px 11px;margin-bottom:8px">
+    const dt = _fmtInqDate(iq.ts);
+    const replyText = (iq.reply||'').trim();
+    const replyDt = replyText ? _fmtInqDate(iq.replyTs) : '';
+    const isDone = !!iq.done;
+    const replyBlock = replyText
+      ? `<div style="margin-top:8px;padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:5px">
+           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
+             <span style="font-size:11px;font-weight:700;color:var(--green)">תשובת המשרד</span>
+             <span style="font-size:10px;color:var(--muted)">${replyDt}</span>
+           </div>
+           <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(replyText)}</div>
+           <div style="margin-top:6px;display:flex;justify-content:flex-end;gap:6px">
+             <button onclick="event.stopPropagation();_inqEditReply('${esc(iq.id)}')" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">ערוך תשובה</button>
+           </div>
+         </div>`
+      : `<div style="margin-top:8px">
+           <textarea id="inq-reply-${esc(iq.id)}" placeholder="כתוב תשובה ללקוח..." style="width:100%;min-height:54px;border:1px solid var(--border);border-radius:5px;padding:7px 9px;font-family:inherit;font-size:13px;resize:vertical;background:var(--white);color:var(--text);box-sizing:border-box" onclick="event.stopPropagation()" oninput="event.stopPropagation()"></textarea>
+           <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">
+             <button onclick="event.stopPropagation();sendInquiryReply(${_custState.rowNum},'${esc(iq.id)}')" style="background:var(--green);color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">שלח תשובה</button>
+           </div>
+         </div>`;
+    const cardBg     = isDone ? 'var(--bg)'             : 'var(--orange-bg)';
+    const cardBorder = isDone ? '1px solid var(--border)' : '1px solid #E8D8B5';
+    const headColor  = isDone ? 'var(--muted)'          : 'var(--orange)';
+    const headLabel  = isDone ? 'פניה (טופלה)'          : 'פניה מהלקוח';
+    const actionBtn  = isDone
+      ? `<button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}',true)" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">החזר לטיפול</button>`
+      : `<button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}')" style="background:var(--slate);color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">סמן כטופל</button>`;
+    return `<div data-inq-id="${esc(iq.id)}" style="border:${cardBorder};background:${cardBg};border-radius:6px;padding:9px 11px;margin-bottom:8px;${isDone?'opacity:.78':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
-        <span style="font-size:11px;font-weight:700;color:var(--orange)">פניה מהלקוח</span>
+        <span style="font-size:11px;font-weight:700;color:${headColor}">${headLabel}</span>
         <span style="font-size:10px;color:var(--muted)">${dt}</span>
       </div>
-      <div style="font-size:13px;color:var(--text);white-space:pre-wrap;margin-bottom:8px">${esc(iq.message||'')}</div>
-      <div style="display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}')" style="background:var(--slate);color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">סמן כטופל</button>
+      <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(iq.message||'')}</div>
+      ${replyBlock}
+      <div style="margin-top:8px;display:flex;justify-content:flex-end">
+        ${actionBtn}
       </div>
     </div>`;
   }).join('');
+}
+async function sendInquiryReply(rowNum, inquiryId){
+  const ta = document.getElementById('inq-reply-'+inquiryId);
+  const text = (ta && ta.value || '').trim();
+  if(!text){ showToast('יש לכתוב תשובה לפני השליחה','err'); return; }
+  const c = (allClients||[]).find(x=>x.rowNum===rowNum);
+  if(!c) return;
+  const list = c.inquiries||[];
+  const iq = list.find(x=>x.id===inquiryId);
+  if(!iq){ showToast('הפניה לא נמצאה','err'); return; }
+  iq.reply   = text;
+  iq.replyTs = Date.now();
+  // Mirror to the open card's local copy too
+  if(_custState && _custState.rowNum === rowNum){
+    const localIq = (_custState.inquiries||[]).find(x=>x.id===inquiryId);
+    if(localIq){ localIq.reply = text; localIq.replyTs = iq.replyTs; }
+  }
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EF${rowNum}?valueInputOption=RAW`;
+  try{
+    await apiFetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[JSON.stringify(list)]]})});
+    showToast('התשובה נשלחה','ok');
+    if(_custState && _custState.rowNum === rowNum) renderCustomerArea();
+  }catch(e){ showToast('שגיאה בשליחת תשובה','err'); }
+}
+/* Allow lawyer to revise an already-sent reply. Replaces the rendered
+   reply block with a textarea pre-filled with the existing reply. */
+function _inqEditReply(inquiryId){
+  if(!_custState) return;
+  const iq = (_custState.inquiries||[]).find(x=>x.id===inquiryId);
+  if(!iq) return;
+  // Clear reply locally so re-render falls into the "compose" branch
+  const prevReply = iq.reply || '';
+  iq.reply = '';
+  iq.replyTs = 0;
+  renderCustomerArea();
+  setTimeout(()=>{
+    const ta = document.getElementById('inq-reply-'+inquiryId);
+    if(ta){ ta.value = prevReply; try{ ta.focus(); }catch(_){ } }
+  }, 0);
 }
 
 function _renderInfoQAList(){
@@ -9073,13 +9149,19 @@ function _allInquiries(){
   (allClients||[]).forEach(c=>{
     if(!c.inquiries) return;
     c.inquiries.forEach(iq=>{
-      if(!iq.done) out.push({...iq, clientName:c.name, phone:c.phone, rowNum:c.rowNum});
+      out.push({...iq, clientName:c.name, phone:c.phone, rowNum:c.rowNum});
     });
   });
-  return out.sort((a,b)=>b.ts-a.ts);
+  // Pending first (newest first), then done (newest first). Done stay
+  // visible — the lawyer asked us not to remove handled inquiries.
+  const pend = out.filter(x=>!x.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const done = out.filter(x=> x.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  return pend.concat(done);
 }
 function _updateInquiriesBadge(){
-  const n = _allInquiries().length;
+  // Badge counts only PENDING (un-handled) — done ones shouldn't add to
+  // the alert count even though they remain visible in the panel.
+  const n = _allInquiries().filter(x=>!x.done).length;
   const badge = document.getElementById('inquiries-hdr-badge');
   if(!badge) return;
   badge.textContent = n;
@@ -9091,7 +9173,7 @@ function openInquiriesPanel(){
   const list = document.getElementById('inquiries-list');
   const items = _allInquiries();
   if(!items.length){
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">אין פניות ממתינות</div>';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">אין פניות</div>';
   } else {
     // Populate slots map so onclick handlers can look up slots by inquiry ID
     items.forEach(iq=>{ if(iq.slots&&iq.slots.length) _iqSlotsMap[iq.id]=iq.slots; });
@@ -9100,19 +9182,29 @@ function openInquiriesPanel(){
       const dt = d.toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('he',{hour:'2-digit',minute:'2-digit'});
       const waPhone = (iq.phone||'').replace(/\D/g,'').replace(/^0/,'972');
       const waMsg = encodeURIComponent('בהמשך לפניה שלך בעניין '+iq.context+':\n');
-      return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+      const isDone = !!iq.done;
+      const cardStyle = isDone ? 'border:1px solid var(--border);background:var(--bg);opacity:.78' : 'border:1px solid var(--border);background:var(--white)';
+      const replyText = (iq.reply||'').trim();
+      const replyHtml = replyText
+        ? `<div style="margin-bottom:10px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:5px"><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:3px">תשובת המשרד</div><div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(replyText)}</div></div>`
+        : '';
+      const handleBtn = isDone
+        ? `<button onclick="markInquiryDone(${iq.rowNum},'${iq.id}',true)" style="flex:1;min-width:80px;padding:6px 8px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-family:inherit">החזר לטיפול</button>`
+        : `<button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:80px;padding:6px 8px;background:var(--slate);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-family:inherit">${ICON.checkCircle} טופל</button>`;
+      return `<div style="${cardStyle};border-radius:8px;padding:12px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-          <span style="font-weight:700;font-size:14px">${esc(iq.clientName)}</span>
+          <span style="font-weight:700;font-size:14px">${esc(iq.clientName)}${isDone?' <span style="font-size:10px;font-weight:600;color:var(--muted)">(טופל)</span>':''}</span>
           <span style="font-size:11px;color:var(--muted)">${dt}</span>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(iq.context)}</div>
         <div style="font-size:13px;margin-bottom:10px;white-space:pre-wrap">${esc(iq.message)}</div>
+        ${replyHtml}
         ${(iq.slots&&iq.slots.length)?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${iq.slots.map(s=>`<span style="padding:3px 8px;background:var(--blue-bg,#f0f4ff);border:1px solid var(--blue-border,#c7d6f7);color:var(--blue);border-radius:4px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${s.date} ${s.time}</span>`).join('')}</div>`:''}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${waPhone?`<a href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank" style="flex:1;min-width:80px;padding:6px 8px;background:#25d366;color:#fff;border-radius:4px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px">${ICON.whatsapp} הגב</a>`:''}
           ${waPhone?`<a href="https://wa.me/${waPhone}" target="_blank" style="flex:1;min-width:80px;padding:6px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px">${ICON.phone} שיחה</a>`:''}
-          ${(iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה'))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','',_iqSlotsMap[${JSON.stringify(iq.id)}]||[])" style="flex:1;min-width:80px;padding:6px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
-          <button onclick="markInquiryDone(${iq.rowNum},'${iq.id}')" style="flex:1;min-width:80px;padding:6px 8px;background:var(--slate);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-family:inherit">${ICON.checkCircle} טופל</button>
+          ${!isDone && ((iq.context||'').includes('פגישה')||((iq.message||'').includes('פגישה')))?`<button onclick="closeInquiriesPanel();openMeetingPicker(${iq.rowNum},'','',_iqSlotsMap[${JSON.stringify(iq.id)}]||[])" style="flex:1;min-width:80px;padding:6px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-family:inherit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> קבע פגישה</button>`:''}
+          ${handleBtn}
         </div>
       </div>`;
     }).join('');
@@ -9122,18 +9214,18 @@ function openInquiriesPanel(){
 function closeInquiriesPanel(){
   document.getElementById('inquiries-panel').style.display = 'none';
 }
-async function markInquiryDone(rowNum, inquiryId){
+async function markInquiryDone(rowNum, inquiryId, undo){
   const c = (allClients||[]).find(x=>x.rowNum===rowNum);
   if(!c) return;
   const list = c.inquiries||[];
   const iq = list.find(x=>x.id===inquiryId);
   if(!iq) return;
-  iq.done = true;
+  iq.done = !undo;
   // Mirror into _custState so the open customer card reflects the change
   // immediately without needing a full reload.
   if(_custState && _custState.rowNum === rowNum){
     const localIq = (_custState.inquiries||[]).find(x=>x.id===inquiryId);
-    if(localIq) localIq.done = true;
+    if(localIq) localIq.done = !undo;
   }
   // Write back to sheet column EF
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EF${rowNum}?valueInputOption=RAW`;
@@ -9145,7 +9237,7 @@ async function markInquiryDone(rowNum, inquiryId){
     if(panel && panel.style.display === 'flex') openInquiriesPanel();
     // If the customer card is open, re-render it so the inquiry disappears.
     if(_custState && _custState.rowNum === rowNum) renderCustomerArea();
-    showToast('סומן כטופל','ok');
+    showToast(undo ? 'הוחזר לטיפול' : 'סומן כטופל','ok');
   }catch(e){ showToast('שגיאה','err'); }
 }
 </script>

@@ -388,6 +388,7 @@ function handleGetRequests(body){
   const docs       = _parseList(row[COL.CV_DOCS-1]);
   const info       = _parseList(row[COL.CW_INFO-1]);
   const signatures = _parseList(row[COL.SIGS_DOCS-1]);
+  const inquiries  = _parseList(row[COL.CZ_INQUIRIES-1]);
 
   const pending = [], rejections = [];
   const _collect = (list, category) => {
@@ -455,6 +456,11 @@ function handleGetRequests(body){
     stage:   stage,
     questionnaire: _parseObj(row[COL.CY_QUEST-1]),
     pending, rejections,
+    // Inquiries — both sides of the conversation. Lawyer's reply (if any)
+    // lives on the same entry as iq.reply / iq.replyTs (written by the
+    // insolvency app via Sheets API). Client UI shows the original message
+    // and the reply, if present.
+    inquiries,
   };
 }
 
