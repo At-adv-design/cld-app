@@ -2029,6 +2029,7 @@ const COL_DJ = 'DJ';
 const COL_DK = 'DK';
 const C_EC_STAGE = 132;   // 0-based EC — stage: 'pre_order' | 'commercial' | ''
 const C_CY_QUEST = 133;   // 0-based ED — questionnaire JSON (Form 45)
+const C_SIGS = 134;       // 0-based EE — signature documents JSON [{id,text,files:[{id,name,url,ts,signedAt?}]}]
 const COL_EC = 'EC';
 const COL_DL = 'DL';
 const C_CZ_INQUIRIES = 135; // 0-based EF (1-based 136) — client inquiries JSON
@@ -4286,6 +4287,9 @@ async function loadCustomerPending(){
     // CW info questions — Q&A format. Server returns [{id, question, answer}].
     // We keep them on _custState.infoQs (same key as before, new shape).
     if(Array.isArray(res.info)) _custState.infoQs = res.info;
+    // EE signatures — list of signature documents. Same shape as docs:
+    //   [{id, text, files:[{id, name, url, ts, signedAt?}], status?}]
+    if(Array.isArray(res.signatures)) _custState.signatures = res.signatures;
     _custState.pendingLoading = false;
     renderCustomerArea();
   }catch(err){
@@ -4584,6 +4588,8 @@ function renderCustomerArea(){
       <button class="req-add-btn" onclick="addInfoQuestion()" style="margin-top:6px">+ הוסף שאלה</button>
     `)}
 
+    ${sect('signatures', 'מסמכים לחתימה', _signaturesBadge(), _renderSignaturesSectionBody())}
+
     ${sect('drive', 'תיקיית מסמכים — Google Drive', '', `
       <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
         <span class="cust-folder-icon">${(window.DocsFeature&&window.DocsFeature.icon)||''}</span>
@@ -4647,6 +4653,134 @@ function _reportsBadge(){
   if(p) parts.push('<span style="color:var(--orange);font-weight:700">'+p+' ממתינים</span>');
   if(a) parts.push('<span style="color:var(--green);font-weight:700">'+a+' אושרו</span>');
   return parts.join(' • ');
+}
+
+/* ════════ Signature documents (column EE) ════════
+   Lawyer uploads a PDF here → file lands in Drive at
+   "<client folder>/מסמכים לחתימה/ממתינים/", a JSON entry is appended
+   to column EE, and a WhatsApp notice goes to the client. */
+function _signaturesBadge(){
+  const list = (_custState && _custState.signatures) || [];
+  if(!list.length) return '<span style="color:var(--muted)">ריק</span>';
+  const pending = list.filter(s => !s.signedAt && (!s.files || !s.files.some(f=>f.signedAt))).length;
+  const signed  = list.length - pending;
+  const parts = [];
+  if(pending) parts.push('<span style="color:var(--orange);font-weight:700">'+pending+' לחתימה</span>');
+  if(signed)  parts.push('<span style="color:var(--green);font-weight:700">'+signed+' חתומים</span>');
+  return parts.join(' • ');
+}
+function _renderSignaturesSectionBody(){
+  const list = (_custState && _custState.signatures) || [];
+  let html = '';
+  if(list.length){
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">';
+    list.forEach((s, idx) => {
+      const f = (s.files && s.files[0]) || null;
+      const isSigned = !!(s.signedAt || (f && f.signedAt));
+      const statusLabel = isSigned
+        ? '<span style="font-size:10px;color:var(--green);font-weight:700;background:var(--green-bg);border:1px solid var(--green-border);padding:2px 7px;border-radius:3px">חתום</span>'
+        : '<span style="font-size:10px;color:var(--orange);font-weight:700;background:var(--orange-bg);border:1px solid var(--orange-border);padding:2px 7px;border-radius:3px">ממתין</span>';
+      const dateLabel = f && f.ts ? new Date(f.ts).toLocaleDateString('he-IL') : '';
+      html += `
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px">
+          <button onclick="event.stopPropagation();_openSignatureFile(${idx})" style="flex:1;background:transparent;border:none;text-align:right;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:2px;min-width:0">
+            <span style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.text || (f && f.name) || 'מסמך')}</span>
+            ${dateLabel?`<span style="font-size:10px;color:var(--muted);font-weight:500">נשלח ${esc(dateLabel)}</span>`:''}
+          </button>
+          ${statusLabel}
+          <button onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center">${ICON.trash||'×'}</button>
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += `
+    <input type="file" id="sig-upload-input" accept="application/pdf,.pdf" style="display:none" onchange="_handleSigUpload(event)"/>
+    <button class="req-add-btn" onclick="document.getElementById('sig-upload-input').click()" style="margin-top:6px">+ העלה מסמך לחתימה</button>
+    <div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:6px">העלאת PDF תשלח אוטומטית הודעת WhatsApp ללקוח עם בקשה לחתום באפליקציה.</div>
+  `;
+  return html;
+}
+async function _handleSigUpload(ev){
+  const file = (ev.target && ev.target.files && ev.target.files[0]);
+  if(!file) return;
+  ev.target.value = ''; // allow re-pick of same file later
+  if(!_custState || !_custState.rowNum){ showToast('אגף לקוח לא טעון','err'); return; }
+  if(!/pdf$/i.test(file.name) && file.type !== 'application/pdf'){
+    showToast('יש להעלות קובץ PDF בלבד','err'); return;
+  }
+  showToast('מעלה את המסמך…','ok');
+  try{
+    // 1. Ensure folder structure: <client>/מסמכים לחתימה/ממתינים/
+    const c = allClients.find(x => x.rowNum === _custState.rowNum);
+    const clientName = (_custState.name || (c && c.name) || '(ללא שם)').toString();
+    const clientFolder = await driveEnsureFolder(DRIVE_ROOT_ID, clientName);
+    const sigsRoot = await driveEnsureFolder(clientFolder.id, 'מסמכים לחתימה');
+    const pendingFolder = await driveEnsureFolder(sigsRoot.id, 'ממתינים');
+    // 2. Upload the PDF to "ממתינים"
+    const uploaded = await driveUploadFile(pendingFolder.id, file);
+    // 3. Append entry to column EE (signatures JSON)
+    const list = Array.isArray(_custState.signatures) ? _custState.signatures.slice() : [];
+    const entry = {
+      id: 'sig_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+      text: file.name.replace(/\.pdf$/i, ''),
+      files: [{ id: uploaded.id, name: uploaded.name, url: uploaded.webViewLink || uploaded.url || '', ts: Date.now() }],
+      status: 'pending'
+    };
+    list.push(entry);
+    await _saveSignaturesColumn(list);
+    _custState.signatures = list;
+    renderCustomerArea();
+    // 4. Notify client via WhatsApp
+    const phone = (c && c.phone) || _custState.phone || '';
+    if(phone){
+      const docTitle = entry.text || 'מסמך';
+      const message = `שלום. מסמך לחתימה - ${docTitle} - ממתין לחתימתך באפליקציה. חתום עליו בהקדם האפשרי בבקשה. תודה.`;
+      const r = await _sendWhatsAppViaBackend(phone, message);
+      if(r && r.ok) showToast('הקובץ הועלה והודעה נשלחה ללקוח','ok');
+      else showToast('הקובץ הועלה. שליחת WA נכשלה: ' + (r && r.error || 'unknown'), 'err');
+    } else {
+      showToast('הקובץ הועלה. אין טלפון ללקוח — לא נשלחה הודעה.','err');
+    }
+  }catch(e){
+    showToast('שגיאה: ' + (e.message || e), 'err');
+  }
+}
+async function _saveSignaturesColumn(list){
+  const SHEET_RANGE = `A${_custState.rowNum}:GZ${_custState.rowNum}`;
+  // We only need to write column EE. Compute the column letter once.
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EE${_custState.rowNum}?valueInputOption=RAW`;
+  await apiFetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({values: [[JSON.stringify(list)]]})
+  });
+}
+async function _sendWhatsAppViaBackend(phone, message){
+  try{
+    if(!CUSTOMER_API_URL) return {ok:false, error:'CUSTOMER_API_URL not set'};
+    const r = await fetch(CUSTOMER_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({action:'sendWhatsApp', accessToken: accessToken, phone, message})
+    });
+    return await r.json();
+  }catch(e){ return {ok:false, error: String(e.message||e)}; }
+}
+function _openSignatureFile(idx){
+  const s = (_custState && _custState.signatures && _custState.signatures[idx]) || null;
+  if(!s) return;
+  const f = (s.files && s.files[0]) || null;
+  if(!f || !f.id){ showToast('הקובץ לא נמצא','err'); return; }
+  if(typeof openDrivePreview === 'function'){
+    openDrivePreview({id: f.id, name: f.name, mimeType: 'application/pdf', webViewLink: f.url});
+  } else if(f.url){ window.open(f.url, '_blank'); }
+}
+async function _removeSignatureDoc(idx){
+  if(!confirm('למחוק מסמך זה מהרשימה? הקובץ יישאר ב-Drive.')) return;
+  const list = (_custState.signatures || []).slice();
+  list.splice(idx, 1);
+  await _saveSignaturesColumn(list);
+  _custState.signatures = list;
+  renderCustomerArea();
 }
 
 /* Body of the per-reports section: 6 cards (one per report). */
@@ -5715,6 +5849,32 @@ async function driveEnsureFolder(parentId, name){
   let f=await driveFindFolder(parentId, name);
   if(f) return f;
   return await driveCreateFolder(parentId, name);
+}
+
+/* Upload a single File (Blob) into a Drive folder. Uses multipart
+   upload so we can set name + parent in the same request. Returns
+   {id, name, webViewLink}. Used by the signatures upload flow. */
+async function driveUploadFile(parentId, file){
+  const metadata = {
+    name: file.name,
+    parents: [parentId]
+  };
+  const boundary = '-------at-' + Date.now() + Math.random().toString(36).slice(2);
+  const enc = new TextEncoder();
+  const head = enc.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+    JSON.stringify(metadata) + `\r\n` +
+    `--${boundary}\r\nContent-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`
+  );
+  const tail = enc.encode(`\r\n--${boundary}--\r\n`);
+  const body = new Blob([head, file, tail], {type: 'multipart/related; boundary=' + boundary});
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+    body
+  });
+  if(!r.ok) throw new Error('Drive upload failed: ' + r.status);
+  return await r.json();
 }
 
 /* List everything inside a folder. Returns array of {id, name,
