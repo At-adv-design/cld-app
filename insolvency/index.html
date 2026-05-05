@@ -1507,7 +1507,13 @@ body.focus-mode-active{overflow:hidden;}
         <button onclick="calNavMonth(1)" style="background:var(--bg);border:1px solid var(--border);padding:6px 9px;font-size:12px;cursor:pointer;font-family:inherit">›</button>
       </div>
     </div>
-    <div id="cal-month-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;padding:10px;background:var(--bg);flex-shrink:0"></div>
+    <div id="cal-month-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;padding:6px 8px;background:var(--bg);flex-shrink:0"></div>
+    <!-- Drag-down handle. Visible bar at top of the events area; tugging
+         it downward closes the overlay without saving (separate listener
+         attaches to .calendar-sheet itself). -->
+    <div class="cal-drag-handle" style="height:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--white);cursor:grab;user-select:none">
+      <span style="width:42px;height:4px;background:var(--border);border-radius:2px"></span>
+    </div>
     <div style="border-top:1px solid var(--border);padding:8px 12px;background:var(--white);font-size:12px;font-weight:700;color:var(--slate);flex-shrink:0">
       <span id="cal-selected-label">היום</span>
       <span id="cal-event-count" style="font-weight:500;color:var(--muted);margin-right:6px"></span>
@@ -1517,9 +1523,9 @@ body.focus-mode-active{overflow:hidden;}
 </div>
 <style>
 .cal-day{
-  aspect-ratio:1/1;background:var(--white);border:1px solid var(--border);
+  aspect-ratio:1.6/1;background:var(--white);border:1px solid var(--border);
   display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-  padding:3px 2px;font-size:11px;cursor:pointer;
+  padding:2px 2px;font-size:11px;cursor:pointer;
   font-family:inherit;color:var(--text);position:relative;user-select:none;
 }
 .cal-day.outside{opacity:.35;}
@@ -8175,16 +8181,20 @@ document.addEventListener('click', function(e){
   }
 });
 
-// Diagonal-up-right swipe to close. Only closes when the gesture
-// moves UP and to the RIGHT (towards the top-right corner) — this
-// avoids accidentally closing on regular scroll attempts.
+// Drag-down to close (no save). Two paths:
+//   1. The dedicated .cal-drag-handle bar — any downward drag closes.
+//   2. Anywhere on the modal except the events list / month grid — a
+//      strong downward swipe (>60px) closes too.
 (function attachCalendarSwipe(){
   const modal = document.getElementById('calendar-modal');
   if(!modal) return;
-  let sx = 0, sy = 0, tracking = false;
+  let sx = 0, sy = 0, tracking = false, fromHandle = false;
   modal.addEventListener('touchstart', e => {
-    if(e.target && e.target.closest && e.target.closest('#cal-events-list')) return;
-    if(e.target && e.target.closest && e.target.closest('#cal-month-grid')) return;
+    fromHandle = !!(e.target && e.target.closest && e.target.closest('.cal-drag-handle'));
+    if(!fromHandle){
+      if(e.target && e.target.closest && e.target.closest('#cal-events-list')) return;
+      if(e.target && e.target.closest && e.target.closest('#cal-month-grid')) return;
+    }
     sx = e.touches[0].clientX;
     sy = e.touches[0].clientY;
     tracking = true;
@@ -8195,11 +8205,11 @@ document.addEventListener('click', function(e){
     const ch = e.changedTouches[0];
     const dx = ch.clientX - sx;
     const dy = ch.clientY - sy;
-    // Diagonal UP-RIGHT (toward the top-right corner):
-    //   dx > 40 AND dy < -40  (positive X = right in LTR coords;
-    //   negative Y = up). Both must exceed the threshold so this is
-    //   a clear, intentional gesture and not random noise.
-    if(dx > 40 && dy < -40){
+    // Downward drag — close. Lower threshold from the handle (less travel
+    // needed since the user is intentionally tugging it). Anywhere else
+    // requires a stronger gesture so accidental scrolls don't close.
+    const threshold = fromHandle ? 30 : 60;
+    if(dy > threshold && Math.abs(dy) > Math.abs(dx) * 1.2){
       closeCalendarOverlay();
     }
   }, {passive:true});
