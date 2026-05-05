@@ -212,7 +212,12 @@ input,textarea,button{font-family:inherit;}
   overflow:hidden;flex-shrink:0;
 }
 .avatar img{width:100%;height:100%;object-fit:cover;}
+/* Logo locked at center of the left half of the header — same in all apps. */
 .header-logo{
+  position:absolute;
+  left:25%;
+  top:50%;
+  transform:translate(-50%, -50%);
   height:80px;object-fit:contain;
   pointer-events:none;
 }

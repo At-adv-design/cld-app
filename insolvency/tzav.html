@@ -67,8 +67,19 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .sticky-shell.no-anim{transition:none;}
 
 /* HEADER — sticky like leads/clients/potential. */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:flex-start;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1);will-change:transform;}
 .header-spacer{display:none;}
+/* Logo locked at center of the left half of the header — same in all apps. */
+#header-logo{
+  position:absolute;
+  left:25%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  height:80px;
+  object-fit:contain;
+  cursor:pointer;
+  pointer-events:auto;
+}
 /* Match leads app exactly: single-row header — controls inline.
    No flex-wrap so the logo position is locked to the visual-left edge
    regardless of how many controls there are (per user spec: logo

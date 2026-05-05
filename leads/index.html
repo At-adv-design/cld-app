@@ -1391,21 +1391,8 @@ window.addEventListener('popstate',(e)=>{
     _resetBackCount();
     return;
   }
-  // On the main tab — require 3 consecutive back-presses to leave
-  _backPressCount++;
-  // re-push so we don't actually leave yet
-  history.pushState({page:'app'},'');
-  if(_backPressCount<3){
-    showToast(`לחץ ${3-_backPressCount} פעמים נוספות כדי לצאת`);
-    clearTimeout(_backPressTimer);
-    _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
-    return;
-  }
-  // 3 presses reached — confirm before leaving the app
-  _backPressCount=0;
-  showConfirm('לצאת מהאפליקציה?','האפליקציה תיסגר אבל החיבור יישאר.',()=>{
-    history.go(-1);
-  },'צא');
+  // On the main tab — single back-press exits (per user request 2026-05-05).
+  history.go(-1);
 });
 
 function showApp(){

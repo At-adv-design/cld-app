@@ -84,7 +84,20 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
 /* Logo is absolutely positioned — its location does NOT depend on what
    else lives in the header (icons, counters, badges). It anchors to the
    visual-left edge of the header (which in RTL is `left:` in CSS). */
-#header-logo{position:absolute;left:16px;top:50%;transform:translateY(-50%);}
+/* Logo position is FIXED — divide the header into two halves and pin the
+   logo at the exact center of the LEFT half (visual-left = physical-left
+   in CSS). Nothing else affects it. height 80px for visual parity across
+   all apps. */
+#header-logo{
+  position:absolute;
+  left:25%;        /* center of the left half (0%-50%) */
+  top:50%;
+  transform:translate(-50%, -50%);
+  height:80px;
+  object-fit:contain;
+  cursor:pointer;
+  pointer-events:auto;
+}
 /* Right-side controls live in a vertical stack: top row = icon buttons,
    bottom row = the cards-count badge. flex-direction:column gives us the
    "icons on top, count below" layout the user asked for. */
@@ -7861,20 +7874,8 @@ window.addEventListener('popstate',()=>{
     exitTasksSection();
     return;
   }
-  // On the main page — require 3 consecutive back-presses inside 1.5s to
-  // actually exit. A single back press is easy to hit by accident; this acts
-  // as a built-in "are you sure?" confirmation. Each press shows a toast
-  // telling the user how many more presses are needed.
-  _backPressCount++;
-  history.pushState({page:'app'},'');
-  if(_backPressCount<3){
-    showToast(`לחץ ${3-_backPressCount} פעמים נוספות ליציאה`);
-    clearTimeout(_backPressTimer);
-    _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
-    return;
-  }
-  // Three consecutive presses — let the browser actually go back this time.
-  _backPressCount=0;
+  // On the main page — single back-press exits (per user request 2026-05-05).
+  // No more 3-press confirmation; trust the user.
   history.back();
 });
 
