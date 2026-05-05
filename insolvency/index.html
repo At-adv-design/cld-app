@@ -1979,6 +1979,11 @@ let _t1Value=0;
 // taps or transient errors.
 let _loadDataTimer=null;
 let waitingSet=new Set(JSON.parse(localStorage.getItem('ins_waiting')||'[]'));
+// Per-row timestamp of when each client was moved into the waiting list.
+// Used to sort the waiting list newest-first. Rows that existed in
+// waitingSet before this map was introduced get timestamp 0 (sorted to
+// the bottom) until the user moves them again.
+let waitingTs = JSON.parse(localStorage.getItem('ins_waiting_ts')||'{}');
 let curTab='main';
 // Tasks section (hidden by 4 logo taps)
 let logoTapCount=0;
@@ -3408,6 +3413,10 @@ function renderWaiting(){
       return haystack.includes(q);
     });
   }
+  // Sort newest-moved first. Clients moved to waiting before the timestamp
+  // map existed get ts=0 and fall to the bottom — they'll resurface to the
+  // top the next time the user actively moves them.
+  waiting.sort((a,b) => (waitingTs[b.rowNum]||0) - (waitingTs[a.rowNum]||0));
   if(!waiting.length){list.innerHTML='<div class="empty">אין תיקים'+(q?' תואמים לחיפוש':' בהמתנה')+'</div>';return;}
   list.innerHTML='';
   waiting.forEach(c=>{
@@ -3482,7 +3491,9 @@ function initSwipe(wrap,rowNum,action){
 
 function moveToWaiting(rowNum){
   waitingSet.add(rowNum);
+  waitingTs[rowNum] = Date.now();   // mark move time so list sorts newest-first
   localStorage.setItem('ins_waiting',JSON.stringify([...waitingSet]));
+  localStorage.setItem('ins_waiting_ts',JSON.stringify(waitingTs));
   // Remove from DOM immediately
   const el=document.querySelector(`[data-row="${rowNum}"]`);
   if(el)el.closest('.swipe-wrap').remove();
@@ -3494,7 +3505,9 @@ function moveToWaiting(rowNum){
 
 function restoreClient(rowNum){
   waitingSet.delete(rowNum);
+  delete waitingTs[rowNum];
   localStorage.setItem('ins_waiting',JSON.stringify([...waitingSet]));
+  localStorage.setItem('ins_waiting_ts',JSON.stringify(waitingTs));
   const el=document.querySelector(`[data-row="${rowNum}"]`);
   if(el)el.closest('.swipe-wrap').remove();
   updateWaitingTab();
