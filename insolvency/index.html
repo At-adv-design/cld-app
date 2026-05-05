@@ -4142,6 +4142,10 @@ function openCustomerArea(rowNum){
     supplDocsRequired: JSON.parse(JSON.stringify(c.supplDocsRequired || [])),
     supplDocsApproved: JSON.parse(JSON.stringify(c.supplDocsApproved || [])),
     rejections:        JSON.parse(JSON.stringify(c.rejections || [])),
+    // Client-sent inquiries (col EF) — surfaced inside each section by
+    // matching iq.context. So a client's "פניה בעניין השלמת פרטים" appears
+    // inside the השלמת פרטים section, not just the global inquiries panel.
+    inquiries:         JSON.parse(JSON.stringify(c.inquiries || [])),
     // pending uploads loaded async from Apps Script
     pending:           [],
     pendingLoading:    true,
@@ -4566,8 +4570,12 @@ function renderCustomerArea(){
   const infoBadge = (() => {
     const total = (_custState.infoQs||[]).length;
     const answered = (_custState.infoQs||[]).filter(q=>(q.answer||'').trim()).length;
-    if(!total) return '';
-    return total + ' שאלות' + (answered?' • <span style="color:var(--green);font-weight:700">'+answered+' עם תשובה</span>':'');
+    const inquiryCount = (_custState.inquiries||[]).filter(iq => !iq.done && (iq.context||'') === 'השלמת פרטים').length;
+    const parts = [];
+    if(inquiryCount) parts.push('<span style="color:var(--orange);font-weight:700">'+inquiryCount+' פניות חדשות</span>');
+    if(total) parts.push(total+' שאלות');
+    if(answered) parts.push('<span style="color:var(--green);font-weight:700">'+answered+' עם תשובה</span>');
+    return parts.join(' • ');
   })();
 
   const credsBadge = _custState.active ? '<span style="color:var(--green);font-weight:700">פעיל</span>' : '<span style="color:var(--muted)">לא פעיל</span>';
@@ -5582,14 +5590,39 @@ function _jsArg(obj){
    by the lawyer too — useful when the customer dictates an answer
    over the phone and the lawyer wants to record it directly.
    Persisted open-state per-question on _custState.infoQAOpen. */
+/* Render any unresolved client inquiries whose context matches `ctx`.
+   Used to surface פניות from the customer app inside the matching
+   section in the lawyer view (השלמת פרטים, השלמת מסמכים, וכו'). */
+function _renderInquiriesForContext(ctx){
+  if(!_custState) return '';
+  const items = (_custState.inquiries||[]).filter(iq => !iq.done && (iq.context||'') === ctx);
+  if(!items.length) return '';
+  return items.map(iq=>{
+    const d = new Date(iq.ts||Date.now());
+    const dt = d.toLocaleDateString('he',{day:'2-digit',month:'2-digit',year:'2-digit'})
+             + ' ' + d.toLocaleTimeString('he',{hour:'2-digit',minute:'2-digit'});
+    return `<div style="border:1px solid #E8D8B5;background:var(--orange-bg);border-radius:6px;padding:9px 11px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:var(--orange)">פניה מהלקוח</span>
+        <span style="font-size:10px;color:var(--muted)">${dt}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text);white-space:pre-wrap;margin-bottom:8px">${esc(iq.message||'')}</div>
+      <div style="display:flex;justify-content:flex-end">
+        <button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}')" style="background:var(--slate);color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">סמן כטופל</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function _renderInfoQAList(){
   if(!_custState) return '';
+  const inquiriesHtml = _renderInquiriesForContext('השלמת פרטים');
   const list = _custState.infoQs || [];
   if(!list.length){
-    return '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו שאלות. הקלד שאלות בעמודה CW או לחץ "+ הוסף שאלה".</div>';
+    return inquiriesHtml + '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו שאלות. הקלד שאלות בעמודה CW או לחץ "+ הוסף שאלה".</div>';
   }
   if(!_custState.infoQAOpen) _custState.infoQAOpen = {};
-  return list.map((q, idx) => {
+  return inquiriesHtml + list.map((q, idx) => {
     const id = q.id || ('qidx-'+idx);
     const text = q.question || q.text || '';
     const answer = q.answer || '';
@@ -9096,12 +9129,22 @@ async function markInquiryDone(rowNum, inquiryId){
   const iq = list.find(x=>x.id===inquiryId);
   if(!iq) return;
   iq.done = true;
+  // Mirror into _custState so the open customer card reflects the change
+  // immediately without needing a full reload.
+  if(_custState && _custState.rowNum === rowNum){
+    const localIq = (_custState.inquiries||[]).find(x=>x.id===inquiryId);
+    if(localIq) localIq.done = true;
+  }
   // Write back to sheet column EF
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EF${rowNum}?valueInputOption=RAW`;
   try{
     await apiFetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[JSON.stringify(list)]]})});
     _updateInquiriesBadge();
-    openInquiriesPanel(); // refresh panel
+    // If the global inquiries panel is open, refresh it. Otherwise leave it.
+    const panel = document.getElementById('inquiries-panel');
+    if(panel && panel.style.display === 'flex') openInquiriesPanel();
+    // If the customer card is open, re-render it so the inquiry disappears.
+    if(_custState && _custState.rowNum === rowNum) renderCustomerArea();
     showToast('סומן כטופל','ok');
   }catch(e){ showToast('שגיאה','err'); }
 }
