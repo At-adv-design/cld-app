@@ -4732,14 +4732,24 @@ async function _handleSigUpload(ev){
     renderCustomerArea();
     // 4. Notify client via WhatsApp
     const phone = (c && c.phone) || _custState.phone || '';
+    console.log('[sigUpload] step 4 — sending WhatsApp to', phone);
     if(phone){
       const docTitle = entry.text || 'מסמך';
       const message = `שלום. מסמך לחתימה - ${docTitle} - ממתין לחתימתך באפליקציה. חתום עליו בהקדם האפשרי בבקשה. תודה.`;
       const r = await _sendWhatsAppViaBackend(phone, message);
-      if(r && r.ok) showToast('הקובץ הועלה והודעה נשלחה ללקוח','ok');
-      else showToast('הקובץ הועלה. שליחת WA נכשלה: ' + (r && r.error || 'unknown'), 'err');
+      console.log('[sigUpload] WA result', r);
+      if(r && r.ok){
+        showToast('הקובץ הועלה והודעה נשלחה ללקוח','ok');
+      } else {
+        const msg = 'הקובץ הועלה. שליחת WA נכשלה: ' + (r && r.error || 'unknown');
+        showToast(msg, 'err');
+        // Also alert so the lawyer can't miss it (toasts auto-dismiss).
+        try{ alert(msg); }catch(_){}
+      }
     } else {
-      showToast('הקובץ הועלה. אין טלפון ללקוח — לא נשלחה הודעה.','err');
+      const msg = 'הקובץ הועלה. אין טלפון ללקוח — לא נשלחה הודעה.';
+      showToast(msg,'err');
+      try{ alert(msg); }catch(_){}
     }
   }catch(e){
     showToast('שגיאה: ' + (e.message || e), 'err');
@@ -4757,13 +4767,21 @@ async function _saveSignaturesColumn(list){
 }
 async function _sendWhatsAppViaBackend(phone, message){
   try{
-    if(!CUSTOMER_API_URL) return {ok:false, error:'CUSTOMER_API_URL not set'};
+    if(!CUSTOMER_API_URL){ console.warn('[sigWA] CUSTOMER_API_URL not set'); return {ok:false, error:'CUSTOMER_API_URL not set'}; }
+    if(!accessToken){     console.warn('[sigWA] no accessToken on lawyer side'); return {ok:false, error:'no accessToken'}; }
+    console.log('[sigWA] POSTing sendWhatsApp', {phone, msgLen: (message||'').length, tokenPrefix: accessToken.substring(0,12)+'…'});
     const r = await fetch(CUSTOMER_API_URL, {
       method: 'POST',
       body: JSON.stringify({action:'sendWhatsApp', accessToken: accessToken, phone, message})
     });
-    return await r.json();
-  }catch(e){ return {ok:false, error: String(e.message||e)}; }
+    const text = await r.text();
+    console.log('[sigWA] response status', r.status, 'body', text.substring(0,500));
+    let data; try{ data = JSON.parse(text); }catch(_){ return {ok:false, error:'non-JSON response: ' + text.substring(0,200)}; }
+    return data;
+  }catch(e){
+    console.warn('[sigWA] fetch failed', e);
+    return {ok:false, error: String(e.message||e)};
+  }
 }
 function _openSignatureFile(idx){
   const s = (_custState && _custState.signatures && _custState.signatures[idx]) || null;

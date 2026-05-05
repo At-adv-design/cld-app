@@ -100,18 +100,20 @@ const LAWYER_ALLOWLIST = [
 ];
 
 function _verifyLawyerToken(accessToken){
-  if(!accessToken) return null;
+  if(!accessToken) return {ok:false, reason:'no token'};
   try{
     const r = UrlFetchApp.fetch(
       'https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(accessToken),
       {muteHttpExceptions: true}
     );
-    if(r.getResponseCode() !== 200) return null;
+    if(r.getResponseCode() !== 200) return {ok:false, reason:'tokeninfo HTTP ' + r.getResponseCode()};
     const info = JSON.parse(r.getContentText());
     const email = (info.email || '').toLowerCase();
-    if(!LAWYER_ALLOWLIST.includes(email)) return null;
-    return {email, info};
-  }catch(_){ return null; }
+    if(!LAWYER_ALLOWLIST.includes(email)){
+      return {ok:false, reason:'email not in allowlist', seenEmail:email, allowed:LAWYER_ALLOWLIST};
+    }
+    return {ok:true, email, info};
+  }catch(e){ return {ok:false, reason:'verify exception: ' + (e.message||e)}; }
 }
 
 /* Login rate limit. Stored as `login_fail_<username>` ג†’ JSON {n, t}.
@@ -180,7 +182,10 @@ function _adminListSecretKeys(){
 */
 function handleSendWhatsApp(body){
   const auth = _verifyLawyerToken(body.accessToken);
-  if(!auth){ _audit('sendWhatsApp_unauthorized', '', {phone: body && body.phone}); throw new Error('unauthorized'); }
+  if(!auth || !auth.ok){
+    _audit('sendWhatsApp_unauthorized', (auth && auth.seenEmail) || '', {phone: body && body.phone, reason: auth && auth.reason});
+    throw new Error('unauthorized: ' + (auth && auth.reason ? auth.reason : 'unknown') + (auth && auth.seenEmail ? ' (email seen: ' + auth.seenEmail + ')' : ''));
+  }
   const phone = (body.phone||'').toString().replace(/\D/g,'');
   const message = (body.message||'').toString();
   if(!phone || !message) throw new Error('missing phone or message');
@@ -233,7 +238,7 @@ function _verifyToken(token){
 // ג”€ג”€ג”€ Action: login ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 function handleLogin(body){
   const username = body.username, password = body.password;
-  if(!username || !password) throw new Error('׳”׳–׳ ׳©׳ ׳׳©׳×׳׳© ׳•׳¡׳™׳¡׳׳”');
+  if(!username || !password) throw new Error('הזן שם משתמש וסיסמה');
   // Rate-limit per username ג€” block after RATE_LIMIT_MAX failed attempts
   // in RATE_LIMIT_WINDOW_MS. Bots / brute-forcers get nothing useful.
   const rate = _loginRateState(username);
@@ -245,7 +250,7 @@ function handleLogin(body){
   if(!found){
     _loginRateRecord(rate, false);
     _audit('login_failed', username, {attempts: rate.n + 1});
-    throw new Error('׳©׳ ׳׳©׳×׳׳© ׳׳• ׳¡׳™׳¡׳׳” ׳©׳’׳•׳™׳™׳, ׳׳• ׳©׳—׳™׳‘׳•׳¨ ׳׳§׳•׳— ׳׳ ׳”׳•׳₪׳¢׳');
+    throw new Error('שם משתמש או סיסמה שגויים, או שחיבור לקוח לא הופעל');
   }
   _loginRateRecord(rate, true);
   _audit('login_success', username, {row: found.rowNum});
@@ -313,7 +318,7 @@ function handleGetRequests(body){
     if(req.mergedPdfId && req.status === 'approved'){
       docsApproved.push({
         fileId: req.mergedPdfId,
-        name: req.mergedPdfName || (req.text ? req.text + '.pdf' : '׳׳¡׳׳.pdf'),
+        name: req.mergedPdfName || (req.text ? req.text + '.pdf' : 'מסמך.pdf'),
         url: req.mergedPdfUrl,
         reqId: req.id, reqText: req.text || '',
         approvedAt: req.mergedAt || req.approvedAt || 0,
@@ -350,29 +355,29 @@ function handleUploadFile(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
   const sheet = _sheet();
-  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳׳ ׳©׳';
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
 
   // Two-stage flow:
-  //   Pending review ג†’ "׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—" (pending bin)
-  //   After approval ג†’ "׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳" (final, locked)
+  //   Pending review ג†’ "מסמכים ששלח הלקוח" (pending bin)
+  //   After approval ג†’ "השלמת מסמכים" (final, locked)
   // Reports and info still use the old per-stage subfolders.
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
   let target;
   if(p.category === 'reports'){
-    const inboxFolder = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳”׳×׳§׳‘׳׳• ׳׳”׳׳§׳•׳—');
-    const reportsRoot = _ensureFolder(inboxFolder, '׳׳¡׳׳›׳™ ׳“׳•׳—׳•׳×');
-    target = _ensureFolder(reportsRoot, '׳“׳•׳— ' + (p.reportNum || '?'));
+    const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
+    const reportsRoot = _ensureFolder(inboxFolder, 'מסמכי דוחות');
+    target = _ensureFolder(reportsRoot, 'דוח ' + (p.reportNum || '?'));
   } else if(p.category === 'docs'){
-    // PENDING bin ג€” stays here until lawyer approves; then file moves to ׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳
-    target = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—');
+    // PENDING bin ג€” stays here until lawyer approves; then file moves to השלמת מסמכים
+    target = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
   } else if(p.category === 'info'){
-    const inboxFolder = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳”׳×׳§׳‘׳׳• ׳׳”׳׳§׳•׳—');
-    target = _ensureFolder(inboxFolder, '׳”׳©׳׳׳× ׳₪׳¨׳˜׳™׳');
+    const inboxFolder = _ensureFolder(clientFolder, 'מסמכים שהתקבלו מהלקוח');
+    target = _ensureFolder(inboxFolder, 'השלמת פרטים');
   } else if(p.category === 'pre_order_docs'){
-    target = _ensureFolder(clientFolder, '׳¦׳• ׳₪׳×׳™׳—׳”');
+    target = _ensureFolder(clientFolder, 'צו פתיחה');
   } else {
-    throw new Error('׳§׳˜׳’׳•׳¨׳™׳” ׳׳ ׳×׳§׳™׳ ׳”');
+    throw new Error('קטגוריה לא תקינה');
   }
 
   // Filename: use the requirement text (sanitized) as the canonical name.
@@ -438,7 +443,7 @@ function handleSubmitAnswer(p){
   const cell  = sheet.getRange(t.rowNum, COL.CW_INFO);
   const list  = _parseList(cell.getValue());
   const req   = list.find(r => r.id === p.reqId);
-  if(!req) throw new Error('׳₪׳¨׳™׳˜ ׳׳ ׳ ׳׳¦׳');
+  if(!req) throw new Error('פריט לא נמצא');
   req.answer     = String(p.answer || '');
   req.status     = 'uploaded';
   req.answeredAt = Date.now();
@@ -475,7 +480,7 @@ function handleRemoveFile(p){
 function handleCloseReport(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
-  if(!p.reportNum) throw new Error('׳׳¡׳₪׳¨ ׳“׳•׳— ׳—׳¡׳¨');
+  if(!p.reportNum) throw new Error('מספר דוח חסר');
   const sheet = _sheet();
   const repCell = sheet.getRange(t.rowNum, COL.CU_REPORTS);
   const repList = _parseList(repCell.getValue());
@@ -497,10 +502,10 @@ function handleCloseReport(p){
 function handleSaveQuestionnaire(p){
   const t = _verifyToken(p.token);
   if(!t) throw new Error('׳₪׳’ ׳×׳•׳§׳£ ׳”׳›׳ ׳™׳¡׳” ג€” ׳”׳×׳—׳‘׳¨ ׳׳—׳“׳©');
-  if(!p.data || typeof p.data !== 'object') throw new Error('׳ ׳×׳•׳ ׳™ ׳©׳׳׳•׳ ׳—׳¡׳¨׳™׳');
+  if(!p.data || typeof p.data !== 'object') throw new Error('נתוני שאלון חסרים');
   p.data._savedAt = new Date().toISOString();
   const sheet = _sheet();
-  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳§׳•׳—';
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'לקוח';
   sheet.getRange(t.rowNum, COL.CY_QUEST).setValue(JSON.stringify(p.data));
   // Also write to a Google Sheet in the client's Drive folder
   try{ _saveQuestToSheet(clientName, p.data); }catch(e){ Logger.log('Sheet save failed: '+e); }
@@ -510,7 +515,7 @@ function handleSaveQuestionnaire(p){
 function _saveQuestToSheet(clientName, d){
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
-  const tzavFolder   = _ensureFolder(clientFolder, '׳¦׳• ׳₪׳×׳™׳—׳”');
+  const tzavFolder   = _ensureFolder(clientFolder, 'צו פתיחה');
   const sheetName    = '׳©׳׳׳•׳ ג€” ' + clientName;
 
   // Find existing sheet or create new one
@@ -563,7 +568,7 @@ function _saveQuestToSheet(clientName, d){
 
   let row = 1;
   // Title row
-  ws.getRange(row, 1, 1, 2).merge().setValue('׳©׳׳׳•׳ ׳׳§׳•׳— ג€” ' + clientName)
+  ws.getRange(row, 1, 1, 2).merge().setValue('׳©׳׳׳•׳ לקוח ג€” ' + clientName)
     .setFontSize(14).setFontWeight('bold')
     .setBackground('#1a1a2e').setFontColor('#ffffff');
   ws.getRange(row, 1, 1, 2).setHorizontalAlignment('center');
@@ -647,8 +652,8 @@ function handleGetQuestionnaire(p){
 //
 // PDF inputs are skipped (would need Drive.Files.copy + convert).
 function _appendFileToMergedPdf(req, fileId, clientFolder){
-  const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120) || '׳׳¡׳׳';
-  const pdfName = sanitize(req.text || '׳׳¡׳׳') + '.pdf';
+  const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120) || 'מסמך';
+  const pdfName = sanitize(req.text || 'מסמך') + '.pdf';
   const A4_WIDTH = 520;
 
   let driveFile;
@@ -697,7 +702,7 @@ function _appendFileToMergedPdf(req, fileId, clientFolder){
 
   // Re-export Doc as PDF (replaces previous PDF)
   const pdfBlob = DriveApp.getFileById(doc.getId()).getAs(MimeType.PDF).setName(pdfName);
-  const finalFolder = _ensureFolder(clientFolder, '׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳');
+  const finalFolder = _ensureFolder(clientFolder, 'השלמת מסמכים');
 
   // Trash the previous PDF, if any
   if(req.mergedPdfId){
@@ -735,7 +740,7 @@ function handleApproveItem(p){
   if(!req){ return {ok: true}; }
 
   const isDocs = (p.category === 'docs' || p.category === 'pre_order_docs');
-  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳׳ ׳©׳';
+  const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
   const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
   const clientFolder = _ensureFolder(root, clientName);
 
@@ -773,10 +778,10 @@ function handleApproveItem(p){
       }
     }
 
-    // PDF / other input: just move to ׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳, mark as approved (separate)
+    // PDF / other input: just move to השלמת מסמכים, mark as approved (separate)
     if(!isImageMerged){
       try{
-        const finalFolder = _ensureFolder(clientFolder, '׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳');
+        const finalFolder = _ensureFolder(clientFolder, 'השלמת מסמכים');
         const driveFile   = DriveApp.getFileById(p.fileId);
         const sanitize = s => String(s||'').replace(/[\/\\?%*:|"<>]/g,'').trim().slice(0,120);
         const reqText = sanitize(req.text || '');
@@ -842,7 +847,7 @@ function handleRejectItem(p){
 
 // ג”€ג”€ג”€ Action: unapproveItem ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 // Reverses an approval. For docs: physically move the file back from
-// "׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳" to the pending bin "׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—" and clear the
+// "השלמת מסמכים" to the pending bin "מסמכים ששלח הלקוח" and clear the
 // locked/approved flags on the file entry.
 function handleUnapproveItem(p){
   const t = _verifyToken(p.token);
@@ -862,12 +867,12 @@ function handleUnapproveItem(p){
 
   if(isDocs && fileId){
     // Move the file back to pending bin (works for merged PDF too ג€”
-    // it now lives in ׳”׳©׳׳׳× ׳׳¡׳׳›׳™׳ after merge; this moves it back).
+    // it now lives in השלמת מסמכים after merge; this moves it back).
     try{
-      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || '׳׳׳ ׳©׳';
+      const clientName = (sheet.getRange(t.rowNum, COL.NAME).getValue() || '').toString().trim() || 'ללא שם';
       const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
       const clientFolder  = _ensureFolder(root, clientName);
-      const pendingFolder = _ensureFolder(clientFolder, '׳׳¡׳׳›׳™׳ ׳©׳©׳׳— ׳”׳׳§׳•׳—');
+      const pendingFolder = _ensureFolder(clientFolder, 'מסמכים ששלח הלקוח');
       const driveFile     = DriveApp.getFileById(fileId);
       const parents = driveFile.getParents();
       while(parents.hasNext()){
