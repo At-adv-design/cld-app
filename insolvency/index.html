@@ -6268,11 +6268,9 @@ function renderDriveItem(f){
 
 /* Open a single file in the preview overlay. Images and PDFs render
    inline; everything else just shows a link to open in Drive.
-   _drivePreviewOpen tracks modal state independently of history.state so
-   we don't stack history entries when swapping between files (next-pending
-   after approve/reject) and so opening a new doc after a previous close
-   always works regardless of how the close happened. */
-let _drivePreviewOpen = false;
+   History handling: replaceState if we're already in drive-preview mode
+   (e.g., swapping content via _jumpToNextPendingOrClose after approve/
+   reject) — otherwise pushState would stack phantom entries. */
 function openDrivePreview(file){
   const m=document.getElementById('drive-preview-modal');
   document.getElementById('drive-preview-name').textContent=file.name||'';
@@ -6280,9 +6278,10 @@ function openDrivePreview(file){
   ext.href=file.webViewLink || ('https://drive.google.com/file/d/'+file.id+'/view');
   const body=document.getElementById('drive-preview-body');
   m.style.display='flex';
-  if(!_drivePreviewOpen){
+  if(history.state && history.state.page === 'drive-preview'){
+    history.replaceState({page:'drive-preview'},'');
+  } else {
     history.pushState({page:'drive-preview'},'');
-    _drivePreviewOpen = true;
   }
   // Drive's iframe preview works for any file type (PDF, images, Word,
   // Excel, etc.) without needing a token with drive.readonly. Browser
@@ -6315,10 +6314,7 @@ function openDrivePreview(file){
 }
 function closeDrivePreview(){
   document.getElementById('drive-preview-modal').style.display='none';
-  if(_drivePreviewOpen){
-    _drivePreviewOpen = false;
-    if(history.state && history.state.page === 'drive-preview') popHistorySilently();
-  }
+  if(history.state && history.state.page === 'drive-preview') popHistorySilently();
 }
 
 function showLoadingOverlay(show){
@@ -7988,7 +7984,6 @@ window.addEventListener('popstate',()=>{
     document.getElementById('drive-preview-modal').style.display === 'flex';
   if(drivePreviewOpen){
     document.getElementById('drive-preview-modal').style.display = 'none';
-    _drivePreviewOpen = false;
     return;
   }
   const driveBrowserOpen = document.getElementById('drive-browser-modal') &&
