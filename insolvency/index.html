@@ -1143,6 +1143,7 @@ body.focus-mode-active{overflow:hidden;}
           <div class="dd-panel">
             <div class="dd-opt active" data-val="all" onclick="pickF('inj',this,'all','הכל')">הכל</div>
             <div class="dd-opt" data-val="urgent" onclick="pickF('inj',this,'urgent','דחוף')">דחוף</div>
+            <div class="dd-opt" data-val="active" onclick="pickF('inj',this,'active','פעיל')">פעיל</div>
           </div>
         </div>
       </div>
@@ -2645,6 +2646,9 @@ function parseClient(row,rowNum){
   // INJUNCTION
   const alDate=parseDate(g(C_AL));
   const injUrgent=alDate&&alDate<=in7;
+  // Active = there's any date in AL (an injunction-end-date is set), even
+  // if it's far in the future. Used by the new 'פעיל' filter option.
+  const injActive=!!alDate;
 
   // SERVICE
   const bgDate=parseDate(g(C_BG));
@@ -2702,7 +2706,7 @@ function parseClient(row,rowNum){
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
-    injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
+    injUrgent,injActive,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
     // AL: end-date of "עיכוב הליכים" (delay of proceedings). Render as a
     // small badge inside the section if present.
     injEndDate:alDate?(String(alDate.getDate()).padStart(2,'0')+'/'+String(alDate.getMonth()+1).padStart(2,'0')+'/'+String(alDate.getFullYear()).slice(2)):'',
@@ -2817,7 +2821,15 @@ function pickF(type, optEl, val, displayText){
   if(type==='docs') fDocs=val;
   else if(type==='inj') fInj=val;
   else if(type==='srv') fSrv=val;
-  const color = val==='all' ? null : (val==='urgent' ? 'red' : 'orange');
+  // Color tier per option:
+  //   all → neutral (no class)
+  //   urgent → red    (darkest ash)
+  //   warning → orange (mid ash)
+  //   active → orange (mid ash) — same tier as warning, since it's
+  //                                "noteworthy" but not urgent
+  let color = null;
+  if(val === 'urgent')                       color = 'red';
+  else if(val === 'warning' || val === 'active') color = 'orange';
   _applyPick(optEl, displayText, color);
   applyFilters();
 }
@@ -2920,6 +2932,7 @@ function applyFilters(){
     if(fDocs==='urgent'&&!c.docsHighUrgent)return false;
     if(fDocs==='warning'&&!c.docsLowUrgent)return false;
     if(fInj==='urgent'&&!c.injUrgent)return false;
+    if(fInj==='active'&&!c.injActive)return false;
     if(fSrv==='urgent'&&!c.srvUrgent)return false;
     if(fSrv==='warning'&&!c.srvWarning)return false;
     return true;
