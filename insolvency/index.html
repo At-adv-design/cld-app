@@ -1548,6 +1548,20 @@ body.focus-mode-active{overflow:hidden;}
 .cal-hour-content{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;}
 .cal-hour-row.cal-hour-now{background:rgba(58,91,176,.06);}
 .cal-hour-row.cal-hour-now .cal-hour-label{color:#3A5BB0;}
+/* Bookable empty hour rows (only in meeting-pick mode). Visible call to
+   action: dashed green border + a "＋ tap to book" hint. */
+.cal-hour-row.cal-hour-bookable{
+  cursor:pointer;background:var(--green-bg);
+  border:1px dashed var(--green-border);
+  border-radius:5px;padding:6px 8px;margin:2px 0;
+  transition:background .12s,border-color .12s;
+}
+.cal-hour-row.cal-hour-bookable:hover{background:var(--white);border-color:var(--green);}
+.cal-hour-row.cal-hour-bookable .cal-hour-label{color:var(--green);}
+.cal-hour-book-hint{
+  font-size:11px;font-weight:700;color:var(--green);
+  letter-spacing:.2px;
+}
 </style>
 
 <div id="ops-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,40,0.5);z-index:300;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);">
@@ -6490,6 +6504,9 @@ async function _createCalendarEventDirect(summary, startIso, endIso, description
 }
 let _insMtgPick = {year:0,month:0,day:0,viewMonth:0,viewYear:0,hour:10,minute:0};
 let _insMtgClient = null;
+// Toggled by openMeetingPicker — when true, the calendar overlay shows
+// empty hour rows as bookable (clicking saves a meeting for _insMtgClient).
+let _insMtgPickMode = false;
 let _insSheetId = null;      // insolvency sheet internal ID (for batchUpdate)
 let _potSheetId = null;      // potential sheet internal ID (for batchUpdate)
 let _insMtgSlots = [];
@@ -6500,41 +6517,50 @@ function openMeetingPicker(rowNum, bvCurrent, bwCurrent, slots){
   if(!c) return;
   _insMtgClient = c;
   _insMtgSlots = Array.isArray(slots) ? slots : [];
-  const now = new Date();
-  _insMtgPick.year = now.getFullYear();
-  _insMtgPick.month = now.getMonth()+1;
-  _insMtgPick.day = now.getDate();
-  _insMtgPick.viewMonth = _insMtgPick.month;
-  _insMtgPick.viewYear = _insMtgPick.year;
-  let h = now.getHours(), m = now.getMinutes();
-  if(m<30){m=30;}else{m=0;h++;}
-  if(h<8){h=8;m=0;} if(h>=20){h=8;m=0;}
-  _insMtgPick.hour = h; _insMtgPick.minute = m;
-  document.getElementById('ins-meeting-name').textContent =
-    (c.name||'')+(c.caseNum?` • תיק ${c.caseNum}`:'')+( c.phone?` • ${c.phone}`:'');
-  // Show client-proposed slots if any
-  const slotsDiv = document.getElementById('ins-client-slots');
-  const slotsList = document.getElementById('ins-client-slots-list');
-  if(_insMtgSlots.length){
-    slotsList.innerHTML = _insMtgSlots.map((s,i) =>
-      `<button type="button" onclick="insPickClientSlot('${s.date}','${s.time}')" style="padding:5px 10px;background:#fff;border:1px solid #3a5ba0;color:#3a5ba0;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer">📅 ${s.date} ${s.time}</button>`
-    ).join('');
-    slotsDiv.style.display='block';
-  } else {
-    slotsDiv.style.display='none';
-    slotsList.innerHTML='';
+  // Mark meeting-pick mode so the calendar overlay knows to make empty
+  // hours bookable. The user's existing schedule is fully visible there;
+  // tapping an empty hour saves the meeting directly.
+  _insMtgPickMode = true;
+  // Show a small banner inside the overlay with the client name + any
+  // client-proposed slots (so the lawyer can pick those quickly).
+  _insRenderMeetingBanner(c, _insMtgSlots);
+  openCalendarOverlay();
+}
+/* Banner at the top of the calendar overlay during meeting-pick mode.
+   Shows who we're scheduling with, and any client-proposed slots that
+   came from an inquiry. Hidden when overlay is opened standalone. */
+function _insRenderMeetingBanner(c, slots){
+  let banner = document.getElementById('ins-cal-meeting-banner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'ins-cal-meeting-banner';
+    banner.style.cssText = 'background:var(--blue-bg);border:1px solid var(--blue-border);padding:10px 12px;margin:8px 12px;border-radius:6px;font-size:13px;color:var(--text);font-weight:600;display:flex;flex-direction:column;gap:6px';
+    const cm = document.getElementById('calendar-modal');
+    const sheet = cm && cm.querySelector('.modal-sheet, .cal-sheet, .calendar-sheet') || cm;
+    if(sheet) sheet.insertBefore(banner, sheet.firstChild);
   }
-  _insRenderCal();
-  _insRenderSlots();
-  _insSyncInputs();
-  document.getElementById('ins-meeting-modal').style.display='flex';
-  history.pushState({page:'ins-meeting'},'');
-  // Auto-open Google Calendar overlay so lawyer can check schedule
-  setTimeout(()=>openCalendarOverlay(), 300);
+  const slotsHtml = (slots && slots.length)
+    ? `<div style="display:flex;flex-wrap:wrap;gap:5px"><span style="font-size:11px;color:var(--muted);font-weight:600">הציעו:</span>${slots.map(s=>`<button type="button" onclick="insPickClientSlot('${s.date}','${s.time}')" style="padding:3px 9px;background:#fff;border:1px solid var(--blue);color:var(--blue);border-radius:4px;font-size:11px;font-weight:700;cursor:pointer">📅 ${s.date} ${s.time}</button>`).join('')}</div>`
+    : '';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:var(--blue);flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>קביעת פגישה — <span style="color:var(--blue)">${esc(c.name||'')}</span>${c.phone?` <span style="color:var(--muted);font-weight:500;font-size:11px">• ${esc(c.phone)}</span>`:''}</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);font-weight:500">בחר יום ⟶ לחץ על שעה פנויה כדי לקבוע</div>
+    ${slotsHtml}
+  `;
+  banner.style.display = 'flex';
+}
+function _insHideMeetingBanner(){
+  const banner = document.getElementById('ins-cal-meeting-banner');
+  if(banner) banner.style.display = 'none';
 }
 
-function insPickClientSlot(dateStr, timeStr){
-  // Parse DD/MM/YYYY HH:MM
+/* Old in-modal version kept only for reference — superseded by the
+   async insPickClientSlot defined alongside _calBookSlot below.
+   Renamed to avoid collision with the new one. */
+function _legacyInsPickClientSlotInModal(dateStr, timeStr){
   const [dd,mm,yyyy] = dateStr.split('/').map(Number);
   const [hh,mi] = timeStr.split(':').map(Number);
   _insMtgPick.year=yyyy; _insMtgPick.month=mm; _insMtgPick.day=dd;
@@ -7739,11 +7765,50 @@ function openCalendarOverlay(){
 }
 function closeCalendarOverlay(){
   document.getElementById('calendar-modal').style.display = 'none';
+  // Leaving meeting-pick mode when overlay closes — also hide the banner.
+  _insMtgPickMode = false;
+  _insHideMeetingBanner();
   // Intentionally NOT calling history.back() / popHistorySilently here.
   // The calendar didn't add its own history entry, so closing it must
   // not pop anything — otherwise it would also close the note-modal
   // (call-summary) that sits underneath, which is exactly what the
   // user complained about.
+}
+
+/* User tapped an empty hour row in the calendar overlay while in
+   meeting-pick mode. Save the meeting for _insMtgClient at the chosen
+   day (_calSelected) and hour, exactly like leads' _calBookSlot. */
+async function _calBookSlot(hour){
+  if(!_insMtgPickMode || !_insMtgClient || !_calSelected){
+    closeCalendarOverlay();
+    return;
+  }
+  const [yyyy, mm, dd] = _calSelected.split('-').map(Number);
+  const clampedHour = Math.max(8, Math.min(20, hour));
+  const pad = n => String(n).padStart(2, '0');
+  // Sync the hidden inputs that saveInsMeeting reads.
+  document.getElementById('ins-meeting-date').value = `${yyyy}-${pad(mm)}-${pad(dd)}`;
+  document.getElementById('ins-meeting-start').value = `${pad(clampedHour)}:00`;
+  // Also update _insMtgPick state so any other code is consistent.
+  _insMtgPick.year = yyyy; _insMtgPick.month = mm; _insMtgPick.day = dd;
+  _insMtgPick.hour = clampedHour; _insMtgPick.minute = 0;
+  closeCalendarOverlay();
+  // Delegate to the existing save flow (sheet write + WhatsApp + Calendar event).
+  await saveInsMeeting();
+}
+/* Used by client-proposed slot buttons in the banner: pre-fills the
+   date+time and saves immediately, just like a calendar tap. */
+async function insPickClientSlot(dateStr, timeStr){
+  if(!_insMtgClient) return;
+  const [dd, mm, yyyy] = dateStr.split('/').map(Number);
+  const [hh, mi] = timeStr.split(':').map(Number);
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('ins-meeting-date').value = `${yyyy}-${pad(mm)}-${pad(dd)}`;
+  document.getElementById('ins-meeting-start').value = `${pad(hh)}:${pad(mi)}`;
+  _insMtgPick.year=yyyy; _insMtgPick.month=mm; _insMtgPick.day=dd;
+  _insMtgPick.hour=hh;   _insMtgPick.minute=mi;
+  closeCalendarOverlay();
+  await saveInsMeeting();
 }
 
 function _calFmtDay(d){
@@ -7861,8 +7926,11 @@ function _calRenderDay(){
 
   const list = document.getElementById('cal-events-list');
   if(!events.length){
-    list.innerHTML = '<div class="cal-empty">אין אירועים ביום זה — פנוי</div>';
-    return;
+    if(!_insMtgPickMode){
+      list.innerHTML = '<div class="cal-empty">אין אירועים ביום זה — פנוי</div>';
+      return;
+    }
+    // Meeting-pick mode — fall through so the full bookable hour-grid renders.
   }
 
   // Build a clear time-grid layout. Hours from 8:00 to 22:00, each hour
@@ -7889,7 +7957,9 @@ function _calRenderDay(){
         </div>`).join('') + '</div>';
   }
 
-  // Group timed events by hour
+  // Group timed events by hour. In meeting-pick mode (_insMtgPickMode),
+  // empty hour rows become bookable: tapping calls _calBookSlot(h) which
+  // saves the meeting for _insMtgClient at the current _calSelected day.
   html += '<div class="cal-hourgrid">';
   for(let h = HOUR_START; h <= HOUR_END; h++){
     const hourEvents = timed.filter(ev => {
@@ -7898,11 +7968,18 @@ function _calRenderDay(){
     });
     const isCurrent = (date.toDateString() === new Date().toDateString())
       && new Date().getHours() === h;
+    const isEmpty = hourEvents.length === 0;
+    const bookable = isEmpty && _insMtgPickMode;
+    const bookAttr  = bookable ? ` onclick="_calBookSlot(${h})" role="button" tabindex="0"` : '';
+    const bookClass = (isCurrent ? ' cal-hour-now' : '') + (bookable ? ' cal-hour-bookable' : '');
     html += `
-      <div class="cal-hour-row${isCurrent?' cal-hour-now':''}">
+      <div class="cal-hour-row${bookClass}"${bookAttr}>
         <div class="cal-hour-label">${String(h).padStart(2,'0')}:00</div>
         <div class="cal-hour-content">
-          ${hourEvents.length ? hourEvents.map(ev => {
+          ${isEmpty && bookable
+            ? `<div class="cal-hour-book-hint">＋ לחץ לקביעת פגישה ב-${String(h).padStart(2,'0')}:00</div>`
+            : ''}
+          ${!isEmpty ? hourEvents.map(ev => {
             const startT = _calNiceTime(ev.start.dateTime || ev.start.date);
             const endT   = _calNiceTime(ev.end && (ev.end.dateTime || ev.end.date));
             const time = endT ? startT+' – '+endT : startT;
