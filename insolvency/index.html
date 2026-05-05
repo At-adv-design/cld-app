@@ -2974,7 +2974,13 @@ function applyFilters(){
     if(typeof applyCollapsedSections === 'function') applyCollapsedSections();
     return;
   }
-  const active=allClients.filter(c=>!waitingSet.has(c.rowNum));
+  // When the user is searching, search across ALL clients (active + waiting).
+  // Otherwise the regular tab filters out waiting clients. Cards rendered
+  // from a search match against a waiting client get a small "ממתין"
+  // marker so the lawyer knows to switch tabs to act on them.
+  const active = q
+    ? allClients.slice()
+    : allClients.filter(c => !waitingSet.has(c.rowNum));
   // In collection mode: skip all the regular filters, only check
   // (a) inCollection (S > 0), (b) text search, (c) missed-payment count.
   if(collectionMode){
