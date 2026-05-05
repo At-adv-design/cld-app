@@ -423,6 +423,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .search-box input{flex:1;border:none;background:transparent;outline:none;padding:10px 0;font-size:14px;color:var(--text);direction:rtl;font-family:inherit;}
 .search-box input::placeholder{color:var(--muted);}
 .filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+/* Main filter row: all 4 dropdowns must stay on a single line. If they
+   don't fit, horizontal scroll instead of wrapping to a second row. */
+#main-filter-row{flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;
+  scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+#main-filter-row .dd-filter{flex-shrink:0;}
+/* Slightly more compact triggers to fit 4 in one row on narrow phones. */
+#main-filter-row .dd-trigger{padding:0 8px;height:36px;gap:6px;}
+#main-filter-row .dd-trigger .dd-label{font-size:10.5px;}
+#main-filter-row .dd-trigger .dd-val{font-size:12px;padding:2px 8px;min-width:28px;}
 /* When a filter row is "active" (has a non-"all" value), JS moves it
    into #active-filters-bar at the top of the viewport. Inside that bar
    it gets a bit more padding so it looks like a header strip. */
