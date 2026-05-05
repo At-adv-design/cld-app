@@ -1007,7 +1007,7 @@ let dataInfo      = [];     // CW — [{id, text, status?, answer?, rejectionRea
 let dataPending   = [];     // every uploaded-but-not-yet-approved file across all categories
 let dataRejections= [];     // DL — [{reqId, reqText, reason, ts, category, reportNum}]
 let currentReportNum = null;
-let sectionState  = {reports:false, docs:false, info:false, questionnaire:false};
+let sectionState  = {reports:false, docs:false, info:false, questionnaire:false, signatures:false};
 let uploadCtx     = null;
 let isLoading     = false;
 
@@ -1179,6 +1179,9 @@ function applyStageVisibility(){
   $('sec-info').style.display  = '';
   // questionnaire: only in pre_order
   $('sec-questionnaire').style.display = isPreOrder ? '' : 'none';
+  // signatures: always visible — for ALL stages (regular / pre_order / commercial)
+  const sigEl = $('sec-signatures');
+  if(sigEl) sigEl.style.display = '';
   if(isPreOrder && questData && Object.keys(questData).length){
     fillQuestForm(questData);
     $('quest-meta').textContent = 'שמור ב-' + (questData._savedAt ? new Date(questData._savedAt).toLocaleDateString('he') : '');
@@ -1920,6 +1923,8 @@ function applySectionState(){
   $('sec-info').classList.toggle('open',          !!sectionState.info);
   const qel = $('sec-questionnaire');
   if(qel) qel.classList.toggle('open', !!sectionState.questionnaire);
+  const sel = $('sec-signatures');
+  if(sel) sel.classList.toggle('open', !!sectionState.signatures);
 }
 // Robust click handling: delegated, also catches touchend on iOS where
 // click doesn't always fire on non-button elements.
