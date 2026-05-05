@@ -4795,8 +4795,8 @@ async function _handleSigUpload(ev){
       const portalUrl = `https://at-adv-design.github.io/cld-app/clients/?sig=${encodeURIComponent(entry.id)}`;
       const message =
         `שלום. מסמך לחתימה - ${docTitle} - ממתין לחתימתך באפליקציה. ` +
-        `חתום עליו בהקדם האפשרי בבקשה. תודה.\n\n` +
-        `קישור לפתיחת המסמך באפליקציה:\n${portalUrl}`;
+        `חתום עליו בהקדם האפשרי בבקשה. תודה. ` +
+        `לנוחיותך קישור לפתיחת המסמך לחתימה: ${portalUrl}`;
       const r = await _sendWhatsAppViaBackend(phone, message);
       console.log('[sigUpload] WA result', r);
       if(r && r.ok){
