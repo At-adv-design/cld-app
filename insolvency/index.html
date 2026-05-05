@@ -655,6 +655,19 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   min-width:14px;text-align:center;
 }
 .client-name{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3;}
+/* Stage tag — single Hebrew letter (ר/צ/מ) in a small neutral badge.
+   No color; just a quiet visual marker so the lawyer can scan stages
+   without taking up real space. Hover/long-press shows the full label. */
+.stage-tag{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;
+  background:var(--slate);color:#fff;
+  font-size:10.5px;font-weight:700;
+  border-radius:3px;flex-shrink:0;
+  letter-spacing:0;line-height:1;
+  pointer-events:auto;cursor:default;
+  user-select:none;
+}
 .client-name-row{display:flex;align-items:center;gap:6px;}
 /* Action icons row, sits under the name. Three icons in a clean line:
    phone, whatsapp, call-summary. All same height, neatly aligned. */
@@ -3337,7 +3350,12 @@ function renderCards(clients){
           <div class="client-info">
             <!-- Name on its own line at the top -->
             <div class="client-name-row"><div class="client-name">${esc(c.name)}</div>
-              ${c.clientStage==='pre_order'?'<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-border);padding:1px 5px;white-space:nowrap;flex-shrink:0">צו פתיחה</span>':c.clientStage==='commercial'?'<span style="font-size:10px;font-weight:700;color:var(--slate);background:var(--bg);border:1px solid var(--border);padding:1px 5px;white-space:nowrap;flex-shrink:0">מסחרי</span>':''}
+              ${(()=>{
+                const stage = c.clientStage;
+                const letter = stage==='pre_order' ? 'צ' : stage==='commercial' ? 'מ' : 'ר';
+                const title  = stage==='pre_order' ? 'צו פתיחה' : stage==='commercial' ? 'מסחרי' : 'רגיל';
+                return `<span class="stage-tag" title="${title}">${letter}</span>`;
+              })()}
               <!-- 5 status dots: overall, reports, docs, service, injunction -->
               <div class="status-dots" title="סטטוס כללי • דוחות • מסמכים • אישורי מסירה • עיכוב הליכים">
                 <div class="sdot-lg" style="background:${d1}" title="סטטוס כללי"></div>
