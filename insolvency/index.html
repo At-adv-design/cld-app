@@ -443,8 +443,48 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .chip.red.active{background:var(--red);border-color:var(--red);}
 .chip.orange.active{background:var(--orange);border-color:var(--orange);}
 
-/* MODE-CHIP ROW — sits directly under the search bar.
-   פוטנציאליים at visual left, גבייה at visual right (RTL). */
+/* LOGO-TAP MODAL — single tap on the logo opens this picker for the
+   hidden mode chips (גבייה / פוטנציאליים). */
+.logo-modal{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,0.45);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:80px 20px 20px;
+  animation:logoModalFadeIn .15s ease;
+}
+@keyframes logoModalFadeIn{from{opacity:0}to{opacity:1}}
+.logo-modal-card{
+  background:var(--white);border-radius:10px;
+  width:100%;max-width:340px;
+  padding:18px;
+  box-shadow:0 12px 40px rgba(0,0,0,0.3);
+  display:flex;flex-direction:column;gap:10px;
+  animation:logoModalSlideIn .2s ease;
+}
+@keyframes logoModalSlideIn{from{transform:translateY(-12px);opacity:0}to{transform:translateY(0);opacity:1}}
+.logo-modal-title{
+  font-size:14px;font-weight:700;color:var(--muted);
+  text-align:center;margin-bottom:4px;letter-spacing:.5px;
+}
+.logo-modal-btn{
+  background:var(--bg);border:1.5px solid var(--border);
+  padding:14px 16px;border-radius:8px;cursor:pointer;
+  font-family:inherit;color:var(--text);
+  display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  transition:all .12s;text-align:right;
+}
+.logo-modal-btn:hover{border-color:var(--slate);background:var(--white);}
+.logo-modal-btn-title{font-size:16px;font-weight:700;}
+.logo-modal-btn-sub{font-size:11px;font-weight:500;color:var(--muted);}
+.logo-modal-close{
+  background:none;border:none;color:var(--muted);
+  padding:8px;cursor:pointer;font-family:inherit;font-size:13px;
+  font-weight:600;margin-top:4px;
+}
+.logo-modal-close:hover{color:var(--text);}
+
+/* MODE-CHIP ROW — kept in DOM but hidden (display:none on the wrapper
+   element). Mode toggles are reached via the logo-tap modal instead. */
 .mode-row{justify-content:space-between;}
 .mode-chip{
   font-size:13px;font-weight:700;padding:8px 16px;
@@ -956,6 +996,24 @@ body.focus-mode-active{overflow:hidden;}
   </div>
   <div class="header-spacer"></div>
 
+  <!-- Logo-tap modal: single tap on the logo opens this picker for the
+       hidden mode toggles (גבייה / פוטנציאליים). 4 quick taps still
+       enter the secret tasks section. -->
+  <div id="logo-modal" class="logo-modal" style="display:none" onclick="closeLogoModal(event)">
+    <div class="logo-modal-card" onclick="event.stopPropagation()">
+      <div class="logo-modal-title">בחירת מצב</div>
+      <button type="button" class="logo-modal-btn" onclick="closeLogoModal();togglePotentialMode()">
+        <span class="logo-modal-btn-title">פוטנציאליים</span>
+        <span class="logo-modal-btn-sub">לקוחות שעוד לא נחתמו</span>
+      </button>
+      <button type="button" class="logo-modal-btn" onclick="closeLogoModal();toggleCollectionView()">
+        <span class="logo-modal-btn-title">גבייה</span>
+        <span class="logo-modal-btn-sub">תיקים בפיגור תשלום</span>
+      </button>
+      <button type="button" class="logo-modal-close" onclick="closeLogoModal()">סגור</button>
+    </div>
+  </div>
+
   <div class="tabs">
     <div class="tab active" id="tab-main" onclick="switchTab('main')">תיקים פעילים</div>
     <div class="tab" id="tab-waiting" onclick="switchTab('waiting')"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><rect x="6" y="4" width="4" height="16" rx="0.5"/><rect x="14" y="4" width="4" height="16" rx="0.5"/></svg><span id="tab-waiting-text">ממתינים</span></span></div>
@@ -973,10 +1031,10 @@ body.focus-mode-active{overflow:hidden;}
       </div>
     </div>
     <div class="filters-wrap">
-      <!-- Row 1 (under search): mode toggles. RTL — DOM order = visual order
-           reversed: גבייה first = visual right, פוטנציאליים last = visual left,
-           with auto-margin pushing them apart. -->
-      <div class="filter-row mode-row" id="mode-row">
+      <!-- Mode chips kept in DOM (their IDs are referenced elsewhere for
+           active-state toggling), but hidden visually. They are reachable
+           via the logo-tap modal. -->
+      <div class="filter-row mode-row" id="mode-row" style="display:none">
         <div class="mode-chip" id="collection-chip" onclick="toggleCollectionView()">גבייה</div>
         <div class="mode-chip" id="potential-chip" onclick="togglePotentialMode()">פוטנציאליים</div>
       </div>
@@ -5764,12 +5822,40 @@ function onLogoTap(){
   logoTapCount++;
   if(logoTapTimer) clearTimeout(logoTapTimer);
   logoTapTimer=setTimeout(()=>{logoTapCount=0;},1200);
+  // 4 fast taps → secret tasks section (close any open modal first)
   if(logoTapCount>=4){
     logoTapCount=0;
     if(logoTapTimer)clearTimeout(logoTapTimer);
+    closeLogoModal();
     if(inTasksSection) exitTasksSection();
     else enterTasksSection();
+    return;
   }
+  // Single tap → wait briefly to see if more taps come; if not, open the
+  // mode-picker modal (גבייה / פוטנציאליים).
+  setTimeout(()=>{
+    if(logoTapCount === 1) openLogoModal();
+  }, 350);
+}
+function openLogoModal(){
+  const m = document.getElementById('logo-modal');
+  if(m) m.style.display = 'flex';
+  // Sync the active-state highlight on each mode button
+  const collActive = !!collectionMode;
+  const potActive  = !!_potentialMode;
+  const btns = m && m.querySelectorAll('.logo-modal-btn');
+  if(btns && btns.length >= 2){
+    btns[0].classList.toggle('active', potActive);
+    btns[1].classList.toggle('active', collActive);
+  }
+}
+function closeLogoModal(e){
+  if(e && e.target && e.target.closest && !e.target.classList.contains('logo-modal')) {
+    // click came from inside the card — only close if it was the overlay itself
+    return;
+  }
+  const m = document.getElementById('logo-modal');
+  if(m) m.style.display = 'none';
 }
 
 function enterTasksSection(){
