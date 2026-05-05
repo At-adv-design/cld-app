@@ -1409,15 +1409,39 @@ window.addEventListener('popstate',(e)=>{
     _resetBackCount();
     return;
   }
-  // not on the main tab -> switch to it
+  // not on the main tab -> switch to it (does NOT exit)
   if(currentTab!=='active'){
     switchTab('active');
     history.replaceState({page:'app'},'');
     _resetBackCount();
     return;
   }
-  // On the main tab — single back-press exits (per user request 2026-05-05).
-  history.go(-1);
+  // Login screen — single back press exits the app.
+  const loginVisible = (document.getElementById('login-screen')||{}).style &&
+                       document.getElementById('login-screen').style.display !== 'none';
+  if(loginVisible){
+    history.go(-1);
+    return;
+  }
+  // Main tab (active) — require THREE consecutive back presses to exit.
+  // First two presses just bump the counter and re-push state so the
+  // browser stays on the page; the third one actually goes back.
+  _backPressCount++;
+  if(_backPressCount >= 3){
+    _resetBackCount();
+    history.go(-1);
+    return;
+  }
+  // Re-push state so we don't actually unwind history yet, and show a
+  // toast hinting how many more presses are needed to exit.
+  history.pushState({page:'app'}, '');
+  const remaining = 3 - _backPressCount;
+  if(typeof showToast === 'function'){
+    showToast(`לחץ עוד ${remaining} פעמים ל${remaining===1?'יציאה':'יציאה'}`,'ok');
+  }
+  // Reset the counter if the user pauses for >2.5s
+  clearTimeout(_backPressTimer);
+  _backPressTimer = setTimeout(_resetBackCount, 2500);
 });
 
 function showApp(){
