@@ -7702,7 +7702,10 @@ window.addEventListener('popstate',()=>{
     'call-summary-modal','call-add-modal','call-edit-modal',
     'bd-edit-modal','drive-browser-modal','drive-preview-modal',
     'customer-area-modal','req-explain-modal','date-picker-modal',
-    'reject-file-modal'
+    'reject-file-modal',
+    // Newer overlays that also need pull-to-refresh disabled (otherwise
+    // dragging down to close triggers the browser's PTR and reloads the app).
+    'calendar-modal','logo-modal','ins-meeting-modal'
   ];
   let savedScrollY = 0;
   let lockCount = 0;
@@ -7770,7 +7773,15 @@ window.addEventListener('popstate',()=>{
     html.modal-active .log-sheet,
     html.modal-active .modal-sheet,
     html.modal-active .log-fullscreen-sheet,
+    html.modal-active .calendar-sheet,
+    html.modal-active .logo-modal-card,
     html.modal-active [data-modal-scroll] {
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+    }
+    /* The calendar's events list should scroll independently and not
+       propagate the scroll up to the page (which is already locked). */
+    html.modal-active #cal-events-list {
       touch-action: pan-y;
       overscroll-behavior: contain;
     }
