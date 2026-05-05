@@ -6264,7 +6264,14 @@ function openDrivePreview(file){
   ext.href=file.webViewLink || ('https://drive.google.com/file/d/'+file.id+'/view');
   const body=document.getElementById('drive-preview-body');
   m.style.display='flex';
-  history.pushState({page:'drive-preview'},'');
+  // Only push history state when we're not already in drive-preview mode.
+  // Why: after approve/reject in preview, _jumpToNextPendingOrClose calls
+  // openDrivePreview for the next file. Without this guard each call stacks
+  // a phantom 'drive-preview' history entry → back-button gets "stuck"
+  // (multiple presses required to actually close). חלונות נתקעים בדחייה.
+  if(!(history.state && history.state.page === 'drive-preview')){
+    history.pushState({page:'drive-preview'},'');
+  }
   // Drive's iframe preview works for any file type (PDF, images, Word,
   // Excel, etc.) without needing a token with drive.readonly. Browser
   // session handles auth. Spinner overlays until iframe load fires.
