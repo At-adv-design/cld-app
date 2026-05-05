@@ -104,10 +104,14 @@ body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg
 .hdr-right{
   display:flex;gap:6px;align-items:center;
   max-width:50%;
-  overflow-x:auto;
   flex-wrap:wrap;
   justify-content:flex-start;
+  /* DON'T set overflow on hdr-right — child buttons (notification badges)
+     have absolute children that need to overflow upward (e.g. -4px top). */
+  overflow:visible;
 }
+/* Buttons inside the header keep their absolute children visible too. */
+.header .hdr-btn{overflow:visible;position:relative;}
 /* Logo locked at center of the left half — same standard across all apps. */
 .header > img[alt*="טל"]{
   position:absolute;

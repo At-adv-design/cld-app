@@ -143,11 +143,12 @@ input,textarea,button{font-family:inherit;}
 }
 .hdr-right{
   display:flex;gap:8px;align-items:center;
-  max-width:50%;            /* never cross the midline into the logo's half */
-  overflow-x:auto;          /* if too many icons, scroll within the right half */
+  max-width:50%;
   flex-wrap:wrap;
   justify-content:flex-start;
+  overflow:visible;          /* let absolute-positioned badges escape upward */
 }
+.header .hdr-btn{overflow:visible;position:relative;}
 .hdr-name{
   font-size:13px;color:var(--text);font-weight:600;
   background:var(--bg);border:1px solid var(--border);

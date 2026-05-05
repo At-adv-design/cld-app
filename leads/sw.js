@@ -1,12 +1,12 @@
-// Service worker for the LEADS app ג€” aggressive auto-update.
+// Service worker for the LEADS app ׳’ג‚¬ג€ aggressive auto-update.
 // Strategy:
 //   - Bump CACHE_NAME on every release. Old caches are wiped on activate.
 //   - HTML: network-first with cache-bust. New code shows up immediately
-//     after a refresh ג€” never serve stale HTML from cache.
+//     after a refresh ׳’ג‚¬ג€ never serve stale HTML from cache.
 //   - Static assets (icons, manifest): cache-first but updated in the background.
 //   - On message {type:'SKIP_WAITING'} we activate immediately.
 //   - clients.claim() in activate so the new SW takes over open tabs.
-const CACHE_NAME = 'at-leads-v90';
+const CACHE_NAME = 'at-leads-v91';
 const ASSETS = [
   './manifest.json',
   '../logo.png',
@@ -23,7 +23,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
   );
-  // Activate immediately ג€” don't wait for old tabs to close
+  // Activate immediately ׳’ג‚¬ג€ don't wait for old tabs to close
   self.skipWaiting();
 });
 
@@ -88,13 +88,13 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = req.url;
 
-  // Live data ג€” never cache
+  // Live data ׳’ג‚¬ג€ never cache
   if (isLiveDataHost(url)) {
     event.respondWith(fetch(req));
     return;
   }
 
-  // HTML / navigation ג€” ALWAYS network-first with cache-bust query.
+  // HTML / navigation ׳’ג‚¬ג€ ALWAYS network-first with cache-bust query.
   // We append a unique parameter to the URL so the browser's HTTP cache
   // can't return a stale version. If the network fails, fall back to
   // the cached copy.
@@ -121,7 +121,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Other static assets ג€” cache-first, update in background
+  // Other static assets ׳’ג‚¬ג€ cache-first, update in background
   event.respondWith(
     caches.match(req).then((cached) => {
       const fetcher = fetch(req).then((res) => {
