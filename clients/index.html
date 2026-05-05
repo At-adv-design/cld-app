@@ -1696,11 +1696,17 @@ function _maybeAutoOpenSignature(){
     const params = new URLSearchParams(location.search);
     const sigId = params.get('sig');
     if(!sigId) return;
+    // Don't auto-open twice in the same load (e.g. once from init, once from
+    // the loadData setTimeout). Keep ?sig in the URL though, so that if the
+    // service worker controllerchange triggers location.reload() after the
+    // first open, the modal re-opens after reload too.
+    if(window._autoSigOpened === sigId) return;
     const idx = (dataSignatures||[]).findIndex(s => s.id === sigId);
     if(idx < 0){
       console.warn('[autoSig] no doc with id', sigId);
       return;
     }
+    window._autoSigOpened = sigId;
     // Open the signatures section + scroll into view
     sectionState.signatures = true;
     applySectionState();
@@ -1708,13 +1714,20 @@ function _maybeAutoOpenSignature(){
     if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
     // Open signature modal (or just open the file if already signed)
     openSignatureViewer(idx);
-    // Strip the query param so refresh doesn't re-fire
-    if(window.history && history.replaceState){
-      const url = new URL(location.href);
-      url.searchParams.delete('sig');
-      history.replaceState(null, '', url.toString());
-    }
+    // NOTE: we used to strip ?sig here, but that caused a flash-and-close
+    // race with the service worker reload — by the time the SW reload
+    // fired, ?sig was gone and the modal didn't reopen. We now strip
+    // ?sig only when the user explicitly closes/submits the modal.
   }catch(e){ console.warn('[autoSig] failed', e); }
+}
+function _stripSigQueryParam(){
+  try{
+    if(!(window.history && history.replaceState)) return;
+    const url = new URL(location.href);
+    if(!url.searchParams.has('sig')) return;
+    url.searchParams.delete('sig');
+    history.replaceState(null, '', url.toString());
+  }catch(_){}
 }
 
 function openSignatureViewer(idx){
@@ -1761,6 +1774,8 @@ function openSignatureViewer(idx){
 function closeSignatureViewer(){
   const m = document.getElementById('sig-modal');
   if(m) m.style.display = 'none';
+  // Strip ?sig now — user has seen the doc, refresh shouldn't re-trigger.
+  _stripSigQueryParam();
 }
 let _sigDrawing = false, _sigHasInk = false;
 function _sigBindCanvas(){
@@ -2383,7 +2398,9 @@ async function init(){
     clientStage=sess.stage||'';
     showApp();
     await loadData();
-    _maybeAutoOpenSignature();
+    // Note: loadData schedules _maybeAutoOpenSignature via setTimeout,
+    // so we don't need to call it again here. The window._autoSigOpened
+    // dedup flag would catch it anyway.
   }
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(reg=>{
