@@ -133,9 +133,21 @@ input,textarea,button{font-family:inherit;}
 
 #app{display:none;flex-direction:column;min-height:100vh;}
 #app.shown{display:flex;}
-/* HEADER — matches insolvency app exactly */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
-.hdr-right{display:flex;gap:8px;align-items:center;}
+/* HEADER — logo is locked at center of left half (absolute). hdr-right
+   stays on the right half so icons never collide with the logo. */
+.header{
+  background:var(--white);height:96px;padding:0 16px;
+  display:flex;align-items:center;justify-content:flex-start;
+  position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);
+  position:relative; /* anchor for the absolute logo */
+}
+.hdr-right{
+  display:flex;gap:8px;align-items:center;
+  max-width:50%;            /* never cross the midline into the logo's half */
+  overflow-x:auto;          /* if too many icons, scroll within the right half */
+  flex-wrap:wrap;
+  justify-content:flex-start;
+}
 .hdr-name{
   font-size:13px;color:var(--text);font-weight:600;
   background:var(--bg);border:1px solid var(--border);
