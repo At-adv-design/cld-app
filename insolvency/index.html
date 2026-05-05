@@ -4789,7 +4789,14 @@ async function _handleSigUpload(ev){
     console.log('[sigUpload] step 4 — sending WhatsApp to', phone);
     if(phone){
       const docTitle = entry.text || 'מסמך';
-      const message = `שלום. מסמך לחתימה - ${docTitle} - ממתין לחתימתך באפליקציה. חתום עליו בהקדם האפשרי בבקשה. תודה.`;
+      // Deep link to the customer portal — client clicks, logs in, sees
+      // the doc waiting in "מסמכים לחתימה". The ?sig=<id> hint can be
+      // used later to auto-open the signing modal after login.
+      const portalUrl = `https://at-adv-design.github.io/cld-app/clients/?sig=${encodeURIComponent(entry.id)}`;
+      const message =
+        `שלום. מסמך לחתימה - ${docTitle} - ממתין לחתימתך באפליקציה. ` +
+        `חתום עליו בהקדם האפשרי בבקשה. תודה.\n\n` +
+        `קישור לפתיחת המסמך באפליקציה:\n${portalUrl}`;
       const r = await _sendWhatsAppViaBackend(phone, message);
       console.log('[sigUpload] WA result', r);
       if(r && r.ok){

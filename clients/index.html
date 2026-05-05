@@ -1175,6 +1175,15 @@ async function loadData(silent){
   if(!silent) showLoading(true);
   try{
     const res=await api('getRequests',{token:currentUser.token});
+    // After login flow finishes (loadData triggered from doLogin), check
+    // if the URL has ?sig=<id> — if yes, open that signature doc
+    // automatically once the data is loaded. Wrapped so we only fire
+    // once even if loadData is called repeatedly.
+    if(!silent && !window._autoSigChecked){
+      window._autoSigChecked = true;
+      // Defer until renderSignatures has populated dataSignatures
+      setTimeout(()=>_maybeAutoOpenSignature(), 250);
+    }
     dataReports       = Array.isArray(res.reports)       ? res.reports       : [];
     dataReportInfo    = Array.isArray(res.reportInfo)    ? res.reportInfo    : [];
     dataDocsRequired  = Array.isArray(res.docsRequired)  ? res.docsRequired  : [];
@@ -1679,6 +1688,35 @@ function renderSignatures(){
 
 /* Modal — preview PDF + canvas signature pad. Submits the signed PDF
    back to the server, which stores it under "<client>/מסמכים לחתימה/חתומים". */
+/* If the URL contains ?sig=<id>, jump straight to the signature
+   modal for that doc once data is loaded. Called from init() after
+   loadData. Strips the query param so a refresh doesn't re-trigger. */
+function _maybeAutoOpenSignature(){
+  try{
+    const params = new URLSearchParams(location.search);
+    const sigId = params.get('sig');
+    if(!sigId) return;
+    const idx = (dataSignatures||[]).findIndex(s => s.id === sigId);
+    if(idx < 0){
+      console.warn('[autoSig] no doc with id', sigId);
+      return;
+    }
+    // Open the signatures section + scroll into view
+    sectionState.signatures = true;
+    applySectionState();
+    const el = document.getElementById('sec-signatures');
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    // Open signature modal (or just open the file if already signed)
+    openSignatureViewer(idx);
+    // Strip the query param so refresh doesn't re-fire
+    if(window.history && history.replaceState){
+      const url = new URL(location.href);
+      url.searchParams.delete('sig');
+      history.replaceState(null, '', url.toString());
+    }
+  }catch(e){ console.warn('[autoSig] failed', e); }
+}
+
 function openSignatureViewer(idx){
   const s = (dataSignatures||[])[idx];
   if(!s){ toast('המסמך לא נמצא','error'); return; }
@@ -2345,6 +2383,7 @@ async function init(){
     clientStage=sess.stage||'';
     showApp();
     await loadData();
+    _maybeAutoOpenSignature();
   }
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(reg=>{
