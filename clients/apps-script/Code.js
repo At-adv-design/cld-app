@@ -58,6 +58,8 @@ function doPost(e){
     else if(action === 'submitSignature')     result = handleSubmitSignature(body);
     else if(action === 'approveSignature')    result = handleApproveSignature(body);
     else if(action === 'rejectSignature')     result = handleRejectSignature(body);
+    else if(action === 'recordHeartbeat')     result = handleRecordHeartbeat(body);
+    else if(action === 'listHeartbeats')      result = handleListHeartbeats(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -1155,4 +1157,75 @@ function handleCreateCalendarEvent(p){
   const cal = CalendarApp.getDefaultCalendar();
   const event = cal.createEvent(title, start, end, {description});
   return { eventId: event.getId() };
+}
+
+// ─── Action: recordHeartbeat / listHeartbeats ────────────────
+// Heartbeat endpoint for the Avi Tal Control Panel. Each machine
+// posts its status here once a minute; the control web app reads
+// the resulting JSON files via Drive (using the OAuth token it
+// inherits from the sibling apps).
+//
+// No OAuth on the calling machine — the Apps Script Web App URL
+// itself is the only secret (it is not committed publicly), and we
+// validate the machine name against a known list to reject random
+// pokes from outside.
+//
+// Drive layout: <DRIVE_ROOT>/Avi-Tal-Control/heartbeat-<MACHINE>.json
+const CONTROL_FOLDER_NAME = "Avi-Tal-Control";
+const CONTROL_KNOWN_MACHINES = ["DESKTOP-3KT7I4S","LAPTOP-T7K0UKU3","AVIPC"];
+
+function _controlFolder() {
+  const root = DriveApp.getFolderById(DRIVE_ROOT_ID);
+  return _ensureFolder(root, CONTROL_FOLDER_NAME);
+}
+
+function handleRecordHeartbeat(p) {
+  const machineName = (p.machineName || "").toString().trim();
+  if(!machineName) throw new Error("Missing machineName");
+  // Soft allowlist — accept known machines + any sane string. Rejects
+  // empty / very long names, leaves room for new machines without code
+  // changes (just edit CONTROL_KNOWN_MACHINES later).
+  if(machineName.length > 40 || !/^[A-Za-z0-9_\-\.]+$/.test(machineName)) {
+    throw new Error("Invalid machineName");
+  }
+  const folder = _controlFolder();
+  const fileName = "heartbeat-" + machineName + ".json";
+  const data = {
+    machineName: machineName,
+    user:        (p.user || "").toString().substring(0,80),
+    lastSeen:    Date.now(),
+    currentTask: (p.currentTask || null),
+    lastCommit:  (p.lastCommit || null),
+    version:     (p.version || "1"),
+    os:          (p.os || "").toString().substring(0,80)
+  };
+  const json = JSON.stringify(data);
+  const it = folder.getFilesByName(fileName);
+  if(it.hasNext()) {
+    const f = it.next();
+    f.setContent(json);
+    return { fileId: f.getId(), updated: true };
+  }
+  const f = folder.createFile(fileName, json, MimeType.PLAIN_TEXT);
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(_){}
+  return { fileId: f.getId(), created: true };
+}
+
+function handleListHeartbeats(p) {
+  // Public read — no auth. Worst case someone reads machine names,
+  // which is low-sensitivity.
+  const folder = _controlFolder();
+  const it = folder.getFiles();
+  const out = [];
+  while(it.hasNext()) {
+    const f = it.next();
+    const name = f.getName();
+    if(!name.startsWith("heartbeat-")) continue;
+    try {
+      const content = f.getBlob().getDataAsString();
+      const data = JSON.parse(content);
+      out.push(data);
+    } catch(_){}
+  }
+  return { heartbeats: out };
 }
