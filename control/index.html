@@ -553,17 +553,35 @@ function toast(msg){
 /* ============================================================
    LOAD
    ============================================================ */
+// Read heartbeats from the public GitHub repo's /heartbeats/ folder.
+// Each machine's heartbeat.ps1 commits + pushes its own JSON file there
+// when content changes (not on every minute). No Google Drive, no
+// Apps Script, no OAuth — just public HTTP fetches.
+async function loadHeartbeatsFromGitHub(){
+  // List files in the heartbeats directory via the GitHub contents API
+  const r = await fetch('https://api.github.com/repos/At-adv-design/cld-app/contents/heartbeats?ref=main&_=' + Date.now());
+  if(!r.ok){
+    if(r.status === 404) return [];  // folder doesn't exist yet — no machines have published
+    throw new Error('GitHub API ' + r.status);
+  }
+  const files = await r.json();
+  if(!Array.isArray(files)) return [];
+  const jsonFiles = files.filter(f => f.name && f.name.startsWith('heartbeat-') && f.name.endsWith('.json'));
+  const heartbeats = await Promise.all(jsonFiles.map(async f => {
+    try {
+      const r2 = await fetch(f.download_url + '?_=' + Date.now());
+      if(!r2.ok) return null;
+      return await r2.json();
+    } catch(_){ return null; }
+  }));
+  return heartbeats.filter(Boolean);
+}
+
 async function loadHeartbeats(){
-  if(!accessToken) return;
   try {
-    const files = await listHeartbeats();
-    const heartbeats = await Promise.all(files.map(async f => {
-      const data = await readHeartbeat(f.id);
-      return data ? Object.assign({fileId: f.id, modifiedTime: f.modifiedTime}, data) : null;
-    }));
-    const valid = heartbeats.filter(Boolean);
-    valid.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
-    renderMachines(valid);
+    const heartbeats = await loadHeartbeatsFromGitHub();
+    heartbeats.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+    renderMachines(heartbeats);
     document.getElementById('last-updated').textContent = '• עודכן ' + new Date().toLocaleTimeString('he-IL');
   } catch(e){
     console.warn('loadHeartbeats failed', e);
@@ -571,6 +589,7 @@ async function loadHeartbeats(){
       <div class="empty-state" style="grid-column:1/-1">
         <div class="e-title" style="color:var(--red)">שגיאה בטעינת נתונים</div>
         <div class="e-sub">${escapeHtml(e.message || String(e))}</div>
+        <div class="e-sub" style="margin-top:8px;font-size:11px">המידע נטען מ-GitHub repo. אם המחשבים לא רשומים, הפעל install-heartbeat.bat על כל מחשב.</div>
       </div>`;
   }
 }
@@ -651,58 +670,36 @@ async function init(){
   // Restore theme
   const t = localStorage.getItem('control-theme');
   if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('theme-moon').style.display='none'; document.getElementById('theme-sun').style.display='block'; }
-  // If we came back from Google with an error (e.g. redirect_uri_mismatch),
-  // show a clear explanation instead of silently failing.
-  if(checkOAuthError()) return;
-  // Capture token from OAuth redirect
-  if(captureTokenFromHash()){
-    const ok = await fetchUserInfo();
-    if(!ok) return;  // unauthorized screen already showing
-    showApp();
-    await ensureDriveFolder();
-    await loadHeartbeats();
-    loadRecentCommits();
-    setInterval(loadHeartbeats, REFRESH_INTERVAL);
-    return;
+  // Heartbeats are PUBLIC (read from the GitHub repo via raw URLs) — no
+  // auth needed to view. Skip the entire OAuth dance and show the
+  // dashboard immediately. Auth is only required if the user wants to
+  // SEND a command (writes to Drive); we'll prompt then.
+  showApp();
+  // Try to reuse a sibling-app token quietly so the avatar shows + we
+  // can later send commands without forcing a fresh login.
+  try { await tryReuseSiblingToken(); } catch(_){}
+  // Show stored control-specific token if any
+  if(!accessToken){
+    const stored = localStorage.getItem('ct');
+    const exp = parseInt(localStorage.getItem('cte') || '0');
+    if(stored && Date.now() < exp){
+      accessToken = stored;
+      userEmail = localStorage.getItem('ce') || '';
+      userPic = localStorage.getItem('cp') || '';
+      const av = document.getElementById('user-avatar');
+      if(userPic) av.innerHTML = `<img src="${userPic}" alt="">`;
+      else av.textContent = (userEmail || '?').slice(0,1).toUpperCase();
+    } else {
+      // No auth at all — avatar is just an "anonymous" placeholder
+      const av = document.getElementById('user-avatar');
+      av.textContent = '?';
+      av.title = 'לא מחובר — לחץ להתחברות (נדרש לשליחת הוראות)';
+      av.onclick = () => { document.getElementById('login-screen').style.display = 'flex'; };
+    }
   }
-  // Stored control-specific token (previous successful login here)
-  const stored = localStorage.getItem('ct');
-  const exp = parseInt(localStorage.getItem('cte') || '0');
-  if(stored && Date.now() < exp){
-    accessToken = stored;
-    userEmail = localStorage.getItem('ce') || '';
-    userPic = localStorage.getItem('cp') || '';
-    const av = document.getElementById('user-avatar');
-    if(userPic) av.innerHTML = `<img src="${userPic}" alt="">`;
-    else av.textContent = (userEmail || '?').slice(0,1).toUpperCase();
-    showApp();
-    await ensureDriveFolder();
-    await loadHeartbeats();
-    loadRecentCommits();
-    setInterval(loadHeartbeats, REFRESH_INTERVAL);
-    return;
-  }
-  // Try to borrow a fresh token from a sibling app (insolvency / leads /
-  // potential). If they're already logged in there with an ALLOWED account,
-  // we skip OAuth entirely.
-  if(await tryReuseSiblingToken()){
-    showApp();
-    try { await ensureDriveFolder(); } catch(e){ console.warn('drive folder ensure failed', e); }
-    await loadHeartbeats();
-    loadRecentCommits();
-    setInterval(loadHeartbeats, REFRESH_INTERVAL);
-    return;
-  }
-  // Not logged in anywhere — show login + helpful hint
-  document.getElementById('login-screen').style.display = 'flex';
-  const card = document.querySelector('#login-screen .login-card');
-  if(card && !card.dataset.patchedHint){
-    card.dataset.patchedHint = '1';
-    const hint = document.createElement('div');
-    hint.style.cssText = 'font-size:12px;color:var(--muted);max-width:300px;line-height:1.6;margin-top:6px;background:var(--bg);padding:10px;border:1px solid var(--border);text-align:right;direction:rtl';
-    hint.innerHTML = `<b style="color:var(--text)">טיפ:</b> אם נתקעת ב-Google על חשבון לא־נכון, פתח קודם את <a href="../insolvency/" style="color:var(--blue);font-weight:700">סולוונסי</a> והתחבר שם — מיד אחרי שתחזור לכאן, תהיה מחובר אוטומטית בלי OAuth נוסף.`;
-    card.appendChild(hint);
-  }
+  await loadHeartbeats();
+  loadRecentCommits();
+  setInterval(loadHeartbeats, REFRESH_INTERVAL);
 }
 
 init();
