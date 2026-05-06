@@ -1076,50 +1076,156 @@ let sectionState  = {reports:false, docs:false, info:false, questionnaire:false,
 let uploadCtx     = null;
 let isLoading     = false;
 
+/* =========================
+   GLOBAL BACKGROUND-ACTIVITY TRACKER (mirrors the insolvency app)
+   Tiny indeterminate bar at the very top, shown while ANY async work is
+   in flight — Apps Script calls, uploads, etc. So the customer always
+   knows something is happening even while scrolling/tapping elsewhere.
+   ========================= */
+const _bgOps = new Map();
+let _bgIdCounter = 0;
+function _bgEl(){
+  let el = document.getElementById('bg-activity-bar');
+  if(el) return el;
+  el = document.createElement('div');
+  el.id = 'bg-activity-bar';
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:600;background:transparent;pointer-events:none;display:none';
+  el.innerHTML =
+    '<div id="bg-activity-fill" style="height:100%;width:0%;background:var(--slate);transition:width .25s ease"></div>' +
+    '<div id="bg-activity-anim" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">' +
+      '<div style="position:absolute;top:0;left:0;height:100%;width:30%;background:linear-gradient(90deg,transparent,var(--slate),transparent);animation:bgIndeterm 1.2s linear infinite"></div>' +
+    '</div>' +
+    '<div id="bg-activity-label" style="position:fixed;top:5px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:600;font-family:inherit;padding:2px 8px;border-radius:3px;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;display:none;pointer-events:none"></div>';
+  document.body.appendChild(el);
+  if(!document.getElementById('bg-activity-keyframes')){
+    const st = document.createElement('style');
+    st.id = 'bg-activity-keyframes';
+    st.textContent = '@keyframes bgIndeterm { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }';
+    document.head.appendChild(st);
+  }
+  return el;
+}
+function _bgRender(){
+  const el = _bgEl();
+  const fill = document.getElementById('bg-activity-fill');
+  const anim = document.getElementById('bg-activity-anim');
+  const lbl  = document.getElementById('bg-activity-label');
+  if(_bgOps.size === 0){
+    el.style.display = 'none';
+    if(lbl) lbl.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  let maxPct = -1, latestLabel = '';
+  for(const op of _bgOps.values()){
+    if(typeof op.pct === 'number' && op.pct > maxPct) maxPct = op.pct;
+    latestLabel = op.label || latestLabel;
+  }
+  if(maxPct >= 0){
+    fill.style.width = maxPct + '%';
+    anim.style.display = 'none';
+  } else {
+    fill.style.width = '0%';
+    anim.style.display = 'block';
+  }
+  if(lbl){
+    if(latestLabel){
+      const count = _bgOps.size;
+      lbl.textContent = count > 1 ? (latestLabel + ' (+' + (count-1) + ')') : latestLabel;
+      lbl.style.display = 'inline-block';
+    } else {
+      lbl.style.display = 'none';
+    }
+  }
+}
+function bgStart(label){
+  const tok = ++_bgIdCounter;
+  _bgOps.set(tok, {label: label || '', pct: -1});
+  _bgRender();
+  return tok;
+}
+function bgProgress(tok, pct){
+  const op = _bgOps.get(tok);
+  if(!op) return;
+  op.pct = Math.max(0, Math.min(100, pct));
+  _bgRender();
+}
+function bgEnd(tok){
+  _bgOps.delete(tok);
+  _bgRender();
+}
+window.bgStart = bgStart; window.bgEnd = bgEnd; window.bgProgress = bgProgress;
+
 /* ─── API ─── */
 async function api(action, payload){
   if(!CONFIG.API_URL) throw new Error('האפליקציה לא מוגדרת — צור קשר עם המשרד');
   const body = Object.assign({action}, payload || {});
+  // Background-activity indicator at the top of the screen, so the user
+  // always knows something is happening in the background.
+  const labels = {
+    login: 'מתחבר…',
+    getRequests: 'טוען נתונים…',
+    uploadFile: 'מעלה קובץ…',
+    removeFile: 'מוחק…',
+    submitAnswer: 'שולח תשובה…',
+    saveQuestionnaire: 'שומר שאלון…',
+    getQuestionnaire: 'טוען שאלון…',
+    sendInquiry: 'שולח פניה…',
+    submitSignature: 'שומר חתימה…',
+    closeReport: 'סוגר דוח…',
+    createCalendarEvent: 'יוצר אירוע…',
+  };
+  const _bgTok = (typeof bgStart === 'function') ? bgStart(labels[action] || ('פעולה: '+action)) : null;
   // For uploads, use XHR so we can report upload-side progress to the
   // caller via payload._onProgress. Fetch can't expose upload progress
   // without the (still-flaky) Streams API workaround.
   const onProgress = payload && payload._onProgress;
   if(typeof onProgress === 'function'){
     const sendBody = JSON.stringify(Object.assign({}, body, {_onProgress: undefined}));
-    return await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', CONFIG.API_URL);
-      xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
-      xhr.upload.onprogress = (e) => {
-        if(e.lengthComputable){
-          onProgress(Math.round((e.loaded / e.total) * 100));
-        }
-      };
-      xhr.onload = () => {
-        try {
-          const j = JSON.parse(xhr.responseText);
-          if(!j.ok) reject(new Error(j.error || 'שגיאה לא ידועה'));
-          else resolve(j);
-        } catch(_){ reject(new Error('תגובה לא תקינה מהשרת')); }
-      };
-      xhr.onerror = () => reject(new Error('אין חיבור לאינטרנט — נסה שוב'));
-      xhr.send(sendBody);
-    });
+    try {
+      return await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', CONFIG.API_URL);
+        xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+        xhr.upload.onprogress = (e) => {
+          if(e.lengthComputable){
+            const pct = Math.round((e.loaded / e.total) * 100);
+            onProgress(pct);
+            if(_bgTok && typeof bgProgress === 'function') bgProgress(_bgTok, pct);
+          }
+        };
+        xhr.onload = () => {
+          try {
+            const j = JSON.parse(xhr.responseText);
+            if(!j.ok) reject(new Error(j.error || 'שגיאה לא ידועה'));
+            else resolve(j);
+          } catch(_){ reject(new Error('תגובה לא תקינה מהשרת')); }
+        };
+        xhr.onerror = () => reject(new Error('אין חיבור לאינטרנט — נסה שוב'));
+        xhr.send(sendBody);
+      });
+    } finally {
+      if(_bgTok && typeof bgEnd === 'function') bgEnd(_bgTok);
+    }
   }
-  let res;
-  try{
-    res = await fetch(CONFIG.API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(body),
-      redirect:'follow'
-    });
-  }catch(_){ throw new Error('אין חיבור לאינטרנט — נסה שוב'); }
-  let json;
-  try{ json = await res.json(); }
-  catch(_){ throw new Error('תגובה לא תקינה מהשרת'); }
-  if(!json.ok) throw new Error(json.error || 'שגיאה לא ידועה');
-  return json;
+  try {
+    let res;
+    try{
+      res = await fetch(CONFIG.API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(body),
+        redirect:'follow'
+      });
+    }catch(_){ throw new Error('אין חיבור לאינטרנט — נסה שוב'); }
+    let json;
+    try{ json = await res.json(); }
+    catch(_){ throw new Error('תגובה לא תקינה מהשרת'); }
+    if(!json.ok) throw new Error(json.error || 'שגיאה לא ידועה');
+    return json;
+  } finally {
+    if(_bgTok && typeof bgEnd === 'function') bgEnd(_bgTok);
+  }
 }
 
 /* ─── SESSION ─── */

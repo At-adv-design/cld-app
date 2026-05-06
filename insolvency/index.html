@@ -2087,6 +2087,95 @@ function _hashReqId(text){
 }
 
 let accessToken=null,allClients=[],expandedSet=new Set();
+
+/* =========================
+   GLOBAL BACKGROUND-ACTIVITY TRACKER
+   Tiny indeterminate bar at the very top of the viewport, shown while
+   ANY async work is in flight — Sheets reads/writes, Apps Script calls,
+   uploads, queue flushes. So the user always knows something is happening
+   even when they're scrolling/tapping elsewhere.
+   API:
+     bgStart(label)  → token. Adds an op; bar appears.
+     bgEnd(token)    → removes that op. Bar disappears when count reaches 0.
+     bgProgress(token, pct) → set determinate progress (0–100) for this op.
+   ========================= */
+const _bgOps = new Map();  // token → {label, pct}
+let _bgIdCounter = 0;
+function _bgEl(){
+  let el = document.getElementById('bg-activity-bar');
+  if(el) return el;
+  el = document.createElement('div');
+  el.id = 'bg-activity-bar';
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:600;background:transparent;pointer-events:none;display:none';
+  el.innerHTML = `
+    <div id="bg-activity-fill" style="height:100%;width:0%;background:var(--slate);transition:width .25s ease"></div>
+    <div id="bg-activity-anim" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+      <div style="position:absolute;top:0;left:0;height:100%;width:30%;background:linear-gradient(90deg,transparent,var(--slate),transparent);animation:bgIndeterm 1.2s linear infinite"></div>
+    </div>
+    <div id="bg-activity-label" style="position:fixed;top:5px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:600;font-family:inherit;padding:2px 8px;border-radius:3px;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;display:none;pointer-events:none"></div>`;
+  document.body.appendChild(el);
+  // Inject the keyframes once
+  if(!document.getElementById('bg-activity-keyframes')){
+    const st = document.createElement('style');
+    st.id = 'bg-activity-keyframes';
+    st.textContent = '@keyframes bgIndeterm { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }';
+    document.head.appendChild(st);
+  }
+  return el;
+}
+function _bgRender(){
+  const el = _bgEl();
+  const fill = document.getElementById('bg-activity-fill');
+  const anim = document.getElementById('bg-activity-anim');
+  const lbl  = document.getElementById('bg-activity-label');
+  if(_bgOps.size === 0){
+    el.style.display = 'none';
+    if(lbl) lbl.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  // If any op has a determinate pct, show the highest as the fill width
+  // and hide the indeterminate animation. Otherwise show the indeterminate
+  // shimmer and zero out the fill.
+  let maxPct = -1, latestLabel = '';
+  for(const op of _bgOps.values()){
+    if(typeof op.pct === 'number' && op.pct > maxPct) maxPct = op.pct;
+    latestLabel = op.label || latestLabel;
+  }
+  if(maxPct >= 0){
+    fill.style.width = maxPct + '%';
+    anim.style.display = 'none';
+  } else {
+    fill.style.width = '0%';
+    anim.style.display = 'block';
+  }
+  if(lbl){
+    if(latestLabel){
+      const count = _bgOps.size;
+      lbl.textContent = count > 1 ? `${latestLabel} (+${count-1})` : latestLabel;
+      lbl.style.display = 'inline-block';
+    } else {
+      lbl.style.display = 'none';
+    }
+  }
+}
+function bgStart(label){
+  const tok = ++_bgIdCounter;
+  _bgOps.set(tok, {label: label || '', pct: -1});
+  _bgRender();
+  return tok;
+}
+function bgProgress(tok, pct){
+  const op = _bgOps.get(tok);
+  if(!op) return;
+  op.pct = Math.max(0, Math.min(100, pct));
+  _bgRender();
+}
+function bgEnd(tok){
+  _bgOps.delete(tok);
+  _bgRender();
+}
+window.bgStart = bgStart; window.bgEnd = bgEnd; window.bgProgress = bgProgress;
 // Collection total — read from cell T1 in the spreadsheet on every load.
 // Apps Script keeps T1 updated based on T-cell background colors.
 let _t1Value=0;
@@ -2225,12 +2314,16 @@ async function apiFetch(url,opts={},attempt=0){
   const headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+tok});
   const ctrl=new AbortController();
   const t=setTimeout(()=>ctrl.abort(),30000);
+  // Tag this op for the global background-activity bar. Only on the first
+  // attempt — retries reuse the same indicator. Label uses the operation
+  // type: PUT = שמירה, GET/default = טעינה.
+  const _bgTok = attempt === 0 ? bgStart((opts.method && opts.method.toUpperCase()==='PUT') ? 'שומר…' : 'טוען…') : null;
   try{
     const res=await fetch(url,Object.assign({},opts,{headers,signal:ctrl.signal}));
     clearTimeout(t);
     if(res.status===401 && attempt<2){
       localStorage.setItem('ite','0');
-      return apiFetch(url,opts,attempt+1);
+      return await apiFetch(url,opts,attempt+1);
     }
     let data=null;
     try{ data=await res.json(); }catch(_){}
@@ -2242,7 +2335,7 @@ async function apiFetch(url,opts={},attempt=0){
       if((res.status>=500 || res.status===429) && attempt<3){
         setOnlineBadge('retrying','שולח שוב...');
         await new Promise(r=>setTimeout(r, 800*(attempt+1)));
-        return apiFetch(url,opts,attempt+1);
+        return await apiFetch(url,opts,attempt+1);
       }
       throw err;
     }
@@ -2254,10 +2347,14 @@ async function apiFetch(url,opts={},attempt=0){
     if(isNetwork && attempt<5){
       setOnlineBadge('retrying','מחבר מחדש...');
       await new Promise(r=>setTimeout(r, 600*(attempt+1)));
-      return apiFetch(url,opts,attempt+1);
+      return await apiFetch(url,opts,attempt+1);
     }
     setOnlineBadge('offline');
     throw e;
+  } finally {
+    // End the bg-activity tag exactly once per top-level call (only the
+    // attempt-0 entry creates a token; recursive retries pass through it).
+    if(_bgTok) bgEnd(_bgTok);
   }
 }
 
@@ -4263,22 +4360,45 @@ document.addEventListener('touchend', function(e){
 async function _custApi(action, payload){
   if(!CUSTOMER_API_URL) throw new Error('Apps Script API לא מוגדר');
   const body = Object.assign({action}, payload || {});
-  let res;
+  // Background-activity tag with a Hebrew label that fits the action.
+  const labels = {
+    login: 'מתחבר ללקוח…',
+    getRequests: 'טוען נתוני לקוח…',
+    approveItem: 'מאשר…',
+    rejectItem: 'דוחה…',
+    unapproveItem: 'מבטל אישור…',
+    approveSignature: 'מאשר חתימה…',
+    rejectSignature: 'דוחה חתימה…',
+    submitSignature: 'שומר חתימה…',
+    sendInquiry: 'שולח פניה…',
+    sendWhatsApp: 'שולח WhatsApp…',
+    closeReport: 'סוגר דוח…',
+    saveQuestionnaire: 'שומר שאלון…',
+    getQuestionnaire: 'טוען שאלון…',
+    uploadFile: 'מעלה קובץ…',
+    submitAnswer: 'שומר תשובה…',
+  };
+  const _bgTok = bgStart(labels[action] || ('פעולה: '+action));
   try{
-    res = await fetch(CUSTOMER_API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(body),
-      redirect:'follow'
-    });
-  }catch(err){
-    throw new Error('שגיאת רשת: '+(err.message||err));
+    let res;
+    try{
+      res = await fetch(CUSTOMER_API_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(body),
+        redirect:'follow'
+      });
+    }catch(err){
+      throw new Error('שגיאת רשת: '+(err.message||err));
+    }
+    let json;
+    try{ json = await res.json(); }
+    catch(_){ throw new Error('תגובה לא תקינה מ-Apps Script'); }
+    if(!json.ok) throw new Error(json.error || 'שגיאת Apps Script');
+    return json;
+  } finally {
+    bgEnd(_bgTok);
   }
-  let json;
-  try{ json = await res.json(); }
-  catch(_){ throw new Error('תגובה לא תקינה מ-Apps Script'); }
-  if(!json.ok) throw new Error(json.error || 'שגיאת Apps Script');
-  return json;
 }
 /* Get a customer-API token by logging in with the customer's creds
    that we already have on the spreadsheet. Cached per session so we
@@ -4882,6 +5002,7 @@ async function _handleSigUpload(ev){
   // immediately (no more "tapped upload, then nothing for 5 seconds").
   const uploadId = 'upl_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
   _showSigUploadProgress(uploadId, newBase + '.pdf');
+  const _bgUpl = bgStart('מעלה מסמך לחתימה…');
   try{
     // 1. Ensure folder structure: <client>/מסמכים לחתימה/ממתינים/
     const c = allClients.find(x => x.rowNum === _custState.rowNum);
@@ -4892,6 +5013,7 @@ async function _handleSigUpload(ev){
     // 2. Upload the PDF to "ממתינים" with progress reporting
     const uploaded = await driveUploadFile(pendingFolder.id, renamed, (pct) => {
       _updateSigUploadProgress(uploadId, pct);
+      bgProgress(_bgUpl, pct);
     });
     _updateSigUploadProgress(uploadId, 100);
     // 3. Append entry to column EE (signatures JSON)
@@ -4938,6 +5060,8 @@ async function _handleSigUpload(ev){
   }catch(e){
     _removeSigUploadProgress(uploadId);
     showToast('שגיאה: ' + (e.message || e), 'err');
+  } finally {
+    bgEnd(_bgUpl);
   }
 }
 
