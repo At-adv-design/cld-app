@@ -1,0 +1,14 @@
+{
+  "name": "אבי טל ושות׳ - שליטה במחשבים",
+  "short_name": "שליטה",
+  "description": "לוח בקרה למחשבי המשרד",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF9F5",
+  "theme_color": "#3a3a48",
+  "icons": [
+    {"src": "../icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

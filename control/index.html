@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1E1C" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<title>שליטה במחשבים | אבי טל ושות׳</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+button,input,textarea,select,.machine-card,.login-card,.hdr-btn,.google-btn{border-radius:0 !important;}
+
+:root{
+  --slate:#3a3a48;--slate2:#2c2c38;--red:#b01010;--red-bg:#FDECEC;
+  --orange:#c8620a;--orange-bg:#FFF6EC;--orange-border:#f5d0a0;
+  --green:#1a7a45;--green-bg:#EFF7F1;--green-border:#b0ddc0;
+  --blue:#2060c0;--blue-bg:#EEF1FA;--blue-border:#c0d0f0;
+  --bg:#FAF9F5;--white:#FFFFFF;--border:#D9D6CA;--muted:#6B6A65;--text:#1F1E1B;
+  --shadow:0 1px 2px rgba(31,30,27,0.04),0 4px 16px rgba(31,30,27,0.05);
+}
+[data-theme="dark"]{
+  --slate:#9A9AAB;--slate2:#7B7B8A;--red:#E04444;--red-bg:#3A2222;
+  --orange:#E89B5C;--orange-bg:#3A2A1F;--orange-border:#5C4329;
+  --green:#48C77A;--green-bg:#1F3A2A;--green-border:#2D5C3F;
+  --blue:#6FA8E5;--blue-bg:#1F2A3A;--blue-border:#2D4359;
+  --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
+  --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
+}
+html{overflow-x:hidden;overscroll-behavior-x:none;}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;width:100%;max-width:100vw;}
+[data-theme="dark"] img[alt*="טל"]{filter:invert(.94) hue-rotate(180deg) brightness(.95);}
+[data-theme="dark"] button svg{color:#fff;}
+[data-theme="dark"] .hdr-btn{color:#fff;}
+
+/* HEADER */
+.header{
+  background:var(--white);height:96px;padding:0 16px;
+  display:flex;align-items:center;justify-content:flex-start;
+  border-bottom:1px solid var(--border);position:relative;
+}
+.hdr-right{display:flex;gap:8px;align-items:center;max-width:50%;flex-wrap:wrap;justify-content:flex-start;}
+.header > img[alt*="טל"]{
+  position:absolute;left:25%;top:50%;transform:translate(-50%,-50%);
+  height:90px;object-fit:contain;pointer-events:none;
+}
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;border-radius:4px;padding:0 10px;}
+.hdr-btn:active{background:var(--border);}
+.hdr-title{flex:1;font-size:13px;color:var(--muted);font-weight:600;text-align:center;}
+.avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer;overflow:hidden;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;gap:24px;text-align:center;background:var(--white);}
+.login-card{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:340px;width:100%;}
+.google-btn{display:inline-flex;align-items:center;gap:10px;padding:11px 20px;background:var(--white);border:1px solid var(--border);font-size:14px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;}
+.google-btn:hover{border-color:var(--slate);}
+
+/* CONTENT */
+.content{padding:14px;display:flex;flex-direction:column;gap:14px;max-width:900px;margin:0 auto;}
+.section-title{font-size:14px;font-weight:700;color:var(--slate);letter-spacing:.3px;}
+.muted-line{font-size:12px;color:var(--muted);font-weight:500;}
+
+/* MACHINE CARDS */
+.machines-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.machine-card{
+  background:var(--white);border:1px solid var(--border);
+  padding:14px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:var(--shadow);
+}
+.machine-card.online{border-color:var(--green-border);}
+.machine-card.stale{border-color:var(--orange-border);}
+.machine-card.offline{opacity:.7;}
+.mc-head{display:flex;align-items:center;gap:8px;}
+.mc-status-dot{
+  width:9px;height:9px;border-radius:50%;flex-shrink:0;
+  background:var(--muted);
+}
+.mc-status-dot.online{background:var(--green);box-shadow:0 0 0 3px rgba(26,122,69,.18);animation:pulse 2s ease-in-out infinite;}
+.mc-status-dot.stale{background:var(--orange);}
+.mc-status-dot.offline{background:var(--muted);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.mc-name{font-size:14px;font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mc-status-label{font-size:10px;font-weight:700;letter-spacing:.4px;}
+.mc-status-label.online{color:var(--green);}
+.mc-status-label.stale{color:var(--orange);}
+.mc-status-label.offline{color:var(--muted);}
+.mc-meta{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);font-weight:500;}
+.mc-meta .row{display:flex;justify-content:space-between;gap:8px;}
+.mc-meta .row > .key{color:var(--muted);}
+.mc-meta .row > .val{color:var(--text);font-weight:600;text-align:left;direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%;}
+.mc-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;border-top:1px solid var(--border-soft,#eee);padding-top:8px;}
+.mc-btn{
+  flex:1;min-width:80px;
+  background:var(--bg);border:1px solid var(--border);
+  padding:6px 8px;border-radius:4px;
+  font-size:11px;font-weight:600;color:var(--text);cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:4px;
+}
+.mc-btn:hover{border-color:var(--slate);}
+.mc-btn.primary{background:var(--slate);color:#fff;border-color:var(--slate);}
+.mc-btn.danger{color:var(--red);border-color:var(--red);}
+.mc-btn svg{width:11px;height:11px;}
+
+/* COMMAND MODAL */
+.cmd-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:14px;}
+.cmd-overlay.open{display:flex;}
+.cmd-card{background:var(--white);border:1px solid var(--border);padding:18px;display:flex;flex-direction:column;gap:10px;width:100%;max-width:480px;}
+.cmd-card h3{font-size:14px;font-weight:700;color:var(--text);}
+.cmd-target{font-size:12px;color:var(--muted);font-weight:600;}
+.cmd-textarea{width:100%;min-height:100px;padding:10px;font-family:inherit;font-size:13px;background:var(--bg);border:1px solid var(--border);color:var(--text);resize:vertical;direction:rtl;}
+.cmd-actions{display:flex;gap:8px;justify-content:flex-end;}
+
+/* TOAST */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--slate);color:#fff;padding:9px 18px;font-size:13px;font-weight:500;z-index:500;white-space:nowrap;}
+
+/* BG ACTIVITY BAR (mirrors insolvency/clients) */
+#bg-activity-bar{position:fixed;top:0;left:0;right:0;height:3px;z-index:600;background:transparent;pointer-events:none;display:none}
+@keyframes bgIndeterm { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }
+
+/* EMPTY / LOADING STATES */
+.empty-state{padding:40px 20px;text-align:center;color:var(--muted);}
+.empty-state .e-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.empty-state .e-sub{font-size:12px;color:var(--muted);}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;" onerror="this.style.display='none'">
+    <div style="font-size:15px;font-weight:600;color:var(--text)">שליטה במחשבים</div>
+    <div style="font-size:13px;color:var(--muted)">לוח בקרה למחשבים שלך • כניסה עם Google</div>
+    <button class="google-btn" onclick="doLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      כניסה עם Google
+    </button>
+    <button onclick="['ct','cte','cp','cn','ce'].forEach(k=>localStorage.removeItem(k));doLogin();" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline">כניסה עם חשבון אחר</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="hdr-right">
+      <button class="hdr-btn" onclick="loadHeartbeats()" title="רענן">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+        <span>רענן</span>
+      </button>
+      <button class="hdr-btn" onclick="toggleTheme()">
+        <svg id="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="avatar" id="user-avatar" onclick="signOut()" title="יציאה"></div>
+    </div>
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:90px;object-fit:contain;">
+  </div>
+
+  <div class="content">
+
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="section-title">המחשבים שלי</span>
+      <span class="muted-line" id="last-updated"></span>
+    </div>
+
+    <div id="machines-list" class="machines-grid">
+      <div class="empty-state">
+        <div class="spinner" style="margin:0 auto 10px"></div>
+        <div class="e-sub">טוען נתוני heartbeat…</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px">
+      <span class="section-title">פעילות אחרונה ב-cld-app</span>
+      <div id="recent-commits" class="muted-line">טוען…</div>
+    </div>
+
+    <div style="margin-top:18px;font-size:11px;color:var(--muted);line-height:1.6">
+      <div><b>איך זה עובד:</b> כל מחשב כותב heartbeat ל-Google Drive כל דקה (לוקיישן: תיקיית "Avi-Tal-Control"). כשאני רואה את הפעמון בין הזמן שצוין לעכשיו ארוך מ-5 דקות — מסומן stale. ארוך מ-30 דקות — offline.</div>
+      <div style="margin-top:6px;color:var(--muted)">גרסת control v1 • <span id="commit-hash">dev</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- COMMAND MODAL -->
+<div class="cmd-overlay" id="cmd-overlay" onclick="if(event.target===this)closeCmdModal()">
+  <div class="cmd-card">
+    <h3>שלח הוראה למחשב</h3>
+    <div class="cmd-target" id="cmd-target"></div>
+    <textarea id="cmd-text" class="cmd-textarea" placeholder="הוראה ל-Claude Code שירוץ במחשב הזה — למשל: 'תעשה git pull ותעדכן את MEMORY.md'"></textarea>
+    <div class="cmd-actions">
+      <button class="mc-btn" onclick="closeCmdModal()">ביטול</button>
+      <button class="mc-btn primary" onclick="sendCommand()">שלח</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const CLIENT_ID = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const REDIRECT = location.origin + location.pathname;
+// Folder name used for heartbeats + commands. Created in user's My Drive
+// on first authenticated load if it doesn't exist.
+const DRIVE_FOLDER_NAME = 'Avi-Tal-Control';
+// Status thresholds
+const STALE_AFTER_MS    = 5  * 60 * 1000;  // 5 min  → "stale"
+const OFFLINE_AFTER_MS  = 30 * 60 * 1000;  // 30 min → "offline"
+// Refresh interval
+const REFRESH_INTERVAL  = 30 * 1000;       // 30 sec
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+let accessToken = null;
+let userEmail = null;
+let userPic = null;
+let driveFolderId = null;
+
+function tokenIsValid(){
+  if(!accessToken) return false;
+  const exp = parseInt(localStorage.getItem('cte') || '0');
+  return Date.now() < exp;
+}
+
+function doLogin(){
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id: CLIENT_ID, redirect_uri: REDIRECT, response_type: 'token',
+    scope: SCOPES, prompt: 'consent select_account', include_granted_scopes: 'true'
+  });
+}
+
+function signOut(){
+  if(!confirm('להתנתק?')) return;
+  ['ct','cte','cp','cn','ce'].forEach(k=>localStorage.removeItem(k));
+  accessToken = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function captureTokenFromHash(){
+  if(!location.hash || !location.hash.includes('access_token=')) return false;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const tok = params.get('access_token');
+  const exp = parseInt(params.get('expires_in') || '3600');
+  if(tok){
+    accessToken = tok;
+    localStorage.setItem('ct', tok);
+    localStorage.setItem('cte', (Date.now() + (exp - 120) * 1000).toString());
+    history.replaceState({}, '', location.pathname);
+    return true;
+  }
+  return false;
+}
+
+async function fetchUserInfo(){
+  try{
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: {Authorization: 'Bearer ' + accessToken}
+    });
+    if(!r.ok) throw new Error('userinfo failed');
+    const u = await r.json();
+    userEmail = u.email;
+    userPic = u.picture;
+    localStorage.setItem('ce', u.email);
+    localStorage.setItem('cp', u.picture || '');
+    const av = document.getElementById('user-avatar');
+    if(userPic) av.innerHTML = `<img src="${userPic}" alt="">`;
+    else av.textContent = (u.name || u.email || '?').slice(0,1).toUpperCase();
+  } catch(e){ console.warn('userinfo failed', e); }
+}
+
+async function apiFetch(url, opts={}){
+  const headers = Object.assign({}, opts.headers || {}, {Authorization: 'Bearer ' + accessToken});
+  const r = await fetch(url, Object.assign({}, opts, {headers}));
+  if(r.status === 401){
+    localStorage.setItem('cte', '0');
+    accessToken = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    throw new Error('UNAUTHORIZED');
+  }
+  return r;
+}
+
+/* ============================================================
+   DRIVE FOLDER
+   ============================================================ */
+async function ensureDriveFolder(){
+  // Look up existing folder by name
+  const q = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const r = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)');
+  const j = await r.json();
+  if(j.files && j.files.length){ driveFolderId = j.files[0].id; return driveFolderId; }
+  // Create new
+  const r2 = await apiFetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder'})
+  });
+  const j2 = await r2.json();
+  driveFolderId = j2.id;
+  return driveFolderId;
+}
+
+async function listHeartbeats(){
+  if(!driveFolderId) await ensureDriveFolder();
+  const q = encodeURIComponent(`'${driveFolderId}' in parents and name contains 'heartbeat-' and trashed=false`);
+  const r = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc');
+  const j = await r.json();
+  return j.files || [];
+}
+
+async function readHeartbeat(fileId){
+  const r = await apiFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+  if(!r.ok) return null;
+  try { return await r.json(); } catch(_){ return null; }
+}
+
+async function writeCommand(machineName, text){
+  if(!driveFolderId) await ensureDriveFolder();
+  const fileName = `command-${machineName}-${Date.now()}.json`;
+  const body = JSON.stringify({machine: machineName, text, createdAt: Date.now(), createdBy: userEmail});
+  const metadata = {name: fileName, parents: [driveFolderId]};
+  const boundary = 'cmd' + Date.now();
+  const multipart = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+  const r = await apiFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: {'Content-Type': 'multipart/related; boundary=' + boundary},
+    body: multipart
+  });
+  if(!r.ok) throw new Error('failed to write command');
+  return await r.json();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function classifyStatus(lastSeen){
+  if(!lastSeen) return 'offline';
+  const age = Date.now() - lastSeen;
+  if(age < STALE_AFTER_MS) return 'online';
+  if(age < OFFLINE_AFTER_MS) return 'stale';
+  return 'offline';
+}
+function fmtAgo(ts){
+  if(!ts) return '—';
+  const sec = Math.round((Date.now() - ts) / 1000);
+  if(sec < 60) return `לפני ${sec}ש׳`;
+  const min = Math.round(sec / 60);
+  if(min < 60) return `לפני ${min} דק׳`;
+  const hr = Math.round(min / 60);
+  if(hr < 24) return `לפני ${hr} שע׳`;
+  const day = Math.round(hr / 24);
+  return `לפני ${day} ימים`;
+}
+function statusLabel(s){
+  return s==='online' ? 'פעיל' : s==='stale' ? 'לא ידוע' : 'לא מחובר';
+}
+
+function renderMachines(heartbeats){
+  const list = document.getElementById('machines-list');
+  if(!heartbeats.length){
+    list.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="e-title">אין מחשבים מדווחים עדיין</div>
+        <div class="e-sub">כל מחשב צריך להריץ סקריפט heartbeat כדי להופיע כאן.<br>הסקריפט נמצא ב-Dropbox/.claude/dedicated-files/heartbeat.ps1</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = heartbeats.map(hb => {
+    const status = classifyStatus(hb.lastSeen);
+    const dot = `<span class="mc-status-dot ${status}"></span>`;
+    return `
+      <div class="machine-card ${status}">
+        <div class="mc-head">
+          ${dot}
+          <div class="mc-name">${hb.machineName || '(ללא שם)'}</div>
+          <div class="mc-status-label ${status}">${statusLabel(status)}</div>
+        </div>
+        <div class="mc-meta">
+          <div class="row"><span class="key">משתמש</span><span class="val">${hb.user || '—'}</span></div>
+          <div class="row"><span class="key">פעיל אחרון</span><span class="val">${fmtAgo(hb.lastSeen)}</span></div>
+          ${hb.currentTask ? `<div class="row"><span class="key">משימה נוכחית</span><span class="val" title="${escapeHtml(hb.currentTask)}">${escapeHtml(hb.currentTask)}</span></div>` : ''}
+          ${hb.lastCommit ? `<div class="row"><span class="key">קומיט אחרון</span><span class="val">${escapeHtml(hb.lastCommit.slice(0,30))}</span></div>` : ''}
+          ${hb.version ? `<div class="row"><span class="key">גרסת control</span><span class="val">${escapeHtml(hb.version)}</span></div>` : ''}
+        </div>
+        <div class="mc-actions">
+          <button class="mc-btn primary" onclick="openCmdModal('${escapeAttr(hb.machineName)}')">הוראה</button>
+          <button class="mc-btn" onclick="openTranscripts('${escapeAttr(hb.machineName)}')">היסטוריה</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+let _commandTarget = null;
+function openCmdModal(machineName){
+  _commandTarget = machineName;
+  document.getElementById('cmd-target').textContent = 'יעד: ' + machineName;
+  document.getElementById('cmd-text').value = '';
+  document.getElementById('cmd-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('cmd-text').focus(), 80);
+}
+function closeCmdModal(){ document.getElementById('cmd-overlay').classList.remove('open'); }
+async function sendCommand(){
+  const text = (document.getElementById('cmd-text').value || '').trim();
+  if(!text){ toast('יש לכתוב הוראה'); return; }
+  if(!_commandTarget) return;
+  try {
+    await writeCommand(_commandTarget, text);
+    toast('ההוראה נשלחה');
+    closeCmdModal();
+  } catch(e){
+    toast('שגיאה: ' + (e.message || e));
+  }
+}
+function openTranscripts(machineName){
+  // Open the Dropbox folder in Explorer if available; otherwise show path
+  const path = `Z:\\Legal Network Dropbox\\TiminLaw5735 user\\Dropbox\\tal.adv.scn\\.claude\\transcripts\\${machineName}`;
+  prompt('נתיב טרנסקריפטים של ' + machineName + ' (העתק והדבק ב-Explorer):', path);
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.remove(); }, 2400);
+}
+
+/* ============================================================
+   LOAD
+   ============================================================ */
+async function loadHeartbeats(){
+  if(!accessToken) return;
+  try {
+    const files = await listHeartbeats();
+    const heartbeats = await Promise.all(files.map(async f => {
+      const data = await readHeartbeat(f.id);
+      return data ? Object.assign({fileId: f.id, modifiedTime: f.modifiedTime}, data) : null;
+    }));
+    const valid = heartbeats.filter(Boolean);
+    valid.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+    renderMachines(valid);
+    document.getElementById('last-updated').textContent = '• עודכן ' + new Date().toLocaleTimeString('he-IL');
+  } catch(e){
+    console.warn('loadHeartbeats failed', e);
+    document.getElementById('machines-list').innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="e-title" style="color:var(--red)">שגיאה בטעינת נתונים</div>
+        <div class="e-sub">${escapeHtml(e.message || String(e))}</div>
+      </div>`;
+  }
+}
+
+async function loadRecentCommits(){
+  try {
+    const r = await fetch('https://api.github.com/repos/At-adv-design/cld-app/commits?per_page=5');
+    if(!r.ok) throw new Error('github api ' + r.status);
+    const commits = await r.json();
+    const html = commits.map(c => {
+      const d = new Date(c.commit.author.date);
+      const ago = fmtAgo(d.getTime());
+      const msg = (c.commit.message || '').split('\n')[0];
+      const author = c.commit.author.name || '';
+      return `
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(msg)}</div>
+            <div style="font-size:10px;color:var(--muted)">${escapeHtml(author)} • ${ago}</div>
+          </div>
+          <div style="flex-shrink:0;font-family:monospace;color:var(--muted);font-size:10px;align-self:center">${c.sha.slice(0,7)}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('recent-commits').innerHTML = html || '<div class="muted-line">אין קומיטים אחרונים</div>';
+  } catch(e){
+    document.getElementById('recent-commits').innerHTML = '<div class="muted-line">לא ניתן לטעון קומיטים: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', cur);
+  localStorage.setItem('control-theme', cur);
+  document.getElementById('theme-moon').style.display = cur === 'dark' ? 'none' : 'block';
+  document.getElementById('theme-sun').style.display = cur === 'dark' ? 'block' : 'none';
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init(){
+  // Restore theme
+  const t = localStorage.getItem('control-theme');
+  if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('theme-moon').style.display='none'; document.getElementById('theme-sun').style.display='block'; }
+  // Capture token from OAuth redirect
+  if(captureTokenFromHash()){
+    await fetchUserInfo();
+    showApp();
+    await ensureDriveFolder();
+    await loadHeartbeats();
+    loadRecentCommits();
+    setInterval(loadHeartbeats, REFRESH_INTERVAL);
+    return;
+  }
+  // Otherwise check for stored token
+  const stored = localStorage.getItem('ct');
+  const exp = parseInt(localStorage.getItem('cte') || '0');
+  if(stored && Date.now() < exp){
+    accessToken = stored;
+    userEmail = localStorage.getItem('ce') || '';
+    userPic = localStorage.getItem('cp') || '';
+    const av = document.getElementById('user-avatar');
+    if(userPic) av.innerHTML = `<img src="${userPic}" alt="">`;
+    else av.textContent = (userEmail || '?').slice(0,1).toUpperCase();
+    showApp();
+    await ensureDriveFolder();
+    await loadHeartbeats();
+    loadRecentCommits();
+    setInterval(loadHeartbeats, REFRESH_INTERVAL);
+    return;
+  }
+  // Not logged in
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+init();
+</script>
+</body>
+</html>
