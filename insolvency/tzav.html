@@ -56,7 +56,11 @@ button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
   --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
   --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
 }
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+html{overflow-x:hidden;overscroll-behavior-x:none;}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;
+  width:100%;max-width:100vw;}
+*{overscroll-behavior-x:none;}
 
 /* AUTO-HIDING STICKY SHELL
    Wraps header+tabs+filters+search. When user scrolls down past a small
@@ -7148,34 +7152,12 @@ window.addEventListener('popstate',()=>{
     document.getElementById('log-modal').classList.remove('open');
     return;
   }
-  // Inside tasks section: 3 consecutive back-presses → return to main section.
+  // Inside tasks section: single back-press → return to main section.
   if(inTasksSection){
-    _backPressCount++;
-    history.pushState({page:'tasks'},'');
-    if(_backPressCount<3){
-      showToast(`לחץ ${3-_backPressCount} פעמים נוספות לחזרה לעמוד הראשי`);
-      clearTimeout(_backPressTimer);
-      _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
-      return;
-    }
-    _backPressCount=0;
     exitTasksSection();
     return;
   }
-  // On the main page — require 3 consecutive back-presses inside 1.5s to
-  // actually exit. A single back press is easy to hit by accident; this acts
-  // as a built-in "are you sure?" confirmation. Each press shows a toast
-  // telling the user how many more presses are needed.
-  _backPressCount++;
-  history.pushState({page:'app'},'');
-  if(_backPressCount<3){
-    showToast(`לחץ ${3-_backPressCount} פעמים נוספות ליציאה`);
-    clearTimeout(_backPressTimer);
-    _backPressTimer=setTimeout(()=>{_backPressCount=0;},1500);
-    return;
-  }
-  // Three consecutive presses — let the browser actually go back this time.
-  _backPressCount=0;
+  // Main page — single back-press exits (per user request 2026-05-06).
   history.back();
 });
 

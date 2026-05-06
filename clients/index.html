@@ -72,13 +72,18 @@ button,input,textarea,select,.section-head,.req-card,.report-row,.file-pill{
 }
 input,textarea{-webkit-user-select:text;user-select:text;}
 html,body{height:100%;}
+html{overflow-x:hidden;overscroll-behavior-x:none;}
 body{
   font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
   background:var(--bg);color:var(--text);
   min-height:100vh;-webkit-font-smoothing:antialiased;
   font-size:14px;line-height:1.5;
   overscroll-behavior:none;
+  overflow-x:hidden;
+  touch-action:pan-y;
+  width:100%;max-width:100vw;
 }
+*{overscroll-behavior-x:none;}
 input,textarea,button{font-family:inherit;}
 
 #login-screen{
@@ -1075,6 +1080,32 @@ let isLoading     = false;
 async function api(action, payload){
   if(!CONFIG.API_URL) throw new Error('האפליקציה לא מוגדרת — צור קשר עם המשרד');
   const body = Object.assign({action}, payload || {});
+  // For uploads, use XHR so we can report upload-side progress to the
+  // caller via payload._onProgress. Fetch can't expose upload progress
+  // without the (still-flaky) Streams API workaround.
+  const onProgress = payload && payload._onProgress;
+  if(typeof onProgress === 'function'){
+    const sendBody = JSON.stringify(Object.assign({}, body, {_onProgress: undefined}));
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', CONFIG.API_URL);
+      xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+      xhr.upload.onprogress = (e) => {
+        if(e.lengthComputable){
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        try {
+          const j = JSON.parse(xhr.responseText);
+          if(!j.ok) reject(new Error(j.error || 'שגיאה לא ידועה'));
+          else resolve(j);
+        } catch(_){ reject(new Error('תגובה לא תקינה מהשרת')); }
+      };
+      xhr.onerror = () => reject(new Error('אין חיבור לאינטרנט — נסה שוב'));
+      xhr.send(sendBody);
+    });
+  }
   let res;
   try{
     res = await fetch(CONFIG.API_URL, {
@@ -2285,6 +2316,7 @@ $('file-input').addEventListener('change', async (e)=>{
       if(pdfBlob){
         const dataBase64 = await blobToBase64(pdfBlob);
         showLoading(false);
+        const upId = _showUploadProgress(baseName + '.pdf', ctx);
         toast('הקובץ נשלח — ממתין לאישור', 'success');
         api('uploadFile',{
           token:currentUser.token,
@@ -2295,8 +2327,9 @@ $('file-input').addEventListener('change', async (e)=>{
           filename: baseName + '.pdf',
           mimeType: 'application/pdf',
           dataBase64,
-        }).then(()=>loadData(true))
-          .catch(err=>toast('שגיאה בהעלאה: '+(err.message||''),'error'));
+          _onProgress: (pct) => _updateUploadProgress(upId, pct),
+        }).then(()=>{ _removeUploadProgress(upId); loadData(true); })
+          .catch(err=>{ _removeUploadProgress(upId); toast('שגיאה בהעלאה: '+(err.message||''),'error'); });
         return;
       }
       // pdf-lib not loaded — fall back to uploading each image separately
@@ -2320,6 +2353,7 @@ $('file-input').addEventListener('change', async (e)=>{
         name = baseName + (files.length>1?'_'+(i+1):'') + ext;
       }
       const dataBase64 = await blobToBase64(blob);
+      const upId = _showUploadProgress(name, ctx);
       api('uploadFile',{
         token:currentUser.token,
         category:ctx.category,
@@ -2329,8 +2363,9 @@ $('file-input').addEventListener('change', async (e)=>{
         filename: name,
         mimeType: mime.startsWith('image/') ? 'image/jpeg' : mime,
         dataBase64,
-      }).then(()=>loadData(true))
-        .catch(err=>toast('שגיאה בהעלאה: '+(err.message||''),'error'));
+        _onProgress: (pct) => _updateUploadProgress(upId, pct),
+      }).then(()=>{ _removeUploadProgress(upId); loadData(true); })
+        .catch(err=>{ _removeUploadProgress(upId); toast('שגיאה בהעלאה: '+(err.message||''),'error'); });
     }
   }catch(err){
     showLoading(false);
@@ -2433,6 +2468,55 @@ function blobToBase64(blob){
     };
     r.readAsDataURL(blob);
   });
+}
+
+/* Inline upload-progress card rendered inside the section that owns the
+   upload (matched by ctx.reqId or ctx.category). The bar shows 0–100%
+   based on XHR upload events; on completion the card is removed and the
+   real file pill takes its place. Lawyer/client sees the upload moving
+   instead of "tapped, then nothing for 30 seconds". */
+function _showUploadProgress(fileName, ctx){
+  const upId = 'upl_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  // Find the req-card the user just uploaded into. Otherwise pin to a
+  // top-of-app overlay so the user still sees something move.
+  let host = ctx && ctx.reqId
+    ? document.querySelector(`[data-req-id="${ctx.reqId}"] .file-pills`) ||
+      document.querySelector(`[data-req-id="${ctx.reqId}"]`)
+    : null;
+  if(!host){
+    host = document.getElementById('uploads-overlay');
+    if(!host){
+      host = document.createElement('div');
+      host.id = 'uploads-overlay';
+      host.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:6px;width:min(94vw,420px);';
+      document.body.appendChild(host);
+    }
+  }
+  const card = document.createElement('div');
+  card.id = 'upl-' + upId;
+  card.style.cssText = 'padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.06)';
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">${esc(fileName)}</div>
+      <div id="upl-pct-${upId}" style="font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0">0%</div>
+    </div>
+    <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
+      <div id="upl-bar-${upId}" style="height:100%;width:0%;background:var(--slate);transition:width .15s ease"></div>
+    </div>`;
+  host.appendChild(card);
+  return upId;
+}
+function _updateUploadProgress(upId, pct){
+  const bar = document.getElementById('upl-bar-'+upId);
+  const lbl = document.getElementById('upl-pct-'+upId);
+  if(bar) bar.style.width = pct + '%';
+  if(lbl) lbl.textContent = pct >= 100 ? 'שומר…' : pct + '%';
+}
+function _removeUploadProgress(upId){
+  const card = document.getElementById('upl-'+upId);
+  if(card) card.remove();
+  const overlay = document.getElementById('uploads-overlay');
+  if(overlay && !overlay.children.length) overlay.remove();
 }
 
 /* ─── HISTORY ─── */

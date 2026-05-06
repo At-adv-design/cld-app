@@ -56,7 +56,19 @@ button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
   --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
   --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
 }
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+html{overflow-x:hidden;overscroll-behavior-x:none;}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;
+  /* Lock the screen to vertical scrolling only — no horizontal drift, no
+     pinch-zoom rocking. Users were reporting that touching cards would
+     slide the whole screen sideways and content went off-edge; this also
+     prevents accidental swipe-back gestures from competing with vertical
+     scroll. */
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+  width:100%;max-width:100vw;
+}
+*{overscroll-behavior-x:none;}
 
 /* AUTO-HIDING STICKY SHELL
    Wraps header+tabs+filters+search. When user scrolls down past a small
@@ -4866,7 +4878,10 @@ async function _handleSigUpload(ev){
   const renamed = (newBase === origBase)
     ? file
     : new File([file], newBase + '.pdf', {type: file.type || 'application/pdf'});
-  showToast('מעלה את המסמך…','ok');
+  // Show an inline upload progress card so the user sees something move
+  // immediately (no more "tapped upload, then nothing for 5 seconds").
+  const uploadId = 'upl_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  _showSigUploadProgress(uploadId, newBase + '.pdf');
   try{
     // 1. Ensure folder structure: <client>/מסמכים לחתימה/ממתינים/
     const c = allClients.find(x => x.rowNum === _custState.rowNum);
@@ -4874,8 +4889,11 @@ async function _handleSigUpload(ev){
     const clientFolder = await driveEnsureFolder(DRIVE_ROOT_ID, clientName);
     const sigsRoot = await driveEnsureFolder(clientFolder.id, 'מסמכים לחתימה');
     const pendingFolder = await driveEnsureFolder(sigsRoot.id, 'ממתינים');
-    // 2. Upload the PDF to "ממתינים"
-    const uploaded = await driveUploadFile(pendingFolder.id, renamed);
+    // 2. Upload the PDF to "ממתינים" with progress reporting
+    const uploaded = await driveUploadFile(pendingFolder.id, renamed, (pct) => {
+      _updateSigUploadProgress(uploadId, pct);
+    });
+    _updateSigUploadProgress(uploadId, 100);
     // 3. Append entry to column EE (signatures JSON)
     const list = Array.isArray(_custState.signatures) ? _custState.signatures.slice() : [];
     const entry = {
@@ -4887,6 +4905,7 @@ async function _handleSigUpload(ev){
     list.push(entry);
     await _saveSignaturesColumn(list);
     _custState.signatures = list;
+    _removeSigUploadProgress(uploadId);
     renderCustomerArea();
     // 4. Notify client via WhatsApp
     const phone = (c && c.phone) || _custState.phone || '';
@@ -4917,9 +4936,56 @@ async function _handleSigUpload(ev){
       try{ alert(msg); }catch(_){}
     }
   }catch(e){
+    _removeSigUploadProgress(uploadId);
     showToast('שגיאה: ' + (e.message || e), 'err');
   }
 }
+
+/* Progress UI for signature uploads. Renders a thin card at the top of
+   the signatures section with a progress bar (slate, full-width) under
+   the file name. Updated incrementally from the XHR onProgress callback,
+   removed when the upload finishes (real entry takes over). */
+function _showSigUploadProgress(uploadId, fileName){
+  const sec = document.querySelector('.cust-section[data-cust-key="signatures"]');
+  if(!sec) return;
+  const body = sec.querySelector('.cust-section-body');
+  if(!body) return;
+  let host = document.getElementById('sig-uploads-host');
+  if(!host){
+    host = document.createElement('div');
+    host.id = 'sig-uploads-host';
+    host.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px';
+    body.insertBefore(host, body.firstChild);
+  }
+  const card = document.createElement('div');
+  card.id = 'sig-upl-' + uploadId;
+  card.style.cssText = 'padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px';
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fileName)}</div>
+        <div id="sig-upl-pct-${uploadId}" style="font-size:10px;color:var(--muted);font-weight:500;margin-top:1px">מעלה… 0%</div>
+      </div>
+      <span style="font-size:10px;color:var(--orange);font-weight:700;background:var(--orange-bg);border:1px solid var(--orange-border);padding:2px 7px;border-radius:3px">מעלה</span>
+    </div>
+    <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
+      <div id="sig-upl-bar-${uploadId}" style="height:100%;width:0%;background:var(--slate);transition:width .15s ease"></div>
+    </div>`;
+  host.appendChild(card);
+}
+function _updateSigUploadProgress(uploadId, pct){
+  const bar = document.getElementById('sig-upl-bar-'+uploadId);
+  const lbl = document.getElementById('sig-upl-pct-'+uploadId);
+  if(bar) bar.style.width = pct + '%';
+  if(lbl) lbl.textContent = pct >= 100 ? 'שומר…' : ('מעלה… ' + pct + '%');
+}
+function _removeSigUploadProgress(uploadId){
+  const card = document.getElementById('sig-upl-'+uploadId);
+  if(card) card.remove();
+  const host = document.getElementById('sig-uploads-host');
+  if(host && !host.children.length) host.remove();
+}
+
 async function _saveSignaturesColumn(list){
   // Signatures column is DM (1-based 117). Update only that one cell.
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/DM${_custState.rowNum}?valueInputOption=RAW`;
@@ -6238,7 +6304,7 @@ async function driveEnsureFolder(parentId, name){
 /* Upload a single File (Blob) into a Drive folder. Uses multipart
    upload so we can set name + parent in the same request. Returns
    {id, name, webViewLink}. Used by the signatures upload flow. */
-async function driveUploadFile(parentId, file){
+async function driveUploadFile(parentId, file, onProgress){
   const metadata = {
     name: file.name,
     parents: [parentId]
@@ -6252,13 +6318,33 @@ async function driveUploadFile(parentId, file){
   );
   const tail = enc.encode(`\r\n--${boundary}--\r\n`);
   const body = new Blob([head, file, tail], {type: 'multipart/related; boundary=' + boundary});
-  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
-    body
+  // XHR-based upload so we can report 0–100% progress to the caller via
+  // the optional onProgress callback. fetch() doesn't expose upload-side
+  // progress in any browser without the Streams API workaround which is
+  // still flaky on iOS Safari, so XHR remains the safe choice.
+  return await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+    xhr.setRequestHeader('Content-Type', 'multipart/related; boundary=' + boundary);
+    if(typeof onProgress === 'function'){
+      xhr.upload.onprogress = (e) => {
+        if(e.lengthComputable){
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+    }
+    xhr.onload = () => {
+      if(xhr.status >= 200 && xhr.status < 300){
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(_){ reject(new Error('Drive upload returned invalid JSON')); }
+      } else {
+        reject(new Error('Drive upload failed: ' + xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(body);
   });
-  if(!r.ok) throw new Error('Drive upload failed: ' + r.status);
-  return await r.json();
 }
 
 /* List everything inside a folder. Returns array of {id, name,
@@ -6578,15 +6664,47 @@ function isAuthError(err){
       || msg.includes('the request is missing')
       || msg.includes('access token');
 }
-function handleAuthError(){
-  // Clear stored token and bounce back to login screen
-  ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
-  accessToken=null;
-  showToast('צריך להתחבר מחדש כדי לקבל הרשאת כתיבה לגיליון');
-  setTimeout(()=>{
-    document.getElementById('app').style.display='none';
-    document.getElementById('login-screen').style.display='flex';
-  },1500);
+// Throttle: only one auth-recovery attempt at a time, regardless of how
+// many parallel API calls hit a 401/403. Without this, 5 simultaneous
+// failures would each fire silentReauth, each spawn an iframe, and any
+// one of them failing would bounce the user immediately.
+let _authRecoveryInFlight = false;
+let _authRecoveryFailures = 0;
+async function handleAuthError(){
+  if(_authRecoveryInFlight) return;
+  _authRecoveryInFlight = true;
+  try{
+    // Try silent reauth before bouncing the user. Most "session expired"
+    // bounces are recoverable — Google just didn't refresh the token in
+    // time. Three attempts with backoff before we give up.
+    let recovered = false;
+    for(let i = 0; i < 3 && !recovered; i++){
+      if(i > 0) await new Promise(r => setTimeout(r, 2000 * i));
+      try { recovered = await silentReauth(); } catch(_){}
+    }
+    if(recovered){
+      _authRecoveryFailures = 0;
+      setOnlineBadge('online');
+      return;
+    }
+    _authRecoveryFailures++;
+    // First failure: just nudge the user, don't bounce. Maybe the next
+    // poll will succeed (offline blip, slow network, etc.).
+    if(_authRecoveryFailures < 2){
+      showToast('בדיקת חיבור מחדש…','info');
+      return;
+    }
+    // Second failure in a row: clear stored token and bounce.
+    ['it','ite','ip','in','ie','isc'].forEach(k=>localStorage.removeItem(k));
+    accessToken=null;
+    showToast('צריך להתחבר מחדש כדי לקבל הרשאת כתיבה לגיליון');
+    setTimeout(()=>{
+      document.getElementById('app').style.display='none';
+      document.getElementById('login-screen').style.display='flex';
+    }, 1500);
+  } finally {
+    _authRecoveryInFlight = false;
+  }
 }
 
 async function writeLogToSheet(rowNum,value,col){

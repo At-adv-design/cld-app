@@ -83,7 +83,11 @@ button,input,textarea,select,.lead-card,.swipe-wrap,.note-box,.modal-sheet,
   --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
 }
 html,body{height:100%;}
-body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+html{overflow-x:hidden;overscroll-behavior-x:none;}
+body{font-family:'Inter',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;
+  width:100%;max-width:100vw;}
+*{overscroll-behavior-x:none;}
 
 /* LOGO COMPONENT */
 .logo-mark{display:flex;align-items:stretch;gap:2px;height:36px;}
@@ -1418,32 +1422,11 @@ window.addEventListener('popstate',(e)=>{
     _resetBackCount();
     return;
   }
-  // Login screen — single back press exits the app.
-  const loginVisible = (document.getElementById('login-screen')||{}).style &&
-                       document.getElementById('login-screen').style.display !== 'none';
-  if(loginVisible){
-    history.go(-1);
-    return;
-  }
-  // Main tab (active) — require THREE consecutive back presses to exit.
-  // First two presses just bump the counter and re-push state so the
-  // browser stays on the page; the third one actually goes back.
-  _backPressCount++;
-  if(_backPressCount >= 3){
-    _resetBackCount();
-    history.go(-1);
-    return;
-  }
-  // Re-push state so we don't actually unwind history yet, and show a
-  // toast hinting how many more presses are needed to exit.
-  history.pushState({page:'app'}, '');
-  const remaining = 3 - _backPressCount;
-  if(typeof showToast === 'function'){
-    showToast(`לחץ עוד ${remaining} פעמים ל${remaining===1?'יציאה':'יציאה'}`,'ok');
-  }
-  // Reset the counter if the user pauses for >2.5s
-  clearTimeout(_backPressTimer);
-  _backPressTimer = setTimeout(_resetBackCount, 2500);
+  // Main tab / login — single back press exits (per user request 2026-05-06).
+  // Triple-press was unwanted friction and contradicted what the user
+  // expects across all apps. Sub-tabs / modals still close their layer
+  // first; only when we're at the root does back actually exit.
+  history.go(-1);
 });
 
 function showApp(){
