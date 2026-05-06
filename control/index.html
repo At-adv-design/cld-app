@@ -255,21 +255,80 @@ function doLogin(){
   });
 }
 
-// Hard switch — clears localStorage AND signs out of Google (so the
-// account picker actually shows new accounts, not the auto-selected one).
+// Force the Google account picker by going through Google's logout
+// endpoint first (which clears the session cookie), then coming back
+// to launch a fresh OAuth flow. This is the only reliable way to
+// override Google's "auto-pick the last-used account" behavior.
 function doSwitchAccount(){
+  // Revoke any token we have cached (so it can't be replayed later)
+  const stored = localStorage.getItem('ct');
+  if(stored){
+    try { fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(stored), {method:'POST'}); } catch(_){}
+  }
   ['ct','cte','cp','cn','ce'].forEach(k => localStorage.removeItem(k));
   accessToken = null;
-  // Use Google's logout endpoint with a continue= param that brings us
-  // back here. After Google clears its session cookie, our doLogin()
-  // will actually display the chooser.
-  const back = encodeURIComponent(location.origin + location.pathname);
-  location.href = 'https://accounts.google.com/Logout?continue=https://appengine.google.com/_ah/logout?continue=' + back;
+  // Open Google's logout in a new tab — user signs out there, comes back
+  // here, clicks "Login with Google" → picker actually shows new accounts.
+  // This is more reliable than a redirect chain because the iframe-style
+  // logout endpoints have varied behavior across browsers.
+  const w = window.open('https://accounts.google.com/Logout', '_blank');
+  showLogoutInstructionScreen();
+}
+
+function showLogoutInstructionScreen(){
+  const ls = document.getElementById('login-screen');
+  document.getElementById('app').style.display = 'none';
+  ls.style.display = 'flex';
+  const card = ls.querySelector('.login-card');
+  card.innerHTML = `
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;" onerror="this.style.display='none'">
+    <div style="font-size:15px;font-weight:700;color:var(--text)">צעד 1 מתוך 2 — התנתקות מ-Google</div>
+    <div style="font-size:13px;color:var(--muted);max-width:300px;line-height:1.6">פתחתי לך טאב חדש עם דף ההתנתקות של Google. תוודא שיצאת מכל החשבונות (לחץ "Sign out of all accounts" אם זה מוצג), אחר כך חזור לכאן ולחץ למטה.</div>
+    <button class="google-btn" onclick="doLogin()" style="background:var(--slate);color:#fff;border-color:var(--slate)">צעד 2 — כניסה עם חשבון חדש</button>
+    <button onclick="window.open('https://accounts.google.com/Logout','_blank')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline">פתח שוב את דף ההתנתקות</button>`;
 }
 
 function signOut(){
   if(!confirm('להתנתק?')) return;
   doSwitchAccount();
+}
+
+// If we just came back from Google with an error in the URL hash, show
+// a helpful screen explaining what likely went wrong.
+function checkOAuthError(){
+  if(!location.hash) return false;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const err = params.get('error');
+  if(!err) return false;
+  history.replaceState({},'',location.pathname);
+  showOAuthErrorScreen(err, params.get('error_description') || '');
+  return true;
+}
+function showOAuthErrorScreen(err, desc){
+  const ls = document.getElementById('login-screen');
+  document.getElementById('app').style.display = 'none';
+  ls.style.display = 'flex';
+  const card = ls.querySelector('.login-card');
+  let helpText = '';
+  if(err === 'redirect_uri_mismatch' || (desc||'').includes('redirect_uri')){
+    helpText = `<div style="font-size:12px;color:var(--muted);max-width:320px;line-height:1.6;text-align:right;direction:rtl">
+      ה-OAuth Client ב-Google Cloud Console חוסם את הכתובת של אפליקציית השליטה. צריך להוסיף ידנית:<br><br>
+      1. להיכנס ל-<a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--blue)">Google Cloud Console → Credentials</a><br>
+      2. לפתוח את ה-OAuth Client (קליינט ID מתחיל ב-298424991371)<br>
+      3. תחת "Authorized redirect URIs" להוסיף:<br>
+      <code style="background:var(--bg);padding:2px 6px;direction:ltr;display:inline-block;margin:4px 0">https://at-adv-design.github.io/cld-app/control/</code><br>
+      4. שמור. השינוי נכנס לתוקף תוך 5 דקות.
+    </div>`;
+  } else if(err === 'access_denied'){
+    helpText = '<div style="font-size:13px;color:var(--muted);max-width:280px">בחרת "ביטול" בדף האישור של Google. נסה שוב ולחץ "המשך / Allow".</div>';
+  } else {
+    helpText = '<div style="font-size:13px;color:var(--muted);max-width:300px;direction:ltr;font-family:monospace;font-size:11px">' + escapeHtml(desc || err) + '</div>';
+  }
+  card.innerHTML = `
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;" onerror="this.style.display='none'">
+    <div style="font-size:15px;font-weight:700;color:var(--red)">שגיאה: ${escapeHtml(err)}</div>
+    ${helpText}
+    <button class="google-btn" onclick="doLogin()" style="margin-top:8px">נסה שוב</button>`;
 }
 
 function captureTokenFromHash(){
@@ -561,6 +620,9 @@ async function init(){
   // Restore theme
   const t = localStorage.getItem('control-theme');
   if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('theme-moon').style.display='none'; document.getElementById('theme-sun').style.display='block'; }
+  // If we came back from Google with an error (e.g. redirect_uri_mismatch),
+  // show a clear explanation instead of silently failing.
+  if(checkOAuthError()) return;
   // Capture token from OAuth redirect
   if(captureTokenFromHash()){
     const ok = await fetchUserInfo();
