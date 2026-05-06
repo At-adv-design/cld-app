@@ -240,15 +240,16 @@ input,textarea,button{font-family:inherit;}
   pointer-events:none;
 }
 
-/* Actions bar — sticky strip directly under the header. Holds page-level
-   action buttons (send-inquiry, collapse-all, …). Mirrors the filter row
-   pattern used in insolvency/leads. */
+/* Actions bar — sticky strip pinned at the very TOP of the viewport
+   once the header has scrolled away. The header is position:relative
+   (scrolls normally), so this bar starts at top:96 and ends up pinned
+   at top:0. Same pattern as leads. */
 .actions-bar{
   background:var(--white);
   border-bottom:1px solid var(--border);
   padding:8px 14px;
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  position:sticky;top:96px;z-index:99;
+  position:sticky;top:0;z-index:99;
 }
 .actions-btn{
   display:inline-flex;align-items:center;gap:6px;
@@ -1947,6 +1948,10 @@ function openSignatureViewer(idx){
       <div style="background:var(--white);padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:12px;font-weight:700;color:var(--text)">חתימה</div>
         <canvas id="sig-canvas" width="600" height="120" style="background:var(--bg);border:1.5px dashed var(--border);border-radius:6px;width:100%;touch-action:none;cursor:crosshair"></canvas>
+        <div id="sig-submit-progress" style="display:none;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:600;color:var(--muted)">שולח חתימה…</span><span id="sig-submit-pct" style="font-size:11px;font-weight:600;color:var(--muted)">0%</span></div>
+          <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div id="sig-submit-bar" style="height:100%;width:0%;background:var(--slate);transition:width .15s ease"></div></div>
+        </div>
         <div style="display:flex;gap:8px">
           <button onclick="_sigClearCanvas()" style="background:var(--bg);border:1px solid var(--border);padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer">נקה</button>
           <button id="sig-submit-btn" onclick="_sigSubmit()" style="flex:1;background:var(--slate);color:#fff;border:none;border-radius:6px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">חתום ושלח</button>
@@ -2010,7 +2015,13 @@ async function _sigSubmit(){
   const f = (s.files && s.files[0]) || null;
   if(!f || !f.id){ toast('הקובץ לא נמצא','error'); return; }
   const btn = document.getElementById('sig-submit-btn');
+  const progBox = document.getElementById('sig-submit-progress');
+  const progBar = document.getElementById('sig-submit-bar');
+  const progPct = document.getElementById('sig-submit-pct');
   btn.disabled = true; btn.textContent = 'שולח…';
+  if(progBox){ progBox.style.display = 'flex'; }
+  if(progBar) progBar.style.width = '0%';
+  if(progPct) progPct.textContent = '0%';
   try{
     const dataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
     const r = await api('submitSignature', {
@@ -2018,7 +2029,11 @@ async function _sigSubmit(){
       reqId: s.id,
       fileId: f.id,
       signaturePngBase64: dataUrl.split(',')[1],
-      signedAt: Date.now()
+      signedAt: Date.now(),
+      _onProgress: (pct) => {
+        if(progBar) progBar.style.width = pct + '%';
+        if(progPct) progPct.textContent = pct >= 100 ? 'מעבד…' : pct + '%';
+      }
     });
     if(r.ok){
       toast('המסמך נחתם — תודה!','success');
@@ -2033,6 +2048,7 @@ async function _sigSubmit(){
     toast(e.message || 'שגיאה','error');
   }finally{
     btn.disabled = false; btn.textContent = 'חתום ושלח';
+    if(progBox) progBox.style.display = 'none';
   }
 }
 /* Per-question open state. Persist across re-renders, not across reloads. */
@@ -2090,10 +2106,11 @@ function buildReqCard(opts){
   const reqIdEnc   = String(opts.reqId||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
   return `
-    <div class="req-card ${cls}">
+    <div class="req-card ${cls}" data-req-id="${esc(opts.reqId||'')}">
       <div class="req-text">${esc(opts.reqText)}</div>
       ${pillHtml}
       ${(approvedHtml||uploadedHtml)?`<div class="file-pills">${approvedHtml}${uploadedHtml}</div>`:''}
+      <div class="upload-progress-host"></div>
       ${rejectionHtml}
       ${allowUpload?`
         <button class="upload-btn" onclick="startUpload('${esc(opts.category)}',${opts.reportNum||'null'},'${reqIdEnc}','${reqTextEnc}')">
@@ -2576,19 +2593,19 @@ function blobToBase64(blob){
   });
 }
 
-/* Inline upload-progress card rendered inside the section that owns the
-   upload (matched by ctx.reqId or ctx.category). The bar shows 0–100%
-   based on XHR upload events; on completion the card is removed and the
-   real file pill takes its place. Lawyer/client sees the upload moving
-   instead of "tapped, then nothing for 30 seconds". */
+/* Inline upload-progress card rendered INSIDE the req-card that owns the
+   upload, so the customer sees the bar right next to the file they just
+   picked. Per user request 2026-05-06: "ליד הקובץ … יותר ברור".
+   The bar shows 0–100% based on XHR upload events; on completion the
+   card is removed and the real file pill takes its place. */
 function _showUploadProgress(fileName, ctx){
   const upId = 'upl_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-  // Find the req-card the user just uploaded into. Otherwise pin to a
-  // top-of-app overlay so the user still sees something move.
+  // Locate the req-card's upload-progress-host (added in buildReqCard).
+  // Fallback: pin to a top-of-app overlay if we can't find the host.
   let host = ctx && ctx.reqId
-    ? document.querySelector(`[data-req-id="${ctx.reqId}"] .file-pills`) ||
-      document.querySelector(`[data-req-id="${ctx.reqId}"]`)
+    ? document.querySelector(`[data-req-id="${ctx.reqId}"] .upload-progress-host`)
     : null;
+  let inline = !!host;
   if(!host){
     host = document.getElementById('uploads-overlay');
     if(!host){
@@ -2600,11 +2617,13 @@ function _showUploadProgress(fileName, ctx){
   }
   const card = document.createElement('div');
   card.id = 'upl-' + upId;
-  card.style.cssText = 'padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.06)';
+  card.style.cssText = inline
+    ? 'margin-top:6px;padding:6px 8px;background:var(--white);border:1px solid var(--border);border-radius:5px'
+    : 'padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.06)';
   card.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-      <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">${esc(fileName)}</div>
-      <div id="upl-pct-${upId}" style="font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0">0%</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
+      <div style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">${esc(fileName)}</div>
+      <div id="upl-pct-${upId}" style="font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0">מעלה… 0%</div>
     </div>
     <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
       <div id="upl-bar-${upId}" style="height:100%;width:0%;background:var(--slate);transition:width .15s ease"></div>
@@ -2616,7 +2635,7 @@ function _updateUploadProgress(upId, pct){
   const bar = document.getElementById('upl-bar-'+upId);
   const lbl = document.getElementById('upl-pct-'+upId);
   if(bar) bar.style.width = pct + '%';
-  if(lbl) lbl.textContent = pct >= 100 ? 'שומר…' : pct + '%';
+  if(lbl) lbl.textContent = pct >= 100 ? 'שומר…' : ('מעלה… ' + pct + '%');
 }
 function _removeUploadProgress(upId){
   const card = document.getElementById('upl-'+upId);
