@@ -614,6 +614,37 @@ function toggleTheme(){
 }
 
 /* ============================================================
+   SIBLING-APP TOKEN REUSE
+   ============================================================
+   All cld-apps live on the same origin (at-adv-design.github.io),
+   so they share localStorage. The insolvency / leads / potential
+   apps already request the `drive` scope which is a SUPERSET of our
+   required `drive.file`. If the user is logged in there with an
+   ALLOWED account, we can borrow that token instead of forcing
+   another OAuth round (which fails with redirect_uri_mismatch
+   until /control/ is whitelisted in Cloud Console). */
+async function tryReuseSiblingToken(){
+  // localStorage keys used by leads/insolvency/potential
+  const tok = localStorage.getItem('it');
+  const exp = parseInt(localStorage.getItem('ite') || '0');
+  const email = (localStorage.getItem('ie') || '').toLowerCase();
+  if(!tok || Date.now() >= exp) return false;
+  if(!ALLOWED.includes(email)) return false;
+  accessToken = tok;
+  localStorage.setItem('ct', tok);
+  localStorage.setItem('cte', String(exp));
+  localStorage.setItem('ce', email);
+  const pic = localStorage.getItem('ip') || '';
+  if(pic) localStorage.setItem('cp', pic);
+  userEmail = email;
+  userPic = pic;
+  const av = document.getElementById('user-avatar');
+  if(pic) av.innerHTML = `<img src="${pic}" alt="">`;
+  else av.textContent = email.slice(0,1).toUpperCase();
+  return true;
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 async function init(){
@@ -634,7 +665,7 @@ async function init(){
     setInterval(loadHeartbeats, REFRESH_INTERVAL);
     return;
   }
-  // Otherwise check for stored token
+  // Stored control-specific token (previous successful login here)
   const stored = localStorage.getItem('ct');
   const exp = parseInt(localStorage.getItem('cte') || '0');
   if(stored && Date.now() < exp){
@@ -651,8 +682,27 @@ async function init(){
     setInterval(loadHeartbeats, REFRESH_INTERVAL);
     return;
   }
-  // Not logged in
+  // Try to borrow a fresh token from a sibling app (insolvency / leads /
+  // potential). If they're already logged in there with an ALLOWED account,
+  // we skip OAuth entirely.
+  if(await tryReuseSiblingToken()){
+    showApp();
+    try { await ensureDriveFolder(); } catch(e){ console.warn('drive folder ensure failed', e); }
+    await loadHeartbeats();
+    loadRecentCommits();
+    setInterval(loadHeartbeats, REFRESH_INTERVAL);
+    return;
+  }
+  // Not logged in anywhere — show login + helpful hint
   document.getElementById('login-screen').style.display = 'flex';
+  const card = document.querySelector('#login-screen .login-card');
+  if(card && !card.dataset.patchedHint){
+    card.dataset.patchedHint = '1';
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px;color:var(--muted);max-width:300px;line-height:1.6;margin-top:6px;background:var(--bg);padding:10px;border:1px solid var(--border);text-align:right;direction:rtl';
+    hint.innerHTML = `<b style="color:var(--text)">טיפ:</b> אם נתקעת ב-Google על חשבון לא־נכון, פתח קודם את <a href="../insolvency/" style="color:var(--blue);font-weight:700">סולוונסי</a> והתחבר שם — מיד אחרי שתחזור לכאן, תהיה מחובר אוטומטית בלי OAuth נוסף.`;
+    card.appendChild(hint);
+  }
 }
 
 init();
