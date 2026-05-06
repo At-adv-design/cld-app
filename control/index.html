@@ -148,7 +148,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </svg>
       כניסה עם Google
     </button>
-    <button onclick="['ct','cte','cp','cn','ce'].forEach(k=>localStorage.removeItem(k));doLogin();" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline">כניסה עם חשבון אחר</button>
+    <button onclick="doSwitchAccount()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline">כניסה עם חשבון אחר</button>
   </div>
 </div>
 
@@ -215,6 +215,16 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 const CLIENT_ID = '298424991371-2ua4kvf3etp88rb1nu0o2h799ou6fdng.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 const REDIRECT = location.origin + location.pathname;
+// Allowed Google accounts. Same canonical list used in insolvency / leads.
+// If a user logs in with a different account, we surface a clear error
+// + a "switch account" button that actually clears Google's session
+// (not just localStorage), so re-login picks the new account.
+const ALLOWED = [
+  'avi@t-adv.co.il',
+  'office@t-adv.co.il',
+  'tal.adv.offc2@gmail.com',
+  'avi.t.razr@gmail.com'
+];
 // Folder name used for heartbeats + commands. Created in user's My Drive
 // on first authenticated load if it doesn't exist.
 const DRIVE_FOLDER_NAME = 'Avi-Tal-Control';
@@ -241,16 +251,25 @@ function tokenIsValid(){
 function doLogin(){
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
     client_id: CLIENT_ID, redirect_uri: REDIRECT, response_type: 'token',
-    scope: SCOPES, prompt: 'consent select_account', include_granted_scopes: 'true'
+    scope: SCOPES, prompt: 'select_account', include_granted_scopes: 'true'
   });
+}
+
+// Hard switch — clears localStorage AND signs out of Google (so the
+// account picker actually shows new accounts, not the auto-selected one).
+function doSwitchAccount(){
+  ['ct','cte','cp','cn','ce'].forEach(k => localStorage.removeItem(k));
+  accessToken = null;
+  // Use Google's logout endpoint with a continue= param that brings us
+  // back here. After Google clears its session cookie, our doLogin()
+  // will actually display the chooser.
+  const back = encodeURIComponent(location.origin + location.pathname);
+  location.href = 'https://accounts.google.com/Logout?continue=https://appengine.google.com/_ah/logout?continue=' + back;
 }
 
 function signOut(){
   if(!confirm('להתנתק?')) return;
-  ['ct','cte','cp','cn','ce'].forEach(k=>localStorage.removeItem(k));
-  accessToken = null;
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
+  doSwitchAccount();
 }
 
 function captureTokenFromHash(){
@@ -275,6 +294,16 @@ async function fetchUserInfo(){
     });
     if(!r.ok) throw new Error('userinfo failed');
     const u = await r.json();
+    // Authorize against ALLOWED list. Mismatches show a clear bilingual
+    // error + a button that actually switches Google account (not just
+    // clears localStorage).
+    const email = (u.email || '').toLowerCase();
+    if(!ALLOWED.includes(email)){
+      ['ct','cte','cp','cn','ce'].forEach(k => localStorage.removeItem(k));
+      accessToken = null;
+      showUnauthorizedScreen(u.email || '(לא ידוע)');
+      return false;
+    }
     userEmail = u.email;
     userPic = u.picture;
     localStorage.setItem('ce', u.email);
@@ -282,7 +311,23 @@ async function fetchUserInfo(){
     const av = document.getElementById('user-avatar');
     if(userPic) av.innerHTML = `<img src="${userPic}" alt="">`;
     else av.textContent = (u.name || u.email || '?').slice(0,1).toUpperCase();
-  } catch(e){ console.warn('userinfo failed', e); }
+    return true;
+  } catch(e){ console.warn('userinfo failed', e); return false; }
+}
+
+function showUnauthorizedScreen(email){
+  document.getElementById('app').style.display = 'none';
+  const ls = document.getElementById('login-screen');
+  ls.style.display = 'flex';
+  // Replace login-card content with a clear error + switch-account button
+  const card = ls.querySelector('.login-card');
+  card.innerHTML = `
+    <img src="../logo.png" alt="אבי טל ושות׳" style="width:200px;object-fit:contain;" onerror="this.style.display='none'">
+    <div style="font-size:15px;font-weight:700;color:var(--red)">אין הרשאה</div>
+    <div style="font-size:13px;color:var(--muted)">החשבון <b style="color:var(--text)">${escapeHtml(email)}</b> אינו מורשה.</div>
+    <div style="font-size:12px;color:var(--muted);max-width:280px;line-height:1.5">החשבונות המורשים: avi@t-adv.co.il, office@t-adv.co.il, tal.adv.offc2@gmail.com, avi.t.razr@gmail.com</div>
+    <button class="google-btn" onclick="doSwitchAccount()" style="background:var(--red);color:#fff;border-color:var(--red)">החלף חשבון Google</button>
+    <div style="font-size:11px;color:var(--muted);max-width:280px;line-height:1.4;margin-top:6px">הכפתור הזה מוודא שגם Google ייצא — ולא רק האפליקציה — כדי שתוכל לבחור חשבון אחר באמת.</div>`;
 }
 
 async function apiFetch(url, opts={}){
@@ -518,7 +563,8 @@ async function init(){
   if(t === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('theme-moon').style.display='none'; document.getElementById('theme-sun').style.display='block'; }
   // Capture token from OAuth redirect
   if(captureTokenFromHash()){
-    await fetchUserInfo();
+    const ok = await fetchUserInfo();
+    if(!ok) return;  // unauthorized screen already showing
     showApp();
     await ensureDriveFolder();
     await loadHeartbeats();
