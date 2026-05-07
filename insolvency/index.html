@@ -5120,24 +5120,44 @@ function _renderSignaturesSectionBody(){
     // toggleCustSection, collapsing the entire מסמכים-לחתימה card.
     // Result was: row click → preview opens for an instant → section
     // closes → preview gone. Same root-cause bug as the inquiry row.
-    // Render the doc name as a real <a target="_blank"> link instead of a
-    // JS onclick. Native browser link click is the most reliable way to
-    // open a new tab — bypasses PWA / popup-blocker / iframe / history
-    // edge cases that the previous onclick=window.open path kept hitting.
-    // Per user feedback 2026-05-07.
+    // Click the doc name to expand an inline iframe preview directly
+    // below the row. Uses the user's existing Google session in the
+    // same browser context — no separate auth prompt, no modal/history
+    // race conditions, no popup-blocker issues. Per user feedback
+    // 2026-05-07: drive.google.com/file/.../view in a new tab was
+    // demanding Google login again because mobile/PWA new-tabs don't
+    // inherit the session.
     const useId = (f && (f.signedFileId || f.id)) || '';
-    const useUrl = (f && (f.signedFileUrl || f.url)) || (useId ? ('https://drive.google.com/file/d/' + useId + '/view') : '');
-    const safeUrl = useUrl ? esc(useUrl) : '';
+    if(!_custState.sigPreviewOpen) _custState.sigPreviewOpen = {};
+    const sigKey = s.id || ('sig'+idx);
+    const previewOpen = !!_custState.sigPreviewOpen[sigKey];
+    const previewIframe = previewOpen && useId ? `
+      <div style="flex-basis:100%;margin-top:8px;background:#1a1a1c;border:1px solid var(--border);border-radius:4px;height:520px;position:relative">
+        <iframe src="https://drive.google.com/file/d/${esc(useId)}/preview"
+          style="width:100%;height:100%;border:0;background:#1a1a1c"
+          allow="autoplay"></iframe>
+        <a href="https://drive.google.com/file/d/${esc(useId)}/view" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+           style="position:absolute;top:6px;left:6px;background:rgba(255,255,255,0.92);padding:4px 10px;font-size:11px;font-weight:700;text-decoration:none;color:var(--slate);border-radius:3px">פתח ב-Drive</a>
+      </div>` : '';
     return `
       <div style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap">
-        <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="flex:1;min-width:0;text-decoration:none;color:inherit;cursor:pointer" title="פתח את המסמך בכרטיסיה חדשה">
-          <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.text || (f && f.name) || 'מסמך')}</div>
+        <div onclick="event.stopPropagation();_toggleSigPreview('${esc(sigKey)}')" style="flex:1;min-width:0;cursor:pointer" title="לחץ לתצוגה / סגירה של המסמך">
+          <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${previewOpen?'▾ ':'▸ '}${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
-        </a>
+        </div>
         ${statusBadge}
         ${actionBtns}
         <button type="button" onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;pointer-events:auto;flex-shrink:0">${ICON.trash||'×'}</button>
+        ${previewIframe}
       </div>`;
+  };
+
+  // Toggle inline iframe preview for a signature row
+  window._toggleSigPreview = function(sigKey){
+    if(!_custState) return;
+    if(!_custState.sigPreviewOpen) _custState.sigPreviewOpen = {};
+    _custState.sigPreviewOpen[sigKey] = !_custState.sigPreviewOpen[sigKey];
+    if(typeof renderCustomerArea === 'function') renderCustomerArea();
   };
 
   let html = '';
