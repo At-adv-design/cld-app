@@ -163,6 +163,12 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
    Two compact buttons that open a prompt() to update the corresponding
    spreadsheet cell. Tight layout: 2 small chips side-by-side. */
 .section-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+/* Drive item context menu */
+.drv-menu-btn{display:block;width:100%;text-align:right;background:transparent;border:none;padding:8px 14px;font-size:13px;font-family:inherit;color:var(--text);cursor:pointer;direction:rtl}
+.drv-menu-btn:hover{background:var(--bg)}
+.drv-menu-danger{color:var(--red,#b01010)}
+[data-theme="dark"] .drv-menu-btn{color:var(--text)}
+[data-theme="dark"] .drv-menu-btn:hover{background:var(--bg)}
 /* === Customer-area modal sections === */
 .cust-section{
   background:var(--white);border:1px solid var(--border);
@@ -1437,6 +1443,13 @@ body.focus-mode-active{overflow:hidden;}
     <!-- Path navigator (clickable folder chain) — larger font for easier
          navigation per user request 2026-05-07. -->
     <div id="drive-path" style="padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--muted);font-weight:600;flex-shrink:0;direction:rtl"></div>
+    <!-- Toolbar: new folder, upload, paste -->
+    <div style="padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;direction:rtl">
+      <button onclick="driveNewFolder()" style="background:var(--white);border:1px solid var(--border);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--slate);border-radius:4px">📁 תיקייה חדשה</button>
+      <input type="file" id="drive-upload-input" multiple style="display:none" onchange="driveUploadFiles(event)">
+      <button onclick="document.getElementById('drive-upload-input').click()" style="background:var(--white);border:1px solid var(--border);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--slate);border-radius:4px">⬆️ העלה קבצים</button>
+      <button id="drive-paste-btn" onclick="drivePaste()" style="background:var(--orange);color:#fff;border:none;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-radius:4px;display:none">📌 הדבק</button>
+    </div>
     <!-- Body: file/folder list -->
     <div id="drive-list" style="flex:1;overflow-y:auto;padding:8px 14px 16px"></div>
   </div>
@@ -7026,6 +7039,16 @@ async function refreshDriveBrowser(){ await renderDriveCurrent(); }
 async function renderDriveCurrent(){
   if(!_driveStack.length) return;
   const here=_driveStack[_driveStack.length-1];
+  // Show/hide paste button based on clipboard
+  const pasteBtn = document.getElementById('drive-paste-btn');
+  if(pasteBtn){
+    if(_driveClipboard){
+      pasteBtn.style.display = 'inline-flex';
+      pasteBtn.textContent = `📌 הדבק "${_driveClipboard.item.name}"`;
+    } else {
+      pasteBtn.style.display = 'none';
+    }
+  }
   // Update header breadcrumb (text-only, plain)
   const crumb=_driveStack.map(s=>s.name).join(' › ');
   const cb=document.getElementById('drive-breadcrumb');
@@ -7063,14 +7086,202 @@ function renderDriveItem(f){
   const handler = isFolder
     ? `driveNavigateInto(${JSON.stringify({id:f.id,name:f.name}).replace(/"/g,'&quot;')})`
     : `openDrivePreview(${JSON.stringify({id:f.id,name:f.name,mimeType:f.mimeType,webViewLink:f.webViewLink||''}).replace(/"/g,'&quot;')})`;
-  return `<div onclick="${handler}" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--white);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--white)'">
-    <span style="width:38px;height:38px;background:var(--bg);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--slate);flex-shrink:0">${icon}</span>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div>
-      <div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px">${esc(meta)}</div>
+  const itemJson = JSON.stringify({id:f.id, name:f.name, mimeType:f.mimeType, isFolder}).replace(/"/g,'&quot;');
+  return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--white);border:1px solid var(--border);margin-bottom:6px;transition:background .12s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--white)'">
+    <div onclick="${handler}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer">
+      <span style="width:38px;height:38px;background:var(--bg);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--slate);flex-shrink:0">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:500;margin-top:2px">${esc(meta)}</div>
+      </div>
+      ${isFolder?'<span style="font-size:18px;color:var(--muted);font-weight:300">‹</span>':''}
     </div>
-    ${isFolder?'<span style="font-size:18px;color:var(--muted);font-weight:300">‹</span>':''}
+    <button type="button" onclick="event.stopPropagation();driveItemMenu(event, ${itemJson})" title="פעולות" style="background:transparent;border:1px solid var(--border);width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;font-size:18px;font-weight:700;border-radius:4px;flex-shrink:0">⋯</button>
   </div>`;
+}
+
+/* Per-item actions: rename, delete, copy/cut, paste, download. */
+let _driveClipboard = null;  // {item, mode: 'copy'|'cut', sourceFolderId}
+
+function driveItemMenu(ev, item){
+  // Close any existing menu
+  const existing = document.getElementById('drive-item-menu');
+  if(existing) existing.remove();
+  const menu = document.createElement('div');
+  menu.id = 'drive-item-menu';
+  menu.style.cssText = 'position:fixed;z-index:9600;background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);padding:6px 0;min-width:180px;direction:rtl';
+  const itemJson = JSON.stringify(item).replace(/"/g,'&quot;');
+  menu.innerHTML = `
+    <button onclick="driveCloseMenu();driveRenameItem(${itemJson})" class="drv-menu-btn">✏️ שנה שם</button>
+    <button onclick="driveCloseMenu();driveCopyItem(${itemJson},'copy')" class="drv-menu-btn">📋 העתק</button>
+    <button onclick="driveCloseMenu();driveCopyItem(${itemJson},'cut')" class="drv-menu-btn">✂️ גזור</button>
+    ${!item.isFolder ? `<button onclick="driveCloseMenu();driveDownloadItem(${itemJson})" class="drv-menu-btn">⬇️ הורד</button>` : ''}
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <button onclick="driveCloseMenu();driveDeleteItem(${itemJson})" class="drv-menu-btn drv-menu-danger">🗑️ מחק</button>`;
+  document.body.appendChild(menu);
+  // Position near click, but keep on screen
+  const x = ev.clientX, y = ev.clientY;
+  menu.style.left = Math.max(8, Math.min(x - 90, window.innerWidth - 200)) + 'px';
+  menu.style.top  = Math.max(8, Math.min(y, window.innerHeight - menu.offsetHeight - 8)) + 'px';
+  // Click outside to close
+  setTimeout(() => {
+    const closer = (e) => {
+      if(!menu.contains(e.target)){
+        menu.remove();
+        document.removeEventListener('click', closer);
+      }
+    };
+    document.addEventListener('click', closer);
+  }, 0);
+}
+function driveCloseMenu(){
+  const m = document.getElementById('drive-item-menu');
+  if(m) m.remove();
+}
+
+async function driveRenameItem(item){
+  const newName = prompt('שם חדש:', item.name);
+  if(!newName || newName === item.name) return;
+  try {
+    await driveFetch(`/files/${encodeURIComponent(item.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: newName.trim() })
+    });
+    showToast('שונה ל: ' + newName, 'ok');
+    await renderDriveCurrent();
+  } catch(e){
+    showToast('שגיאה בשינוי שם: ' + (e.message||e), 'err');
+  }
+}
+
+async function driveDeleteItem(item){
+  const what = item.isFolder ? `תיקייה "${item.name}"` : `קובץ "${item.name}"`;
+  if(!confirm(`למחוק ${what}? (יועבר לפח של Drive — ניתן לשחזר תוך 30 ימים)`)) return;
+  try {
+    await driveFetch(`/files/${encodeURIComponent(item.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ trashed: true })
+    });
+    showToast('נמחק', 'ok');
+    await renderDriveCurrent();
+  } catch(e){
+    showToast('שגיאה במחיקה: ' + (e.message||e), 'err');
+  }
+}
+
+function driveCopyItem(item, mode){
+  const sourceFolderId = _driveStack.length ? _driveStack[_driveStack.length-1].id : null;
+  _driveClipboard = { item, mode, sourceFolderId };
+  showToast(mode === 'cut' ? `נגזר: ${item.name}` : `הועתק: ${item.name}`, 'ok');
+  // Re-render to show paste button
+  renderDriveCurrent();
+}
+
+async function drivePaste(){
+  if(!_driveClipboard){ showToast('אין מה להדביק', 'err'); return; }
+  const { item, mode, sourceFolderId } = _driveClipboard;
+  const targetFolderId = _driveStack[_driveStack.length-1].id;
+  if(targetFolderId === sourceFolderId && mode === 'cut'){
+    showToast('כבר בתיקייה הזו', 'err'); return;
+  }
+  try {
+    if(mode === 'copy'){
+      // Copy via Drive API. Folders aren't natively copyable — recurse.
+      if(item.isFolder){
+        showToast('מעתיק תיקייה (יכול לקחת זמן)…', 'ok');
+        await driveDeepCopyFolder(item.id, targetFolderId, item.name);
+      } else {
+        await driveFetch(`/files/${encodeURIComponent(item.id)}/copy?fields=id,name`, {
+          method: 'POST',
+          body: JSON.stringify({ parents: [targetFolderId] })
+        });
+      }
+      showToast('הועתק', 'ok');
+    } else {
+      // Cut = move = update parents
+      await driveFetch(`/files/${encodeURIComponent(item.id)}?addParents=${encodeURIComponent(targetFolderId)}&removeParents=${encodeURIComponent(sourceFolderId)}&fields=id,name,parents`, {
+        method: 'PATCH'
+      });
+      showToast('הועבר', 'ok');
+      _driveClipboard = null;
+    }
+    await renderDriveCurrent();
+  } catch(e){
+    showToast('שגיאה בהדבקה: ' + (e.message||e), 'err');
+  }
+}
+
+/* Drive doesn't support copying folders natively — must recurse:
+   create dest folder, list source children, copy each (recurse for subfolders). */
+async function driveDeepCopyFolder(srcId, parentId, name){
+  const created = await driveFetch('/files?fields=id,name', {
+    method: 'POST',
+    body: JSON.stringify({ name, mimeType: DRIVE_FILE_FOLDER, parents: [parentId] })
+  });
+  const children = await driveListChildren(srcId);
+  for(const child of children){
+    if(child.mimeType === DRIVE_FILE_FOLDER){
+      await driveDeepCopyFolder(child.id, created.id, child.name);
+    } else {
+      await driveFetch(`/files/${encodeURIComponent(child.id)}/copy?fields=id`, {
+        method: 'POST',
+        body: JSON.stringify({ parents: [created.id], name: child.name })
+      });
+    }
+  }
+}
+
+async function driveDownloadItem(item){
+  if(item.isFolder){ showToast('לא ניתן להוריד תיקייה', 'err'); return; }
+  try {
+    showToast('מוריד…', 'ok');
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(item.id)}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = item.name; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch(e){
+    showToast('שגיאה בהורדה: ' + (e.message||e), 'err');
+  }
+}
+
+async function driveNewFolder(){
+  const name = prompt('שם תיקייה חדשה:', 'תיקייה חדשה');
+  if(!name) return;
+  const targetFolderId = _driveStack[_driveStack.length-1].id;
+  try {
+    await driveFetch('/files?fields=id,name', {
+      method: 'POST',
+      body: JSON.stringify({ name: name.trim(), mimeType: DRIVE_FILE_FOLDER, parents: [targetFolderId] })
+    });
+    showToast('תיקייה נוצרה', 'ok');
+    await renderDriveCurrent();
+  } catch(e){
+    showToast('שגיאה ביצירת תיקייה: ' + (e.message||e), 'err');
+  }
+}
+
+async function driveUploadFiles(ev){
+  const files = ev.target.files;
+  if(!files || !files.length) return;
+  const targetFolderId = _driveStack[_driveStack.length-1].id;
+  showToast(`מעלה ${files.length} קבצים…`, 'ok');
+  for(const file of files){
+    try {
+      await driveUploadFile(targetFolderId, file);
+    } catch(e){
+      showToast(`שגיאה ב-${file.name}: ` + (e.message||e), 'err');
+    }
+  }
+  ev.target.value = '';
+  showToast('הועלה', 'ok');
+  await renderDriveCurrent();
 }
 
 /* Open a single file in the preview overlay. Images and PDFs render
