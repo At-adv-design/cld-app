@@ -667,32 +667,52 @@ async function requestRemoteLink(machineName){
   }
   try {
     await writeCommand(machineName, '/remote-control', 'remote-control-link');
-    toast(`בקשה נשלחה ל-${machineName}. ראה למטה ברובריקה "קישורי רמוט"`);
-    // Scroll to the remote-links rubric so the user knows where the link
-    // will appear. Highlight it briefly.
+    toast(`בקשה נשלחה ל-${machineName}`);
+    // Add a "waiting" placeholder card to the rubric so the user has a
+    // visible signal that something's happening. Replaced when response
+    // arrives or when polling times out.
+    const placeholderId = 'rl-waiting-' + Date.now();
+    addWaitingPlaceholder(placeholderId, machineName);
     const rubric = document.getElementById('remote-links-list');
     if(rubric){
-      rubric.scrollIntoView({behavior:'smooth', block:'center'});
-      const wrap = rubric.parentElement;
-      if(wrap){
-        wrap.style.transition = 'box-shadow .3s';
-        wrap.style.boxShadow = '0 0 0 3px var(--orange)';
-        setTimeout(() => { wrap.style.boxShadow = ''; }, 1800);
-      }
+      rubric.scrollIntoView({behavior:'smooth', block:'start'});
     }
-    // Begin polling for response (Drive folder, file pattern: response-MACHINE-*)
-    pollForRemoteLinks(machineName);
+    pollForRemoteLinks(machineName, placeholderId);
   } catch(e){
     toast('שגיאה בשליחה: ' + (e.message || e));
   }
 }
 
+function addWaitingPlaceholder(id, machineName){
+  const host = document.getElementById('remote-links-list');
+  if(!host) return;
+  const card = document.createElement('div');
+  card.id = id;
+  card.style.cssText = 'background:var(--bg);border:1px solid var(--orange);padding:10px;display:flex;align-items:center;gap:10px;border-radius:4px;direction:rtl';
+  card.innerHTML = `
+    <div class="spinner" style="width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div>
+    <div style="flex:1">
+      <div style="font-size:12px;font-weight:700;color:var(--text)">ממתין לקישור מ-${escapeHtml(machineName)}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">heartbeat הבא צריך לתפוס את הפקודה ולהפעיל Claude. עד 30 שניות.</div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px" title="ביטול">×</button>`;
+  host.insertBefore(card, host.firstChild);
+}
+function removeWaitingPlaceholder(id){
+  const el = document.getElementById(id);
+  if(el) el.remove();
+}
+
 let _pollingActive = false;
-async function pollForRemoteLinks(machineName){
-  if(_pollingActive) return;
+async function pollForRemoteLinks(machineName, placeholderId){
+  if(_pollingActive){
+    if(placeholderId) removeWaitingPlaceholder(placeholderId);
+    toast('כבר ממתין לקישור — נסה שוב בעוד דקה');
+    return;
+  }
   _pollingActive = true;
   const startTime = Date.now();
-  const TIMEOUT = 90 * 1000;  // give up after 90 seconds
+  const TIMEOUT = 30 * 1000;  // 30 seconds — heartbeat fires every minute, so 1-2 cycles max
   try {
     while(Date.now() - startTime < TIMEOUT){
       await new Promise(r => setTimeout(r, 5000));
@@ -710,6 +730,7 @@ async function pollForRemoteLinks(machineName){
             const r2 = await apiFetch(`https://www.googleapis.com/drive/v3/files/${newest.id}?alt=media`);
             const data = await r2.json();
             try { await apiFetch(`https://www.googleapis.com/drive/v3/files/${newest.id}`, {method:'DELETE'}); } catch(_){}
+            if(placeholderId) removeWaitingPlaceholder(placeholderId);
             displayRemoteLinkResponse(machineName, data);
             return;
           }
@@ -720,6 +741,8 @@ async function pollForRemoteLinks(machineName){
         if(String(e.message||e).includes('UNAUTHORIZED')) break;
       }
     }
+    // Timeout — remove the waiting placeholder before showing the error
+    if(placeholderId) removeWaitingPlaceholder(placeholderId);
     // Show a persistent error card in the rubric instead of just a toast.
     const host = document.getElementById('remote-links-list');
     if(host){
