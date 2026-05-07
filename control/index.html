@@ -107,8 +107,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .mc-btn.danger{color:var(--red);border-color:var(--red);}
 .mc-btn svg{width:11px;height:11px;}
 
-/* COMMAND MODAL */
-.cmd-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:14px;}
+/* COMMAND MODAL — positioned near the top so the on-screen keyboard
+   on mobile doesn't cover the textarea. flex-start + small top padding
+   keeps the modal in the upper half of the screen even when content
+   shrinks behind the virtual keyboard. */
+.cmd-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-start;justify-content:center;padding:14px;padding-top:max(20px, env(safe-area-inset-top));overflow-y:auto;}
 .cmd-overlay.open{display:flex;}
 .cmd-card{background:var(--white);border:1px solid var(--border);padding:18px;display:flex;flex-direction:column;gap:10px;width:100%;max-width:480px;}
 .cmd-card h3{font-size:14px;font-weight:700;color:var(--text);}
@@ -211,9 +214,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 
   <div class="content">
 
-    <div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="section-title">המחשבים שלי</span>
       <span class="muted-line" id="last-updated"></span>
+      <button onclick="openRemoteCtrlModal('__ALL__')" style="margin-inline-start:auto;background:var(--slate);color:#fff;border:1px solid var(--slate);padding:6px 12px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🎮 רמוט לכל המחשבים</button>
     </div>
 
     <div id="machines-list" class="machines-grid">
@@ -235,15 +239,30 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   </div>
 </div>
 
-<!-- COMMAND MODAL -->
+<!-- COMMAND MODAL (toast notification) -->
 <div class="cmd-overlay" id="cmd-overlay" onclick="if(event.target===this)closeCmdModal()">
   <div class="cmd-card">
-    <h3>שלח הוראה למחשב</h3>
+    <h3>שלח הודעה למחשב</h3>
     <div class="cmd-target" id="cmd-target"></div>
-    <textarea id="cmd-text" class="cmd-textarea" placeholder="הוראה ל-Claude Code שירוץ במחשב הזה — למשל: 'תעשה git pull ותעדכן את MEMORY.md'"></textarea>
+    <div style="font-size:12px;color:var(--muted);direction:rtl">תקפץ הודעת toast במחשב היעד. לא יורץ Claude Code.</div>
+    <textarea id="cmd-text" class="cmd-textarea" placeholder="טקסט הודעה — יציג ל-toast במחשב היעד"></textarea>
     <div class="cmd-actions">
       <button class="mc-btn" onclick="closeCmdModal()">ביטול</button>
       <button class="mc-btn primary" onclick="sendCommand()">שלח</button>
+    </div>
+  </div>
+</div>
+
+<!-- REMOTE CONTROL MODAL -->
+<div class="cmd-overlay" id="rcc-overlay" onclick="if(event.target===this)closeRemoteCtrlModal()">
+  <div class="cmd-card">
+    <h3>🎮 רמוט קונטרול</h3>
+    <div class="cmd-target" id="rcc-target"></div>
+    <div style="font-size:12px;color:var(--muted);direction:rtl">פותח Windows Terminal במחשב היעד עם Claude Code בתוך cld-app, ושולח את הprompt לClaude אוטומטית.</div>
+    <textarea id="rcc-text" class="cmd-textarea" placeholder="prompt for Claude Code (e.g. 'git pull and run tests')"></textarea>
+    <div class="cmd-actions">
+      <button class="mc-btn" onclick="closeRemoteCtrlModal()">ביטול</button>
+      <button class="mc-btn primary" onclick="sendRemoteCtrl()">🎮 הפעל</button>
     </div>
   </div>
 </div>
@@ -476,10 +495,19 @@ async function readHeartbeat(fileId){
   try { return await r.json(); } catch(_){ return null; }
 }
 
-async function writeCommand(machineName, text){
+async function writeCommand(machineName, text, type){
+  // type: 'toast' (default) or 'remote-control'
   if(!driveFolderId) await ensureDriveFolder();
-  const fileName = `command-${machineName}-${Date.now()}.json`;
-  const body = JSON.stringify({machine: machineName, text, createdAt: Date.now(), createdBy: userEmail});
+  const cmdType = type || 'toast';
+  // Add small random suffix so two commands fired in the same ms don't collide
+  const fileName = `command-${machineName}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.json`;
+  const body = JSON.stringify({
+    machine: machineName,
+    text,
+    type: cmdType,
+    createdAt: Date.now(),
+    createdBy: userEmail
+  });
   const metadata = {name: fileName, parents: [driveFolderId]};
   const boundary = 'cmd' + Date.now();
   const multipart = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
@@ -555,7 +583,8 @@ function renderMachines(heartbeats){
           ${hb.version ? `<div class="row"><span class="key">גרסה</span><span class="val">${escapeHtml(hb.version)}</span></div>` : ''}
         </div>
         <div class="mc-actions">
-          <button class="mc-btn primary" onclick="openCmdModal('${escapeAttr(id)}')">הוראה</button>
+          <button class="mc-btn primary" onclick="openRemoteCtrlModal('${escapeAttr(id)}')" title="הפעל Claude Code עם prompt על המחשב הזה">🎮 רמוט</button>
+          <button class="mc-btn" onclick="openCmdModal('${escapeAttr(id)}')" title="שלח הודעה (toast) למחשב">💬 הודעה</button>
           <button class="mc-btn" onclick="openTranscripts('${escapeAttr(id)}')">היסטוריה</button>
         </div>
       </div>`;
@@ -590,6 +619,56 @@ function openCmdModal(machineName){
   setTimeout(()=>document.getElementById('cmd-text').focus(), 80);
 }
 function closeCmdModal(){ document.getElementById('cmd-overlay').classList.remove('open'); }
+
+let _remoteCtrlTarget = null;
+function openRemoteCtrlModal(machineName){
+  _remoteCtrlTarget = machineName;
+  const label = machineName === '__ALL__' ? 'יעד: כל המחשבים' : ('יעד: ' + machineName);
+  document.getElementById('rcc-target').textContent = label;
+  document.getElementById('rcc-text').value = '';
+  document.getElementById('rcc-overlay').classList.add('open');
+  setTimeout(()=>{
+    const ta = document.getElementById('rcc-text');
+    ta.focus();
+    try { ta.scrollIntoView({block:'center', behavior:'smooth'}); } catch(_){}
+  }, 80);
+}
+function closeRemoteCtrlModal(){ document.getElementById('rcc-overlay').classList.remove('open'); }
+
+async function sendRemoteCtrl(){
+  const text = (document.getElementById('rcc-text').value || '').trim();
+  if(!text){ toast('יש לכתוב prompt'); return; }
+  if(!_remoteCtrlTarget) return;
+  if(!accessToken){ toast('להפעלת רמוט צריך להתחבר עם Google. לחץ על הסמל בכותרת.'); return; }
+  // Build target list: either a single machine, or all known machines
+  // (read from the latest heartbeats list).
+  let targets = [];
+  if(_remoteCtrlTarget === '__ALL__'){
+    try {
+      const all = await loadHeartbeatsFromGitHub();
+      targets = all.map(h => h.machineName).filter(Boolean);
+      if(targets.length === 0){ toast('לא נמצאו מחשבים'); return; }
+    } catch(e){ toast('שגיאה בטעינת רשימת מחשבים'); return; }
+  } else {
+    targets = [_remoteCtrlTarget];
+  }
+  let ok = 0, fail = 0;
+  for(const m of targets){
+    try {
+      await writeCommand(m, text, 'remote-control');
+      ok++;
+    } catch(e){
+      fail++;
+      console.warn('Failed to send to', m, e);
+    }
+  }
+  if(fail === 0){
+    toast(`הפעלה נשלחה ל-${ok} מחשבים`);
+    closeRemoteCtrlModal();
+  } else {
+    toast(`הצלחה: ${ok}, כישלון: ${fail}`);
+  }
+}
 async function sendCommand(){
   const text = (document.getElementById('cmd-text').value || '').trim();
   if(!text){ toast('יש לכתוב הוראה'); return; }

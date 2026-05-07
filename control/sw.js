@@ -1,5 +1,5 @@
 // Service worker for the CONTROL panel - aggressive auto-update.
-const CACHE_NAME = 'at-control-v7';
+const CACHE_NAME = 'at-control-v8';
 const ASSETS = [
   './manifest.json',
   '../logo.png',
