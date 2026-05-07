@@ -220,6 +220,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       <button onclick="openRemoteCtrlModal('__ALL__')" style="margin-inline-start:auto;background:var(--slate);color:#fff;border:1px solid var(--slate);padding:6px 12px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🎮 רמוט לכל המחשבים</button>
     </div>
 
+    <!-- Login banner — shown when no auth (sibling token from insolvency
+         not available). Sending commands needs Google OAuth; viewing
+         heartbeats does not. -->
+    <div id="login-banner" style="display:none;align-items:center;gap:10px;padding:12px 14px;background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:5px;font-size:13px;color:var(--text);direction:rtl;flex-wrap:wrap">
+      <span>📡 אתה צופה בלבד. כדי לשלוח הוראות / לקבל קישור רמוט, התחבר עם Google.</span>
+      <button onclick="doLogin()" style="background:var(--slate);color:#fff;border:none;padding:6px 12px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-inline-start:auto">התחבר</button>
+    </div>
+
     <div id="machines-list" class="machines-grid">
       <div class="empty-state">
         <div class="spinner" style="margin:0 auto 10px"></div>
@@ -798,19 +806,32 @@ async function loadHeartbeatsFromGitHub(){
   }
 }
 
+// Keep the last successful heartbeats so a transient network blip
+// doesn't blank the dashboard. Only on a STARTUP-time failure do we
+// show the error state.
+let _lastHeartbeats = null;
 async function loadHeartbeats(){
   try {
     const heartbeats = await loadHeartbeatsFromGitHub();
+    _lastHeartbeats = heartbeats;
     heartbeats.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
     renderMachines(heartbeats);
     document.getElementById('last-updated').textContent = '• עודכן ' + new Date().toLocaleTimeString('he-IL');
+    // Hide login banner if data loaded successfully
+    const banner = document.getElementById('login-banner');
+    if(banner) banner.style.display = accessToken ? 'none' : 'flex';
   } catch(e){
     console.warn('loadHeartbeats failed', e);
+    if(_lastHeartbeats){
+      // Keep the previous data, just flash the timestamp red
+      document.getElementById('last-updated').innerHTML = '<span style="color:var(--red)">• שגיאת רענון (נתונים ישנים)</span>';
+      return;
+    }
     document.getElementById('machines-list').innerHTML = `
       <div class="empty-state" style="grid-column:1/-1">
         <div class="e-title" style="color:var(--red)">שגיאה בטעינת נתונים</div>
         <div class="e-sub">${escapeHtml(e.message || String(e))}</div>
-        <div class="e-sub" style="margin-top:8px;font-size:11px">המידע נטען מ-GitHub repo. אם המחשבים לא רשומים, הפעל install-heartbeat.bat על כל מחשב.</div>
+        <div class="e-sub" style="margin-top:8px;font-size:11px;direction:rtl">המידע נטען מ:<br><code style="direction:ltr;background:var(--bg);padding:2px 4px">https://raw.githubusercontent.com/At-adv-design/cld-app/main/heartbeats/all.json</code><br>אם הקובץ קיים אבל הטעינה נכשלת — בדוק חיבור רשת או תרענן עם Ctrl+Shift+R.</div>
       </div>`;
   }
 }
