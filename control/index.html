@@ -665,12 +665,27 @@ async function requestRemoteLink(machineName){
     promptForAuth();
     return;
   }
+  // Up-front explanation modal — Claude Code's /remote-control is
+  // interactive-only and cannot be captured programmatically. We do
+  // open a Claude window on the target machine, but the URL has to
+  // be copied manually. Set user expectations BEFORE the request goes
+  // out so 'אבל לא הגיע קישור' frustration doesn't repeat.
+  if(!sessionStorage.getItem('rc_explained')){
+    const proceed = confirm(
+      'איך זה עובד:\n\n' +
+      '1. אני אפתח חלון Claude Code על ' + machineName + ' עם /remote-control מוכן\n' +
+      '2. ה-URL יופיע בטרמינל שם — לא יקפוץ אוטומטית בdashboard\n' +
+      '3. צריך גישה למחשב היעד (TeamViewer / RDP / פיזית) כדי לראות את ה-URL\n' +
+      '4. תעתיק → "+ הוסף ידנית" בdashboard\n\n' +
+      'הסיבה: Claude Code\'s /remote-control הוא slash-command אינטראקטיבי בלבד — אין דרך לתפוס את ה-URL מ-CLI.\n\n' +
+      'להמשיך?'
+    );
+    if(!proceed) return;
+    sessionStorage.setItem('rc_explained', '1');
+  }
   try {
     await writeCommand(machineName, '/remote-control', 'remote-control-link');
     toast(`בקשה נשלחה ל-${machineName}`);
-    // Add a "waiting" placeholder card to the rubric so the user has a
-    // visible signal that something's happening. Replaced when response
-    // arrives or when polling times out.
     const placeholderId = 'rl-waiting-' + Date.now();
     addWaitingPlaceholder(placeholderId, machineName);
     const rubric = document.getElementById('remote-links-list');
