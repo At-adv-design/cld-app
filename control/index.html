@@ -805,23 +805,28 @@ function promptForAuth(){
     <div style="background:var(--white);border:1px solid var(--border);padding:22px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:14px;direction:rtl">
       <div style="font-size:16px;font-weight:700;color:var(--text)">צריך להתחבר עם Google</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6">
-        כדי לשלוח הוראות / לקבל קישור רמוט צריך טוקן של Google. הדרך הקלה והאמינה — להתחבר דרך אפליקציית סולוונסי שכבר מוגדרת ב-Google Cloud Console:
-        <ol style="margin-top:10px;padding-inline-start:20px;line-height:1.8">
-          <li>פתח את <a href="../insolvency/" target="_blank" style="color:var(--blue);font-weight:700">סולוונסי</a> בלשונית חדשה</li>
-          <li>תתחבר שם עם Google (אם עוד לא)</li>
-          <li>תחזור לכאן ותרענן (Ctrl+Shift+R)</li>
-          <li>ה-control יזהה אוטומטית שאתה מחובר ויאפשר לשלוח הוראות</li>
-        </ol>
+        אעביר אותך לאפליקציית סולוונסי, תתחבר שם עם Google (אם עוד לא), ואחזיר אותך לכאן אוטומטית. הטוקן שמתקבל בסולוונסי משותף לשתי האפליקציות.
       </div>
       <div style="font-size:11px;color:var(--muted);background:var(--bg);padding:8px 10px;border:1px solid var(--border)">
-        <b>למה לא ישירות?</b> ה-OAuth Client ב-Cloud Console מוגדר להחזיר טוקן רק לכתובות מאושרות. סולוונסי כבר ברשימה; control עדיין לא. סולוונסי + control חולקים localStorage אז ה-token בא חינם.
+        זה הדרך עד שתוסיף את <code style="direction:ltr;font-size:10px">at-adv-design.github.io/cld-app/control/</code> ב-Google Cloud Console.
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onclick="document.getElementById('auth-prompt-modal').remove()" class="mc-btn">סגור</button>
-        <a href="../insolvency/" target="_blank" class="mc-btn primary" style="text-decoration:none;text-align:center;display:inline-block">פתח סולוונסי</a>
+        <button onclick="document.getElementById('auth-prompt-modal').remove()" class="mc-btn">ביטול</button>
+        <button onclick="loginViaInsolvency()" class="mc-btn primary">המשך לסולוונסי</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
+}
+
+function loginViaInsolvency(){
+  // Send user to insolvency with a 'ret=control' marker. Insolvency will
+  // see this on load (even on subsequent reload after Google's OAuth
+  // redirect-back) and bounce them to /control/. The token gets to
+  // /control/ via shared localStorage.
+  // Save a "we sent you to login" timestamp so we can detect a stale
+  // bounce loop on the way back.
+  try { sessionStorage.setItem('control_login_sent_at', Date.now().toString()); } catch(_){}
+  location.href = '../insolvency/?ret=control';
 }
 
 /* ============================================================

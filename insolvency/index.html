@@ -2571,6 +2571,16 @@ window.addEventListener('load',()=>{
 function showApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
+  // Bounce back to the control panel if this load was triggered from
+  // there with ?ret=control. Token now lives in localStorage; sibling-
+  // token reuse on /control/ will pick it up.
+  try {
+    const params = new URLSearchParams(location.search);
+    if(params.get('ret') === 'control'){
+      location.replace('../control/');
+      return;
+    }
+  } catch(_){}
   // Set up history so the back button doesn't immediately leave the app:
   //   entry-A (replace): represents "outside / exit anchor"
   //   entry-B (push):    represents current app state
