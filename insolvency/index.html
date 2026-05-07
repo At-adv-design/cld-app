@@ -5115,8 +5115,13 @@ function _renderSignaturesSectionBody(){
     // action based on which child was clicked. This is more click-tolerant
     // than nested buttons whose pointer-events can get blocked by parent
     // CSS rules. Trash button has its own onclick + stopPropagation.
+    // event.stopPropagation() — without it the click bubbles up to the
+    // ancestor [data-cust-key] (the section itself) and triggers
+    // toggleCustSection, collapsing the entire מסמכים-לחתימה card.
+    // Result was: row click → preview opens for an instant → section
+    // closes → preview gone. Same root-cause bug as the inquiry row.
     return `
-      <div onclick="_openSignatureFile(${idx})" style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;pointer-events:auto;flex-wrap:wrap" title="פתח את המסמך">
+      <div onclick="event.stopPropagation();_openSignatureFile(${idx})" style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;pointer-events:auto;flex-wrap:wrap" title="פתח את המסמך">
         <div style="flex:1;min-width:0;pointer-events:none">
           <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
