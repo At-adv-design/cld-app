@@ -2025,32 +2025,42 @@ async function _sigSubmit(){
   const progPct = document.getElementById('sig-submit-pct');
   btn.disabled = true; btn.textContent = 'שולח…';
   if(progBox){ progBox.style.display = 'flex'; }
-  if(progBar) progBar.style.width = '0%';
-  if(progPct) progPct.textContent = '0%';
+  if(progBar) progBar.style.width = '8%';
+  if(progPct) progPct.textContent = 'שולח…';
   try{
     const dataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
+    // Use the plain fetch path (no _onProgress) — the payload is small
+    // and the XHR path was failing intermittently for some clients (the
+    // signed-modal stayed open). Fetch follows redirects natively which
+    // is what Apps Script web apps need (302 → script.googleusercontent).
+    if(progBar) progBar.style.width = '40%';
     const r = await api('submitSignature', {
       token: currentUser.token,
       reqId: s.id,
       fileId: f.id,
       signaturePngBase64: dataUrl.split(',')[1],
-      signedAt: Date.now(),
-      _onProgress: (pct) => {
-        if(progBar) progBar.style.width = pct + '%';
-        if(progPct) progPct.textContent = pct >= 100 ? 'מעבד…' : pct + '%';
-      }
+      signedAt: Date.now()
     });
-    if(r.ok){
+    if(progBar) progBar.style.width = '100%';
+    if(progPct) progPct.textContent = 'מעבד…';
+    if(r && r.ok){
       toast('המסמך נחתם — תודה!','success');
       closeSignatureViewer();
-      // Refresh the list
-      if(typeof loadAll === 'function') await loadAll();
-      else renderSignatures();
+      // Refresh signatures list
+      try {
+        if(typeof loadAll === 'function') await loadAll();
+        else if(typeof loadData === 'function') await loadData(true);
+        else if(typeof renderSignatures === 'function') renderSignatures();
+      } catch(_){}
     } else {
-      toast(r.error || 'שגיאה','error');
+      // Server responded but not ok — surface the error
+      const msg = (r && r.error) || 'שגיאה לא ידועה מהשרת';
+      toast('שגיאה: ' + msg,'error');
+      console.error('submitSignature failed', r);
     }
   }catch(e){
-    toast(e.message || 'שגיאה','error');
+    console.error('submitSignature exception', e);
+    toast('שגיאה: ' + (e.message || e),'error');
   }finally{
     btn.disabled = false; btn.textContent = 'חתום ושלח';
     if(progBox) progBox.style.display = 'none';
