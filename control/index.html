@@ -660,26 +660,55 @@ function openRemoteCtrlModal(machineName){
 }
 function closeRemoteCtrlModal(){ document.getElementById('rcc-overlay').classList.remove('open'); }
 
+function showRcExplanationModal(machineName){
+  return new Promise((resolve) => {
+    const existing = document.getElementById('rc-explain-modal');
+    if(existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'rc-explain-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl';
+    modal.innerHTML = `
+      <div onclick="event.stopPropagation()" style="position:relative;background:var(--card);border:1px solid var(--orange);border-radius:6px;padding:18px 16px 14px;max-width:420px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+        <button id="rc-x" style="position:absolute;top:8px;left:8px;background:transparent;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px">×</button>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px">בקשת קישור רמוט מ-${escapeHtml(machineName)}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.6">
+          <div style="margin-bottom:6px">איך זה יעבוד:</div>
+          <div>1. אני פותח חלון Claude Code על המחשב היעד</div>
+          <div>2. ה-URL יופיע <b>בטרמינל שם</b> — לא בdashboard</div>
+          <div>3. תצטרך גישה למחשב (פיזית / RDP / TeamViewer) כדי לראות את ה-URL</div>
+          <div>4. העתק → "+ הוסף ידנית" כאן</div>
+          <div style="margin-top:8px;color:var(--muted);font-size:11px">/remote-control של Claude Code הוא אינטראקטיבי בלבד — אין דרך לתפוס את ה-URL מ-CLI.</div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-start;margin-top:14px">
+          <button id="rc-ok" style="background:var(--orange);color:#000;border:none;padding:8px 16px;border-radius:4px;font-weight:700;cursor:pointer">המשך</button>
+          <button id="rc-cancel" style="background:transparent;color:var(--text);border:1px solid var(--border);padding:8px 16px;border-radius:4px;cursor:pointer">ביטול</button>
+        </div>
+      </div>`;
+    const cleanup = (val) => {
+      document.removeEventListener('keydown', escHandler);
+      modal.remove();
+      resolve(val);
+    };
+    const escHandler = (e) => { if(e.key === 'Escape') cleanup(false); };
+    document.addEventListener('keydown', escHandler);
+    modal.addEventListener('click', (e) => { if(e.target === modal) cleanup(false); });
+    document.body.appendChild(modal);
+    modal.querySelector('#rc-ok').onclick = () => cleanup(true);
+    modal.querySelector('#rc-cancel').onclick = () => cleanup(false);
+    modal.querySelector('#rc-x').onclick = () => cleanup(false);
+  });
+}
+
 async function requestRemoteLink(machineName){
   if(!accessToken){
     promptForAuth();
     return;
   }
-  // Up-front explanation modal — Claude Code's /remote-control is
-  // interactive-only and cannot be captured programmatically. We do
-  // open a Claude window on the target machine, but the URL has to
-  // be copied manually. Set user expectations BEFORE the request goes
-  // out so 'אבל לא הגיע קישור' frustration doesn't repeat.
+  // Up-front explanation. native confirm() blocks the UI thread in
+  // PWA standalone mode (sometimes the dialog isn't even rendered) →
+  // looks like a total freeze. Use a custom non-blocking modal.
   if(!sessionStorage.getItem('rc_explained')){
-    const proceed = confirm(
-      'איך זה עובד:\n\n' +
-      '1. אני אפתח חלון Claude Code על ' + machineName + ' עם /remote-control מוכן\n' +
-      '2. ה-URL יופיע בטרמינל שם — לא יקפוץ אוטומטית בdashboard\n' +
-      '3. צריך גישה למחשב היעד (TeamViewer / RDP / פיזית) כדי לראות את ה-URL\n' +
-      '4. תעתיק → "+ הוסף ידנית" בdashboard\n\n' +
-      'הסיבה: Claude Code\'s /remote-control הוא slash-command אינטראקטיבי בלבד — אין דרך לתפוס את ה-URL מ-CLI.\n\n' +
-      'להמשיך?'
-    );
+    const proceed = await showRcExplanationModal(machineName);
     if(!proceed) return;
     sessionStorage.setItem('rc_explained', '1');
   }
