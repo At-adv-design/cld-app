@@ -470,13 +470,17 @@ function showUnauthorizedScreen(email){
 }
 
 async function apiFetch(url, opts={}){
+  if(!accessToken) throw new Error('UNAUTHORIZED');
   const headers = Object.assign({}, opts.headers || {}, {Authorization: 'Bearer ' + accessToken});
   const r = await fetch(url, Object.assign({}, opts, {headers}));
   if(r.status === 401){
+    // Token expired or revoked. Clear it but DON'T hide the app —
+    // the dashboard reads heartbeats from a public URL, no auth needed.
+    // The login banner already shows when accessToken is null.
     localStorage.setItem('cte', '0');
     accessToken = null;
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
+    const banner = document.getElementById('login-banner');
+    if(banner) banner.style.display = 'flex';
     throw new Error('UNAUTHORIZED');
   }
   return r;
@@ -692,24 +696,29 @@ async function pollForRemoteLinks(machineName){
   try {
     while(Date.now() - startTime < TIMEOUT){
       await new Promise(r => setTimeout(r, 5000));
+      // Stop polling if user got signed out mid-flight — no point spamming
+      // 401s, and our dashboard stays usable on heartbeats which are public.
+      if(!accessToken) break;
       try {
         if(!driveFolderId) await ensureDriveFolder();
         const q = encodeURIComponent(`'${driveFolderId}' in parents and name contains 'response-${machineName}-' and trashed=false`);
         const r = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=5');
         const j = await r.json();
         if(j.files && j.files.length){
-          // Read newest
           const newest = j.files[0];
           if(new Date(newest.modifiedTime).getTime() > startTime - 5000){
             const r2 = await apiFetch(`https://www.googleapis.com/drive/v3/files/${newest.id}?alt=media`);
             const data = await r2.json();
-            // Delete the file from Drive after consuming
             try { await apiFetch(`https://www.googleapis.com/drive/v3/files/${newest.id}`, {method:'DELETE'}); } catch(_){}
             displayRemoteLinkResponse(machineName, data);
             return;
           }
         }
-      } catch(e){ console.warn('poll error', e); }
+      } catch(e){
+        console.warn('poll error', e);
+        // If we lost auth, abandon polling
+        if(String(e.message||e).includes('UNAUTHORIZED')) break;
+      }
     }
     // Show a persistent error card in the rubric instead of just a toast.
     const host = document.getElementById('remote-links-list');
