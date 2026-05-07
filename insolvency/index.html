@@ -5128,90 +5128,51 @@ function _renderSignaturesSectionBody(){
     // demanding Google login again because mobile/PWA new-tabs don't
     // inherit the session.
     const useId = (f && (f.signedFileId || f.id)) || '';
-    if(!_custState.sigPreviewOpen) _custState.sigPreviewOpen = {};
-    if(!_custState.sigPreviewBlob) _custState.sigPreviewBlob = {};
-    if(!_custState.sigPreviewLoading) _custState.sigPreviewLoading = {};
-    if(!_custState.sigPreviewError) _custState.sigPreviewError = {};
     const sigKey = s.id || ('sig'+idx);
-    const previewOpen = !!_custState.sigPreviewOpen[sigKey];
-    const previewBlob = _custState.sigPreviewBlob[sigKey];
-    const previewLoading = _custState.sigPreviewLoading[sigKey];
-    const previewError = _custState.sigPreviewError[sigKey];
-    // Fetch the PDF via the lawyer's access token and serve it as a
-    // blob: URL. The previous /preview iframe would re-prompt for
-    // Google sign-in inside the iframe on Safari/iOS PWA (cross-origin
-    // cookie policy). Blob URLs are same-origin so no auth dance.
-    const previewIframe = previewOpen ? `
-      <div style="flex-basis:100%;margin-top:8px;background:#1a1a1c;border:1px solid var(--border);border-radius:4px;height:520px;position:relative">
-        ${previewLoading
-          ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px">טוען מסמך…</div>`
-          : previewError
-            ? `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:13px;text-align:center;padding:20px">
-                 <div style="color:#ff6b6b;margin-bottom:8px">שגיאה בטעינת המסמך</div>
-                 <div style="font-size:11px;color:#aaa">${esc(previewError)}</div>
-                 <a href="https://drive.google.com/file/d/${esc(useId)}/view" target="_blank" rel="noopener" onclick="event.stopPropagation()"
-                    style="margin-top:12px;background:#fff;padding:6px 12px;font-size:12px;font-weight:700;text-decoration:none;color:var(--slate);border-radius:3px">פתח ב-Drive</a>
-               </div>`
-            : previewBlob
-              ? `<iframe src="${esc(previewBlob)}" style="width:100%;height:100%;border:0;background:#1a1a1c" allow="autoplay"></iframe>`
-              : ''}
-      </div>` : '';
+    // Click on doc name → fetches PDF via Drive API (with bearer token)
+    // and opens in a NEW WINDOW as a blob: URL. This is the most reliable
+    // approach across mobile, desktop, and PWA standalone — a same-origin
+    // blob: URL does not trigger Google sign-in prompts the way
+    // drive.google.com URLs do.
     return `
       <div style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap">
-        <div onclick="event.stopPropagation();_toggleSigPreview('${esc(sigKey)}')" style="flex:1;min-width:0;cursor:pointer" title="לחץ לתצוגה / סגירה של המסמך">
-          <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${previewOpen?'▾ ':'▸ '}${esc(s.text || (f && f.name) || 'מסמך')}</div>
+        <div onclick="event.stopPropagation();_openSignatureDoc('${esc(sigKey)}', this)" style="flex:1;min-width:0;cursor:pointer" title="לחץ לפתיחת המסמך בחלון חדש">
+          <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
         </div>
         ${statusBadge}
         ${actionBtns}
         <button type="button" onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;pointer-events:auto;flex-shrink:0">${ICON.trash||'×'}</button>
-        ${previewIframe}
       </div>`;
   };
 
-  // Toggle inline blob-iframe preview for a signature row.
-  // Fetch via Drive API with the lawyer's bearer token, then create a
-  // local blob: URL — that way the iframe is same-origin and never
-  // prompts for sign-in inside Safari/iOS PWA.
-  window._toggleSigPreview = async function(sigKey){
+  // Open a signature document in a NEW WINDOW via blob URL.
+  // Strategy: open a target window IMMEDIATELY in the same click event
+  // (so popup blockers don't fire), then once the PDF is fetched as a
+  // blob, navigate that window to the blob: URL. If pop-up was blocked,
+  // fall back to a temporary <a> tag click.
+  window._openSignatureDoc = async function(sigKey, srcEl){
     if(!_custState) return;
-    _custState.sigPreviewOpen = _custState.sigPreviewOpen || {};
-    _custState.sigPreviewBlob = _custState.sigPreviewBlob || {};
-    _custState.sigPreviewLoading = _custState.sigPreviewLoading || {};
-    _custState.sigPreviewError = _custState.sigPreviewError || {};
-    const wasOpen = !!_custState.sigPreviewOpen[sigKey];
-    if(wasOpen){
-      // Closing: revoke blob URL to free memory
-      const url = _custState.sigPreviewBlob[sigKey];
-      if(url){ try{ URL.revokeObjectURL(url); }catch(_){} }
-      delete _custState.sigPreviewBlob[sigKey];
-      delete _custState.sigPreviewError[sigKey];
-      _custState.sigPreviewOpen[sigKey] = false;
-      if(typeof renderCustomerArea === 'function') renderCustomerArea();
-      return;
-    }
-    // Opening: find the file id from the matching signature entry
     const sig = (_custState.signatures || []).find((s, idx) =>
       (s.id || ('sig'+idx)) === sigKey);
     const f = sig && sig.files && sig.files[0];
     const fileId = f && (f.signedFileId || f.id);
-    if(!fileId){
-      _custState.sigPreviewOpen[sigKey] = true;
-      _custState.sigPreviewError[sigKey] = 'אין מזהה קובץ';
-      if(typeof renderCustomerArea === 'function') renderCustomerArea();
-      return;
+    if(!fileId){ showToast('אין מזהה קובץ למסמך','err'); return; }
+    if(!accessToken){ showToast('צריך להתחבר ל-Google','err'); return; }
+
+    // CRITICAL: open the new window SYNCHRONOUSLY inside the click handler.
+    // Browsers only allow window.open during user gesture. If we wait for
+    // the fetch to finish, the popup blocker kills it.
+    const win = window.open('', '_blank');
+    if(win){
+      try {
+        win.document.write('<html><head><meta charset="utf-8"><title>טוען...</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a1c;color:#fff;font-family:system-ui">טוען מסמך...</body></html>');
+      } catch(_){}
     }
-    if(!accessToken){
-      _custState.sigPreviewOpen[sigKey] = true;
-      _custState.sigPreviewError[sigKey] = 'לא מחובר ל-Google';
-      if(typeof renderCustomerArea === 'function') renderCustomerArea();
-      return;
-    }
-    _custState.sigPreviewOpen[sigKey] = true;
-    _custState.sigPreviewLoading[sigKey] = true;
-    _custState.sigPreviewError[sigKey] = '';
-    if(typeof renderCustomerArea === 'function') renderCustomerArea();
-    try{
+
+    if(srcEl){ srcEl.style.opacity = '0.5'; }
+
+    try {
       const r = await fetch(
         `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
         { headers: { Authorization: 'Bearer ' + accessToken } }
@@ -5219,15 +5180,40 @@ function _renderSignaturesSectionBody(){
       if(!r.ok) throw new Error('HTTP ' + r.status);
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
-      _custState.sigPreviewBlob[sigKey] = url;
-      _custState.sigPreviewLoading[sigKey] = false;
-      if(typeof renderCustomerArea === 'function') renderCustomerArea();
+
+      if(win && !win.closed){
+        // Navigate the pre-opened window to the blob URL
+        win.location.href = url;
+      } else {
+        // Popup was blocked: fall back to <a> click in the SAME window
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 100);
+      }
+
+      // Revoke the blob URL after 60s to free memory (the new tab's
+      // PDF viewer caches the doc, so revoking after open is safe).
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 60000);
     } catch(e){
-      _custState.sigPreviewLoading[sigKey] = false;
-      _custState.sigPreviewError[sigKey] = String(e.message || e);
-      if(typeof renderCustomerArea === 'function') renderCustomerArea();
+      const msg = String(e.message || e);
+      showToast('שגיאה בפתיחת המסמך: ' + msg, 'err');
+      if(win && !win.closed){
+        try {
+          win.document.body.innerHTML = '<div style="padding:20px;text-align:center"><div style="color:#ff6b6b;margin-bottom:12px">שגיאה: ' + msg + '</div><a href="https://drive.google.com/file/d/' + encodeURIComponent(fileId) + '/view" style="color:#fff;background:#444;padding:8px 16px;text-decoration:none;border-radius:4px">נסה דרך Drive</a></div>';
+        } catch(_){}
+      }
+    } finally {
+      if(srcEl){ srcEl.style.opacity = ''; }
     }
   };
+
+  // Legacy alias — old call sites still reference this name.
+  window._toggleSigPreview = window._openSignatureDoc;
 
   let html = '';
   if(pending.length){
