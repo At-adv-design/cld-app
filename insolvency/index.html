@@ -5308,7 +5308,7 @@ async function _sendWhatsAppViaBackend(phone, message){
 }
 function _openSignatureFile(idx){
   const s = (_custState && _custState.signatures && _custState.signatures[idx]) || null;
-  if(!s) return;
+  if(!s){ console.warn('[sig] no state at idx', idx); return; }
   const f = (s.files && s.files[0]) || null;
   if(!f || !f.id){ showToast('הקובץ לא נמצא','err'); return; }
   // If the document was already signed and we have a signed PDF stored,
@@ -5316,9 +5316,18 @@ function _openSignatureFile(idx){
   const useId  = f.signedFileId  || f.id;
   const useUrl = f.signedFileUrl || f.url;
   const useName= (f.signedFileId ? (f.name||'').replace(/\.pdf$/i,'') + '_חתום.pdf' : f.name);
-  if(typeof openDrivePreview === 'function'){
-    openDrivePreview({id: useId, name: useName, mimeType: 'application/pdf', webViewLink: useUrl});
-  } else if(useUrl){ window.open(useUrl, '_blank'); }
+  console.log('[sig] opening preview', {idx, id:useId, signedFileId:f.signedFileId});
+  // Defer the openDrivePreview call by one tick. Without this, on some
+  // browsers (Safari iOS especially) a click that bubbled up from a
+  // touch gesture can still cause an immediate close — the preview
+  // pushes history state, and an aggressive back-button handler can
+  // pop it before the iframe has even loaded. setTimeout breaks that
+  // race condition.
+  setTimeout(() => {
+    if(typeof openDrivePreview === 'function'){
+      openDrivePreview({id: useId, name: useName, mimeType: 'application/pdf', webViewLink: useUrl});
+    } else if(useUrl){ window.open(useUrl, '_blank'); }
+  }, 0);
 }
 async function _removeSignatureDoc(idx){
   const s = (_custState.signatures || [])[idx];
