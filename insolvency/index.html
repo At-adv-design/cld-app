@@ -56,19 +56,15 @@ button,input,textarea,select,.client-card,.swipe-wrap,.card-body,.modal-sheet,
   --bg:#1F1E1C;--white:#2A2A28;--border:#3A3A36;--muted:#A8A6A0;--text:#F5F4EE;
   --shadow:0 1px 2px rgba(0,0,0,0.25),0 4px 16px rgba(0,0,0,0.35);
 }
-html{overflow-x:hidden;overscroll-behavior-x:none;}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;
-  /* Lock the screen to vertical scrolling only — no horizontal drift, no
-     pinch-zoom rocking. Users were reporting that touching cards would
-     slide the whole screen sideways and content went off-edge; this also
-     prevents accidental swipe-back gestures from competing with vertical
-     scroll. */
-  overflow-x:hidden;
-  overscroll-behavior:contain;
-  touch-action:pan-y;
-  width:100%;max-width:100vw;
-}
-*{overscroll-behavior-x:none;}
+/* The horizontal-drift fix from 2026-05-06 (overflow-x:hidden + touch-action
+   on body, plus * { overscroll-behavior-x:none } applied to ALL elements)
+   broke vertical scrolling entirely on this app — user reported "can't
+   scroll at all, app is stuck" 2026-05-07. Reverted to the simplest version:
+   only html-level horizontal lock, no body-level restrictions, no universal
+   selector. The horizontal drift was a smaller annoyance than total scroll
+   failure. */
+html{overflow-x:hidden;}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
 /* AUTO-HIDING STICKY SHELL
    Wraps header+tabs+filters+search. When user scrolls down past a small
