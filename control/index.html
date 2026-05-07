@@ -668,7 +668,7 @@ function showRcExplanationModal(machineName){
     modal.id = 'rc-explain-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl';
     modal.innerHTML = `
-      <div onclick="event.stopPropagation()" style="position:relative;background:var(--card);border:1px solid var(--orange);border-radius:6px;padding:18px 16px 14px;max-width:420px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+      <div onclick="event.stopPropagation()" style="position:relative;background:var(--white);border:1px solid var(--orange);border-radius:6px;padding:18px 16px 14px;max-width:420px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.5)">
         <button id="rc-x" style="position:absolute;top:8px;left:8px;background:transparent;border:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px">×</button>
         <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px">בקשת קישור רמוט מ-${escapeHtml(machineName)}</div>
         <div style="font-size:12px;color:var(--text);line-height:1.6">
