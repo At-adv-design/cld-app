@@ -5134,63 +5134,85 @@ function _renderSignaturesSectionBody(){
     // approach across mobile, desktop, and PWA standalone — a same-origin
     // blob: URL does not trigger Google sign-in prompts the way
     // drive.google.com URLs do.
-    // Use a native <a target="_blank"> so browser handles the click —
-    // no JS, no modal, no event bubbling concerns. Files are uploaded
-    // with ANYONE_WITH_LINK so /view loads without auth.
-    const driveUrl = useId ? `https://drive.google.com/file/d/${esc(useId)}/view` : '';
+    // Click → download PDF via API using the lawyer's bearer token →
+    // blob URL → window.open. No cookies, no Google auth dance — the
+    // token in the Authorization header is what authenticates.
     return `
       <div style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap">
-        ${driveUrl ? `<a href="${driveUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:1;min-width:0;text-decoration:none;color:inherit;cursor:pointer" title="לחץ לפתיחת המסמך בטאב חדש">
+        <div onclick="event.stopPropagation();_openSignatureDoc('${esc(sigKey)}', this)" style="flex:1;min-width:0;cursor:pointer" title="לחץ לפתיחת המסמך">
           <div style="font-size:13px;font-weight:600;color:var(--slate);text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
-        </a>` : `<div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--muted)">📄 ${esc(s.text || (f && f.name) || 'מסמך')} (אין קישור)</div>
-        </div>`}
+        </div>
         ${statusBadge}
         ${actionBtns}
         <button type="button" onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;pointer-events:auto;flex-shrink:0">${ICON.trash||'×'}</button>
       </div>`;
   };
 
-  // Open a signature document in a FULL-SCREEN MODAL with a Drive
-  // iframe — same pattern that works reliably in the clients app.
-  // The files are uploaded with ANYONE_WITH_LINK permission so the
-  // /preview URL renders without auth.
-  window._openSignatureDoc = function(sigKey){
+  // Open signature doc with ZERO Google login. The lawyer's bearer
+  // token (already in localStorage) is sent in the Authorization
+  // HEADER (not as a cookie) — Drive returns the raw PDF bytes.
+  // We wrap them in a blob: URL and open in a new tab where the
+  // browser's built-in PDF viewer renders them. No cross-origin
+  // cookie problem, no /view page, no Google auth UI. Anywhere.
+  window._openSignatureDoc = async function(sigKey, srcEl){
     if(!_custState) return;
-    const sig = (_custState.signatures || []).find((s, idx) =>
-      (s.id || ('sig'+idx)) === sigKey);
+    const sig = (_custState.signatures || []).find((s, i) =>
+      (s.id || ('sig'+i)) === sigKey);
     if(!sig){ showToast('המסמך לא נמצא', 'err'); return; }
     const f = sig.files && sig.files[0];
     const fileId = f && (f.signedFileId || f.id);
-    if(!fileId){ showToast('אין מזהה קובץ למסמך', 'err'); return; }
+    if(!fileId){ showToast('אין מזהה קובץ', 'err'); return; }
+    if(!accessToken){ showToast('צריך להתחבר לאפליקציה (בכפתור הגלגל למעלה)', 'err'); return; }
 
-    let modal = document.getElementById('insolv-sig-modal');
-    if(!modal){
-      modal = document.createElement('div');
-      modal.id = 'insolv-sig-modal';
-      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);display:flex;flex-direction:column';
-      modal.innerHTML = `
-        <div style="background:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #ccc;flex-shrink:0">
-          <div id="insolv-sig-modal-title" style="flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-          <a id="insolv-sig-modal-newtab" href="#" target="_blank" rel="noopener" style="background:#eee;border:1px solid #ccc;padding:6px 12px;border-radius:5px;font-family:inherit;font-size:12px;text-decoration:none;color:#333">פתח בטאב חדש</a>
-          <button id="insolv-sig-modal-close" style="background:#eee;border:1px solid #ccc;padding:6px 12px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px">סגור</button>
-        </div>
-        <iframe id="insolv-sig-modal-frame" style="flex:1;border:none;background:#1a1a1c;width:100%" allow="autoplay"></iframe>`;
-      modal.querySelector('#insolv-sig-modal-close').onclick = () => { modal.style.display = 'none'; modal.querySelector('#insolv-sig-modal-frame').src = 'about:blank'; };
-      // ESC closes
-      document.addEventListener('keydown', (e) => {
-        if(e.key === 'Escape' && modal.style.display !== 'none'){
-          modal.style.display = 'none';
-          modal.querySelector('#insolv-sig-modal-frame').src = 'about:blank';
-        }
-      });
-      document.body.appendChild(modal);
+    // CRITICAL: open the new window SYNCHRONOUSLY in the click event.
+    // If we wait for the fetch to finish, popup blockers kill the tab.
+    const win = window.open('', '_blank');
+    if(!win){
+      showToast('לא ניתן לפתוח טאב חדש (popup blocker?). תן הרשאה ונסה שוב.', 'err');
+      return;
     }
-    modal.querySelector('#insolv-sig-modal-title').textContent = sig.text || (f && f.name) || 'מסמך';
-    modal.querySelector('#insolv-sig-modal-frame').src = `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
-    modal.querySelector('#insolv-sig-modal-newtab').href = `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`;
-    modal.style.display = 'flex';
+    try {
+      win.document.write('<!doctype html><meta charset="utf-8"><title>טוען מסמך…</title><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a1c;color:#fff;font-family:system-ui;font-size:14px">טוען מסמך…</body>');
+    } catch(_){}
+
+    if(srcEl){ srcEl.style.opacity = '0.5'; }
+    try {
+      const r = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+        { headers: { Authorization: 'Bearer ' + accessToken } }
+      );
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      const blob = await r.blob();
+      // Force application/pdf so the browser's PDF viewer activates.
+      const pdfBlob = blob.type === 'application/pdf'
+        ? blob
+        : new Blob([blob], { type: 'application/pdf' });
+      const url = URL.createObjectURL(pdfBlob);
+      if(win.closed){
+        // User closed the loading tab; open a fresh one (may trigger blocker)
+        const win2 = window.open(url, '_blank');
+        if(!win2) showToast('הקובץ הוכן אבל הטאב נחסם. הקליק שוב.', 'err');
+      } else {
+        win.location.href = url;
+      }
+      // Revoke after 2 minutes — browser PDF viewer caches by then.
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 120000);
+    } catch(e){
+      const msg = String(e.message || e);
+      if(!win.closed){
+        try {
+          win.document.body.innerHTML =
+            '<div style="padding:30px;text-align:center;color:#fff;font-family:system-ui">' +
+            '<div style="color:#ff6b6b;font-size:16px;margin-bottom:8px">שגיאה בפתיחת המסמך</div>' +
+            '<div style="font-size:12px;color:#aaa">' + msg + '</div>' +
+            '</div>';
+        } catch(_){}
+      }
+      showToast('שגיאה: ' + msg, 'err');
+    } finally {
+      if(srcEl){ srcEl.style.opacity = ''; }
+    }
   };
 
   // Legacy alias.
