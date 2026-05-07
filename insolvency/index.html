@@ -6155,7 +6155,10 @@ function _renderInquiriesForContext(ctx){
     if(isDone && !isExpanded){
       const subject = (iq.context||'').toString().trim() || 'כללית';
       const handledDt = iq.doneTs ? _fmtInqDate(iq.doneTs) : (iq.replyTs ? _fmtInqDate(iq.replyTs) : '');
-      return `<div data-inq-id="${esc(iq.id)}" onclick="_toggleInqExpand('${esc(iq.id)}')"
+      // event.stopPropagation() — without it the click bubbles up to the
+      // ancestor .cust-section-head, which toggles the parent section
+      // and triggers a "bounce" without ever expanding the inquiry.
+      return `<div data-inq-id="${esc(iq.id)}" onclick="event.stopPropagation();_toggleInqExpand('${esc(iq.id)}')"
         style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted);direction:rtl"
         title="לחץ להרחבה">
         <span style="color:var(--muted);font-size:10px">▸</span>
