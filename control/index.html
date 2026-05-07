@@ -169,6 +169,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 </head>
 <body>
 
+<!-- PANIC BUTTON — always visible, top-right. Closes ALL modals + reloads.
+     Last-resort escape if anything ever blocks the UI. -->
+<button id="panic-btn" onclick="window.__panic()" title="לחץ אם האפליקציה תקועה — סוגר הכל ורענן" style="position:fixed;top:8px;right:8px;z-index:9999;background:#c8620a;color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.3);line-height:1;padding:0">↻</button>
+
+<!-- VERSION INDICATOR — visible at bottom-left so user can verify they have the latest -->
+<div id="version-indicator" style="position:fixed;bottom:4px;left:4px;z-index:9998;background:rgba(0,0,0,.4);color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;font-family:monospace;pointer-events:none">v22</div>
+
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
@@ -1188,19 +1195,39 @@ async function init(){
 
 init();
 
+// Force aggressive SW update on every page load. PWA standalone mode
+// can hold a stale SW for hours otherwise.
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.update());
+  }).catch(()=>{});
+  // When a new SW takes over, reload once so HTML/JS match the new SW.
+  let _swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(_swReloaded) return;
+    _swReloaded = true;
+    location.reload();
+  });
+}
+
+// PANIC button handler — closes ALL modals/overlays and force-reloads.
+// Never wraps anything in try/catch that could itself fail.
+window.__panic = function(){
+  // Close everything
+  document.querySelectorAll('.cmd-overlay, [id$="-modal"]').forEach(el => {
+    if(el.classList) el.classList.remove('open');
+    if(el.id && el.id.endsWith('-modal')) el.remove();
+  });
+  // Reset all _pollingActive-style flags by reloading
+  location.reload();
+};
+
 // Emergency: pressing Escape closes ALL open modals — never let the user
 // get stuck in a modal that covers the screen.
 document.addEventListener('keydown', (e) => {
   if(e.key !== 'Escape') return;
-  // Remove auth-prompt-modal, command-overlay, remote-ctrl-overlay
-  ['auth-prompt-modal'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.remove();
-  });
-  const cmdOverlay = document.getElementById('cmd-overlay');
-  if(cmdOverlay && cmdOverlay.classList.contains('open')) cmdOverlay.classList.remove('open');
-  const rccOverlay = document.getElementById('rcc-overlay');
-  if(rccOverlay && rccOverlay.classList.contains('open')) rccOverlay.classList.remove('open');
+  document.querySelectorAll('[id$="-modal"]').forEach(el => el.remove());
+  document.querySelectorAll('.cmd-overlay.open').forEach(el => el.classList.remove('open'));
 });
 
 /* ============================================================
