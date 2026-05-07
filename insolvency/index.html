@@ -6138,8 +6138,12 @@ function _renderInquiriesForContext(ctx){
     ? (_custState.inquiries||[])
     : (_custState.inquiries||[]).filter(iq => (iq.context||'') === ctx);
   if(!all.length) return '';
+  // Pending first (newest sent at top). Done LAST, sorted by handle time
+  // (most-recently-handled at top, oldest-handled at bottom). Falls back
+  // to send time / replyTs when doneTs is missing on legacy entries.
   const pending = all.filter(iq => !iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
-  const done    = all.filter(iq =>  iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const doneSortKey = iq => iq.doneTs || iq.replyTs || iq.ts || 0;
+  const done    = all.filter(iq =>  iq.done).sort((a,b) => doneSortKey(b) - doneSortKey(a));
   const items   = pending.concat(done);
   if(!_custState.inqExpanded) _custState.inqExpanded = {};
   return items.map(iq=>{
