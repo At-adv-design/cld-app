@@ -4758,29 +4758,45 @@ function renderCustomerArea(){
   const isOpen = key => !!open[key];
   // Expose a one-click close-all helper used by the header button. Per
   // user request 2026-05-07 — collapses EVERY level of expandable state
-  // in the customer-area: top-level sections, per-report cards, the
-  // past/future report groups, info Q&A cards, AND any localStorage
-  // persisted open-state for this client so the next time they open
-  // the customer area it starts fully collapsed.
+  // in the customer-area:
+  //   • Top-level sections (reports, docs, info, signatures, drive, ...)
+  //   • Per-report opened card (openReportNum)
+  //   • Past / future report groups (reportGroupOpen.past/future)
+  //   • Info Q&A cards (infoQAOpen)
+  //   • Inquiry expand state (inqExpanded — the click-to-expand on
+  //     handled inquiries)
+  //   • localStorage persisted state so a refresh starts fully collapsed
   window.custCloseAllSections = function(){
     if(!_custState) return;
-    // Top-level sections (reports, docs, info, signatures, drive, creds, ...)
+    // 1. Top-level sections
     if(_custState.openSections){
       Object.keys(_custState.openSections).forEach(k => _custState.openSections[k] = false);
     }
-    // Per-report opened card
+    // 2. Per-report opened card
     _custState.openReportNum = null;
-    // Past / future report groups
+    // 3. Past / future report groups
     if(_custState.reportGroupOpen){
       Object.keys(_custState.reportGroupOpen).forEach(k => _custState.reportGroupOpen[k] = false);
     } else {
       _custState.reportGroupOpen = {past:false, future:false};
     }
-    // Info Q&A open state
+    // 4. Info Q&A cards
     _custState.infoQAOpen = {};
+    // 5. Inquiry-expand state (handled inquiries collapse back to thin row)
+    _custState.inqExpanded = {};
     // Persist the collapsed state so a refresh / reopen also starts collapsed
     try { _saveCustSectionState && _saveCustSectionState(); } catch(_){}
     if(typeof renderCustomerArea === 'function') renderCustomerArea();
+    // DOM-level sweep — belt-and-suspenders. Some sub-cards toggle .open
+    // via direct classList manipulation rather than state, so a fresh
+    // re-render alone might miss them on the next paint frame.
+    setTimeout(() => {
+      const body = document.getElementById('customer-area-body');
+      if(!body) return;
+      body.querySelectorAll('.cust-section.open, .rd-group.open, .report-doc-card.open, .qa-card-l.open').forEach(el => {
+        el.classList.remove('open');
+      });
+    }, 0);
   };
 
   /* Header refresh button: re-fetch the entire sheet, rebuild this client's
