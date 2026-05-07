@@ -4746,15 +4746,30 @@ function renderCustomerArea(){
 
   const open = _custState.openSections || {};
   const isOpen = key => !!open[key];
-  // Expose a one-click close-all helper used by the header button.
+  // Expose a one-click close-all helper used by the header button. Per
+  // user request 2026-05-07 — collapses EVERY level of expandable state
+  // in the customer-area: top-level sections, per-report cards, the
+  // past/future report groups, info Q&A cards, AND any localStorage
+  // persisted open-state for this client so the next time they open
+  // the customer area it starts fully collapsed.
   window.custCloseAllSections = function(){
-    if(_custState && _custState.openSections){
+    if(!_custState) return;
+    // Top-level sections (reports, docs, info, signatures, drive, creds, ...)
+    if(_custState.openSections){
       Object.keys(_custState.openSections).forEach(k => _custState.openSections[k] = false);
-      // Also collapse per-report opened state
-      _custState.openReportNum = null;
-      // Also collapse per-info Q&A
-      _custState.infoQAOpen = {};
     }
+    // Per-report opened card
+    _custState.openReportNum = null;
+    // Past / future report groups
+    if(_custState.reportGroupOpen){
+      Object.keys(_custState.reportGroupOpen).forEach(k => _custState.reportGroupOpen[k] = false);
+    } else {
+      _custState.reportGroupOpen = {past:false, future:false};
+    }
+    // Info Q&A open state
+    _custState.infoQAOpen = {};
+    // Persist the collapsed state so a refresh / reopen also starts collapsed
+    try { _saveCustSectionState && _saveCustSectionState(); } catch(_){}
     if(typeof renderCustomerArea === 'function') renderCustomerArea();
   };
 
