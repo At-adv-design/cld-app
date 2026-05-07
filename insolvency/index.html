@@ -116,26 +116,31 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
 .hdr-row-top{display:flex;gap:6px;align-items:center;}
 .hdr-row-bottom{display:flex;gap:6px;align-items:center;justify-content:center;align-self:stretch;}
 .hdr-row-bottom:empty{display:none;}
-/* Cards-count badge — pinned to the bottom edge of the header. */
+/* Cards-count badge — pinned to the bottom edge of the header.
+   No border (the previous dashed border read as a "stray line" per user
+   feedback 2026-05-07). Just the dot + number, clean and clickable. */
 .hdr-count{
   font-size:13px;font-weight:700;
   color:var(--slate);background:transparent;
-  border:1px dashed var(--border);
-  padding:0 12px;height:26px;
+  border:none;
+  padding:0 8px;height:24px;
   display:inline-flex;align-items:center;gap:6px;
   flex-shrink:0;border-radius:4px;
   letter-spacing:.2px;
+  cursor:pointer;
+  transition:background .12s;
 }
+.hdr-count:hover{background:var(--surface-2,var(--bg));}
 .hdr-count::before{
   content:"";width:7px;height:7px;border-radius:50%;background:var(--slate);
   display:inline-block;
 }
-/* Header buttons — sized at 34px (a touch bigger than original 32, but
-   smaller than the 38 user found too big). User feedback 2026-05-07. */
-.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:34px;height:34px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:5px;}
-.hdr-btn svg{width:16px;height:16px;}
+/* Header buttons — 30px is the sweet spot per user feedback 2026-05-07
+   (32 was original, 38 felt too big, 34 still too big). */
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:30px;height:30px;font-size:12px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
+.hdr-btn svg{width:14px;height:14px;}
 .hdr-btn:active{background:var(--border);}
-.avatar{width:34px;height:34px;border-radius:5px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar{width:30px;height:30px;border-radius:4px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
@@ -1146,8 +1151,8 @@ body.focus-mode-active{overflow:hidden;}
            the middle of the right half — NOT between the refresh and
            theme icons. -->
       <div class="hdr-row-bottom">
-        <span class="hdr-count" id="total-count">טוען...</span>
-        <button id="pending-approvals-badge" onclick="jumpToFirstPending()" style="display:none">
+        <span class="hdr-count" id="total-count" onclick="openPendingPanel()" title="לחץ לראות כרטיסים שמחכים לטיפול">טוען...</span>
+        <button id="pending-approvals-badge" onclick="openPendingPanel()" style="display:none">
           <span id="pending-approvals-count">0</span>
         </button>
         <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" style="display:none;height:26px;min-width:auto;padding:0 10px;font-size:12px" title="פניות לקוחות">
@@ -3153,6 +3158,61 @@ function jumpToFirstPending(){
     openCustomerArea(c.rowNum);
   }
 }
+
+/* Show a popup listing every client that needs attention right now.
+   Sources: clients with customerPendingCount > 0 (file approvals) and
+   clients with un-handled inquiries. Click a row → opens that client's
+   customer-area modal. */
+window.openPendingPanel = function(){
+  const pending = (allClients||[])
+    .filter(c => (c.customerPendingCount||0) > 0 || ((c.inquiries||[]).filter(i=>!i.done).length > 0))
+    .map(c => ({
+      c,
+      pendingFiles: c.customerPendingCount || 0,
+      openInquiries: (c.inquiries||[]).filter(i=>!i.done).length
+    }))
+    .sort((a,b) => (b.pendingFiles + b.openInquiries) - (a.pendingFiles + a.openInquiries));
+
+  let modal = document.getElementById('pending-panel-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'pending-panel-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+    modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+    document.body.appendChild(modal);
+  }
+
+  if(pending.length === 0){
+    modal.innerHTML = `
+      <div style="background:var(--white);border:1px solid var(--border);padding:28px;max-width:400px;text-align:center">
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px">אין כרגע פעולות ממתינות 🎉</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">כל הקבצים אושרו, וכל הפניות טופלו.</div>
+        <button onclick="document.getElementById('pending-panel-modal').remove()" style="background:var(--slate);color:#fff;border:none;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">סגור</button>
+      </div>`;
+    return;
+  }
+
+  modal.innerHTML = `
+    <div style="background:var(--white);border:1px solid var(--border);width:100%;max-width:520px;display:flex;flex-direction:column;max-height:90vh">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <div style="font-size:15px;font-weight:700;flex:1">פעולות שמחכות לטיפול (${pending.length})</div>
+        <button onclick="document.getElementById('pending-panel-modal').remove()" style="background:var(--bg);border:1px solid var(--border);padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit">סגור</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:8px">
+        ${pending.map(p => `
+          <div onclick="document.getElementById('pending-panel-modal').remove();openCustomerArea(${p.c.rowNum})" style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--white)'">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.c.name||'')}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.c.phone||''}</div>
+            </div>
+            ${p.pendingFiles ? `<span style="font-size:11px;font-weight:700;color:#fff;background:var(--orange);padding:3px 8px;border-radius:3px">${p.pendingFiles} קבצים</span>` : ''}
+            ${p.openInquiries ? `<span style="font-size:11px;font-weight:700;color:#fff;background:var(--red);padding:3px 8px;border-radius:3px">${p.openInquiries} פניות</span>` : ''}
+            <span style="color:var(--muted);font-size:18px">‹</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+};
 
 function applyFilters(){
   // If the user is currently in the secret operations section, don't touch the

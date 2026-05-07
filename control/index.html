@@ -47,7 +47,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .hdr-right{display:flex;gap:8px;align-items:center;max-width:50%;flex-wrap:wrap;justify-content:flex-start;}
 .header > img[alt*="טל"]{
   position:absolute;left:25%;top:50%;transform:translate(-50%,-50%);
-  height:90px;object-fit:contain;pointer-events:none;
+  height:100px;object-fit:contain;pointer-events:none;
 }
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;border-radius:4px;padding:0 10px;}
 .hdr-btn:active{background:var(--border);}
@@ -209,7 +209,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </button>
       <div class="avatar" id="user-avatar" onclick="signOut()" title="יציאה"></div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" style="height:90px;object-fit:contain;">
+    <img src="../logo.png" alt="אבי טל ושות׳" style="height:100px;object-fit:contain;">
   </div>
 
   <div class="content">
@@ -644,7 +644,12 @@ function openRemoteCtrlModal(machineName){
 function closeRemoteCtrlModal(){ document.getElementById('rcc-overlay').classList.remove('open'); }
 
 async function requestRemoteLink(machineName){
-  if(!accessToken){ toast('להזנת בקשה צריך להתחבר עם Google. לחץ על הסמל בכותרת.'); return; }
+  if(!accessToken){
+    if(confirm('צריך להתחבר עם Google כדי לקבל קישור רמוט.\nרוצה להתחבר עכשיו?')){
+      doLogin();
+    }
+    return;
+  }
   try {
     await writeCommand(machineName, '/remote-control', 'remote-control-link');
     toast(`בקשה נשלחה ל-${machineName}. הקישור יופיע פה תוך כדקה.`);
@@ -716,7 +721,12 @@ async function sendRemoteCtrl(){
   const text = (document.getElementById('rcc-text').value || '').trim();
   if(!text){ toast('יש לכתוב prompt'); return; }
   if(!_remoteCtrlTarget) return;
-  if(!accessToken){ toast('להפעלת רמוט צריך להתחבר עם Google. לחץ על הסמל בכותרת.'); return; }
+  if(!accessToken){
+    if(confirm('צריך להתחבר עם Google כדי להפעיל רמוט.\nרוצה להתחבר עכשיו?')){
+      doLogin();
+    }
+    return;
+  }
   // Build target list: either a single machine, or all known machines
   // (read from the latest heartbeats list).
   let targets = [];
@@ -751,7 +761,9 @@ async function sendCommand(){
   if(!text){ toast('יש לכתוב הוראה'); return; }
   if(!_commandTarget) return;
   if(!accessToken){
-    toast('להזנת הוראה צריך להתחבר עם Google. לחץ על הסמל בכותרת.');
+    if(confirm('צריך להתחבר עם Google כדי לשלוח הוראה.\nרוצה להתחבר עכשיו?')){
+      doLogin();
+    }
     return;
   }
   try {
