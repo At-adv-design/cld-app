@@ -4653,23 +4653,85 @@ async function confirmRejectFile(){
     _rejectFromPreview = false;
   }
 }
-function previewCustomerFile(p){
+function previewCustomerFile(p, srcEl){
   if(!p || !p.fileId){
     if(p && p.url) window.open(p.url, '_blank');
     return;
   }
-  // Track for the in-preview approve/reject buttons. We only show
-  // those buttons when the file is in the pending bin (not already
-  // approved/merged).
-  const isPending = (_custState && Array.isArray(_custState.pending))
-    ? _custState.pending.some(x => x.fileId === p.fileId)
-    : false;
-  _previewingFile = isPending ? p : null;
-  if(typeof openDrivePreview === 'function'){
-    openDrivePreview({id:p.fileId, name:p.name, mimeType:p.mimeType||'', webViewLink:p.url});
-    _setPreviewActionButtons(isPending);
-  } else if(p.url){
-    window.open(p.url, '_blank');
+  // Open via blob (no Google login). Same approach as signature docs —
+  // fetch via Drive API with bearer token, wrap as blob, open in new tab.
+  _openDriveFileBlob(p.fileId, p.name, srcEl);
+}
+
+/* Generic: open ANY Drive file in a new tab via blob URL.
+   Used for both signature docs and requested/uploaded docs.
+   - Authentication: bearer token in Authorization header (no Google login UI)
+   - Synchronous window.open() so popup blockers don't fire
+   - Sets the new tab to a 'loading' page, then navigates to blob URL
+   - Force application/pdf when blob.type isn't set (Drive sometimes
+     returns octet-stream for PDFs uploaded without Content-Type) */
+window._openDriveFileBlob = async function(fileId, fileName, srcEl){
+  if(!fileId){ showToast('אין מזהה קובץ', 'err'); return; }
+  if(!accessToken){ showToast('צריך להתחבר לאפליקציה', 'err'); return; }
+  const win = window.open('', '_blank');
+  if(!win){ showToast('הטאב נחסם — תן הרשאה ונסה שוב', 'err'); return; }
+  try {
+    win.document.write('<!doctype html><meta charset="utf-8"><title>טוען…</title><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a1c;color:#fff;font-family:system-ui;font-size:14px">טוען מסמך…</body>');
+  } catch(_){}
+  if(srcEl){ srcEl.style.opacity = '0.5'; }
+  try {
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const lower = String(fileName||'').toLowerCase();
+    let useType = blob.type;
+    if(!useType || useType === 'application/octet-stream'){
+      if(lower.endsWith('.pdf'))  useType = 'application/pdf';
+      else if(/\.(png|jpe?g|gif|webp|bmp)$/.test(lower)) useType = 'image/' + lower.split('.').pop().replace('jpg','jpeg');
+    }
+    const finalBlob = useType && useType !== blob.type ? new Blob([blob], { type: useType }) : blob;
+    const url = URL.createObjectURL(finalBlob);
+    if(win.closed){
+      const w2 = window.open(url, '_blank');
+      if(!w2) showToast('הטאב נחסם.', 'err');
+    } else {
+      win.location.href = url;
+    }
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 120000);
+  } catch(e){
+    const msg = String(e.message || e);
+    if(!win.closed){
+      try {
+        win.document.body.innerHTML = '<div style="padding:30px;text-align:center;color:#fff;font-family:system-ui"><div style="color:#ff6b6b;font-size:16px;margin-bottom:8px">שגיאה בפתיחת המסמך</div><div style="font-size:12px;color:#aaa">' + msg + '</div></div>';
+      } catch(_){}
+    }
+    showToast('שגיאה: ' + msg, 'err');
+  } finally {
+    if(srcEl){ srcEl.style.opacity = ''; }
+  }
+};
+
+/* Silent trash of a Drive file (no rejection note, no Apps Script).
+   Used for the 🗑 button on pending/approved requested docs — the
+   lawyer just wants the file gone without prompting the client. */
+async function deleteCustomerFile(p){
+  if(!p || !p.fileId) return;
+  const what = p.name || 'הקובץ';
+  if(!confirm(`למחוק את ${what}? (יועבר לפח של Drive — שחזור 30 ימים)`)) return;
+  try {
+    showToast('מוחק…', 'ok');
+    await driveFetch(`/files/${encodeURIComponent(p.fileId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ trashed: true })
+    });
+    showToast('נמחק', 'ok');
+    await loadCustomerPending();
+    if(typeof renderCustomerArea === 'function') renderCustomerArea();
+  } catch(e){
+    showToast('שגיאה במחיקה: ' + (e.message||e), 'err');
   }
 }
 
@@ -5162,13 +5224,10 @@ function _renderSignaturesSectionBody(){
       </div>`;
   };
 
-  // Open signature doc with ZERO Google login. The lawyer's bearer
-  // token (already in localStorage) is sent in the Authorization
-  // HEADER (not as a cookie) — Drive returns the raw PDF bytes.
-  // We wrap them in a blob: URL and open in a new tab where the
-  // browser's built-in PDF viewer renders them. No cross-origin
-  // cookie problem, no /view page, no Google auth UI. Anywhere.
-  window._openSignatureDoc = async function(sigKey, srcEl){
+  // Signature doc → resolve fileId from sigKey, then delegate to the
+  // generic blob-opener. Same no-Google-login path used by requested
+  // docs.
+  window._openSignatureDoc = function(sigKey, srcEl){
     if(!_custState) return;
     const sig = (_custState.signatures || []).find((s, i) =>
       (s.id || ('sig'+i)) === sigKey);
@@ -5176,56 +5235,7 @@ function _renderSignaturesSectionBody(){
     const f = sig.files && sig.files[0];
     const fileId = f && (f.signedFileId || f.id);
     if(!fileId){ showToast('אין מזהה קובץ', 'err'); return; }
-    if(!accessToken){ showToast('צריך להתחבר לאפליקציה (בכפתור הגלגל למעלה)', 'err'); return; }
-
-    // CRITICAL: open the new window SYNCHRONOUSLY in the click event.
-    // If we wait for the fetch to finish, popup blockers kill the tab.
-    const win = window.open('', '_blank');
-    if(!win){
-      showToast('לא ניתן לפתוח טאב חדש (popup blocker?). תן הרשאה ונסה שוב.', 'err');
-      return;
-    }
-    try {
-      win.document.write('<!doctype html><meta charset="utf-8"><title>טוען מסמך…</title><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a1c;color:#fff;font-family:system-ui;font-size:14px">טוען מסמך…</body>');
-    } catch(_){}
-
-    if(srcEl){ srcEl.style.opacity = '0.5'; }
-    try {
-      const r = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
-        { headers: { Authorization: 'Bearer ' + accessToken } }
-      );
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      const blob = await r.blob();
-      // Force application/pdf so the browser's PDF viewer activates.
-      const pdfBlob = blob.type === 'application/pdf'
-        ? blob
-        : new Blob([blob], { type: 'application/pdf' });
-      const url = URL.createObjectURL(pdfBlob);
-      if(win.closed){
-        // User closed the loading tab; open a fresh one (may trigger blocker)
-        const win2 = window.open(url, '_blank');
-        if(!win2) showToast('הקובץ הוכן אבל הטאב נחסם. הקליק שוב.', 'err');
-      } else {
-        win.location.href = url;
-      }
-      // Revoke after 2 minutes — browser PDF viewer caches by then.
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 120000);
-    } catch(e){
-      const msg = String(e.message || e);
-      if(!win.closed){
-        try {
-          win.document.body.innerHTML =
-            '<div style="padding:30px;text-align:center;color:#fff;font-family:system-ui">' +
-            '<div style="color:#ff6b6b;font-size:16px;margin-bottom:8px">שגיאה בפתיחת המסמך</div>' +
-            '<div style="font-size:12px;color:#aaa">' + msg + '</div>' +
-            '</div>';
-        } catch(_){}
-      }
-      showToast('שגיאה: ' + msg, 'err');
-    } finally {
-      if(srcEl){ srcEl.style.opacity = ''; }
-    }
+    return window._openDriveFileBlob(fileId, sig.text || (f && f.name) || 'מסמך', srcEl);
   };
 
   // Legacy alias.
@@ -6240,20 +6250,22 @@ function _renderReqAttachments(o){
     <div class="req-attachments">
       ${pending.map(p => `
         <div class="req-pending-file">
-          <button class="rpf-name" onclick="previewCustomerFile(${_jsArg(p)})" title="צפייה">
+          <button class="rpf-name" onclick="previewCustomerFile(${_jsArg(p)}, this)" title="לחץ לפתיחת המסמך">
             ${ICON.paper}<span>${esc(p.name||'')}</span>
           </button>
           <div class="rpf-actions">
-            <button class="rpf-btn approve" onclick="approveCustomerFile(${_jsArg(p)})">✓ אישור</button>
-            <button class="rpf-btn reject"  onclick="rejectCustomerFile(${_jsArg(p)})">✗ דחייה</button>
+            <button class="rpf-btn approve" onclick="approveCustomerFile(${_jsArg(p)})" title="אישור">✓ אישור</button>
+            <button class="rpf-btn reject"  onclick="rejectCustomerFile(${_jsArg(p)})" title="דחייה עם הודעה ללקוח">✗ דחייה</button>
+            <button class="rpf-btn" onclick="deleteCustomerFile(${_jsArg(p)})" title="מחק לתמיד (בלי להודיע ללקוח)" style="color:var(--red);border-color:var(--red)">🗑️</button>
           </div>
         </div>`).join('')}
       ${approved.map(a => `
         <div class="req-approved-row">
-          <div class="rar-name" onclick="previewCustomerFile(${_jsArg(a)})" style="cursor:pointer" title="לחץ לצפייה במסמך">
+          <div class="rar-name" onclick="previewCustomerFile(${_jsArg(a)}, this)" style="cursor:pointer" title="לחץ לצפייה במסמך">
             ${ICON.paper}<span>${esc(a.name||'')}</span>
             <span class="rar-check">✓</span>
             <button class="rar-revert-btn" onclick="event.stopPropagation();revertApprovedFile(${_jsArg(a)})" title="בטל אישור">בטל אישור</button>
+            <button class="rar-revert-btn" onclick="event.stopPropagation();deleteCustomerFile(${_jsArg(a)})" title="מחק לתמיד" style="color:var(--red);border-color:var(--red);margin-inline-start:4px">🗑️</button>
           </div>
         </div>`).join('')}
       ${rejection ? `
