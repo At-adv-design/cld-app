@@ -5311,23 +5311,26 @@ function _openSignatureFile(idx){
   if(!s){ console.warn('[sig] no state at idx', idx); return; }
   const f = (s.files && s.files[0]) || null;
   if(!f || !f.id){ showToast('הקובץ לא נמצא','err'); return; }
-  // If the document was already signed and we have a signed PDF stored,
-  // prefer that — the lawyer wants to see the signed version.
+  // Prefer the signed PDF if available
   const useId  = f.signedFileId  || f.id;
-  const useUrl = f.signedFileUrl || f.url;
-  const useName= (f.signedFileId ? (f.name||'').replace(/\.pdf$/i,'') + '_חתום.pdf' : f.name);
-  console.log('[sig] opening preview', {idx, id:useId, signedFileId:f.signedFileId});
-  // Defer the openDrivePreview call by one tick. Without this, on some
-  // browsers (Safari iOS especially) a click that bubbled up from a
-  // touch gesture can still cause an immediate close — the preview
-  // pushes history state, and an aggressive back-button handler can
-  // pop it before the iframe has even loaded. setTimeout breaks that
-  // race condition.
-  setTimeout(() => {
+  const useUrl = f.signedFileUrl || f.url || ('https://drive.google.com/file/d/' + useId + '/view');
+  console.log('[sig] opening', {idx, id:useId, signedFileId:f.signedFileId, url:useUrl});
+  // Always open signature docs in a NEW BROWSER TAB (Drive's full viewer)
+  // instead of the in-app iframe modal. Per user feedback 2026-05-07:
+  // the iframe modal opens-and-immediately-closes intermittently for
+  // signed docs (race condition with popstate / section toggle / Drive
+  // iframe slow-load on mobile). New tab is rock-solid: the page just
+  // navigates, the user reviews the doc with Drive's native UI, comes
+  // back to the customer area when done.
+  const w = window.open(useUrl, '_blank', 'noopener');
+  if(!w){
+    // Pop-up was blocked. Fall back to in-app modal.
     if(typeof openDrivePreview === 'function'){
-      openDrivePreview({id: useId, name: useName, mimeType: 'application/pdf', webViewLink: useUrl});
-    } else if(useUrl){ window.open(useUrl, '_blank'); }
-  }, 0);
+      openDrivePreview({id: useId, name: f.name, mimeType:'application/pdf', webViewLink: useUrl});
+    } else {
+      showToast('פתיחה נחסמה — אפשר חלונות קופצים','err');
+    }
+  }
 }
 async function _removeSignatureDoc(idx){
   const s = (_custState.signatures || [])[idx];
