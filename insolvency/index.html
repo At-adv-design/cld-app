@@ -106,35 +106,44 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
   cursor:pointer;
   pointer-events:auto;
 }
-/* Right-side controls: icons row at TOP of header, counter row at the
-   BOTTOM edge — centered horizontally inside the right half of the
-   header per user request 2026-05-07. The right half is ~50% of header
-   width; bottom row uses justify-content:center within hdr-right
-   itself, since hdr-right naturally lives in the right half because
-   the absolute logo is anchored at left:25%. */
-.hdr-right{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;height:92px;padding:4px 0;}
-.hdr-row-top{display:flex;gap:6px;align-items:center;}
-.hdr-row-bottom{display:flex;gap:6px;align-items:center;justify-content:center;align-self:stretch;}
+/* Right-side controls: icons CENTERED vertically (middle of header),
+   counter row pinned to the bottom edge. The flex:1 + align-items:center
+   on hdr-row-top makes the icons sit in the vertical middle of the
+   space above the bottom row. Per user feedback 2026-05-07. */
+.hdr-right{display:flex;flex-direction:column;align-items:flex-start;height:96px;padding:0;}
+.hdr-row-top{display:flex;gap:6px;align-items:center;flex:1;}
+.hdr-row-bottom{display:flex;gap:14px;align-items:center;justify-content:center;align-self:stretch;padding-bottom:6px;}
 .hdr-row-bottom:empty{display:none;}
-/* Cards-count badge — pinned to the bottom edge of the header.
-   No border (the previous dashed border read as a "stray line" per user
-   feedback 2026-05-07). Just the dot + number, clean and clickable. */
-.hdr-count{
+/* Both counters share the same look: no border, slate dot, slate number.
+   Gap between them is created by the parent .hdr-row-bottom gap:14px
+   and the divider pseudo-element below. */
+.hdr-count, #pending-approvals-badge, #inquiries-hdr-btn.hdr-btn{
   font-size:13px;font-weight:700;
   color:var(--slate);background:transparent;
   border:none;
-  padding:0 8px;height:24px;
+  padding:0 6px;height:24px;
   display:inline-flex;align-items:center;gap:6px;
   flex-shrink:0;border-radius:4px;
   letter-spacing:.2px;
   cursor:pointer;
   transition:background .12s;
+  font-family:inherit;
+  min-width:auto;  /* override the .hdr-btn min-width:30 */
 }
-.hdr-count:hover{background:var(--surface-2,var(--bg));}
+.hdr-count:hover, #pending-approvals-badge:hover, #inquiries-hdr-btn.hdr-btn:hover{background:var(--surface-2,var(--bg));}
 .hdr-count::before{
   content:"";width:7px;height:7px;border-radius:50%;background:var(--slate);
   display:inline-block;
 }
+#pending-approvals-badge::before{
+  content:"";width:7px;height:7px;border-radius:50%;background:var(--orange);
+  display:inline-block;
+}
+#inquiries-hdr-btn.hdr-btn::before{
+  content:"";width:7px;height:7px;border-radius:50%;background:var(--red);
+  display:inline-block;
+}
+#inquiries-hdr-btn.hdr-btn svg{display:none;}  /* hide the bell svg, dot is enough */
 /* Header buttons — 30px is the sweet spot per user feedback 2026-05-07
    (32 was original, 38 felt too big, 34 still too big). */
 .hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:30px;height:30px;font-size:12px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
