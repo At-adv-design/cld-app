@@ -946,9 +946,14 @@ function promptForAuth(){
   modal = document.createElement('div');
   modal.id = 'auth-prompt-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  // Multiple ways to dismiss — backdrop click, X button, Escape key —
+  // so user is NEVER stuck with a modal covering the screen.
   modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+  const escHandler = (e) => { if(e.key === 'Escape'){ modal.remove(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
   modal.innerHTML = `
-    <div style="background:var(--white);border:1px solid var(--border);padding:22px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:14px;direction:rtl">
+    <div onclick="event.stopPropagation()" style="position:relative;background:var(--white);border:1px solid var(--border);padding:22px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:14px;direction:rtl">
+      <button onclick="document.getElementById('auth-prompt-modal').remove()" style="position:absolute;top:8px;left:8px;background:transparent;border:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:4px 8px" title="סגור">×</button>
       <div style="font-size:16px;font-weight:700;color:var(--text)">צריך להתחבר עם Google</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6">
         אעביר אותך לאפליקציית סולוונסי, תתחבר שם עם Google (אם עוד לא), ואחזיר אותך לכאן אוטומטית. הטוקן שמתקבל בסולוונסי משותף לשתי האפליקציות.
@@ -1138,6 +1143,21 @@ async function init(){
 }
 
 init();
+
+// Emergency: pressing Escape closes ALL open modals — never let the user
+// get stuck in a modal that covers the screen.
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Escape') return;
+  // Remove auth-prompt-modal, command-overlay, remote-ctrl-overlay
+  ['auth-prompt-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.remove();
+  });
+  const cmdOverlay = document.getElementById('cmd-overlay');
+  if(cmdOverlay && cmdOverlay.classList.contains('open')) cmdOverlay.classList.remove('open');
+  const rccOverlay = document.getElementById('rcc-overlay');
+  if(rccOverlay && rccOverlay.classList.contains('open')) rccOverlay.classList.remove('open');
+});
 
 /* ============================================================
    PULL-TO-REFRESH (touch gesture)
