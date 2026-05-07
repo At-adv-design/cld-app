@@ -583,9 +583,9 @@ function renderMachines(heartbeats){
           ${hb.version ? `<div class="row"><span class="key">גרסה</span><span class="val">${escapeHtml(hb.version)}</span></div>` : ''}
         </div>
         <div class="mc-actions">
-          <button class="mc-btn primary" onclick="openRemoteCtrlModal('${escapeAttr(id)}')" title="הפעל Claude Code עם prompt על המחשב הזה">🎮 רמוט</button>
-          <button class="mc-btn" onclick="openCmdModal('${escapeAttr(id)}')" title="שלח הודעה (toast) למחשב">💬 הודעה</button>
-          <button class="mc-btn" onclick="openTranscripts('${escapeAttr(id)}')">היסטוריה</button>
+          <button class="mc-btn primary" onclick="requestRemoteLink('${escapeAttr(id)}')" title="הפעל /remote-control וקבל קישור">🔗 קישור רמוט</button>
+          <button class="mc-btn" onclick="openRemoteCtrlModal('${escapeAttr(id)}')" title="הפעל Claude Code עם prompt">🎮 prompt</button>
+          <button class="mc-btn" onclick="openCmdModal('${escapeAttr(id)}')" title="שלח toast">💬 הודעה</button>
         </div>
       </div>`;
   }).join('');
@@ -634,6 +634,75 @@ function openRemoteCtrlModal(machineName){
   }, 80);
 }
 function closeRemoteCtrlModal(){ document.getElementById('rcc-overlay').classList.remove('open'); }
+
+async function requestRemoteLink(machineName){
+  if(!accessToken){ toast('להזנת בקשה צריך להתחבר עם Google. לחץ על הסמל בכותרת.'); return; }
+  try {
+    await writeCommand(machineName, '/remote-control', 'remote-control-link');
+    toast(`בקשה נשלחה ל-${machineName}. הקישור יופיע פה תוך כדקה.`);
+    // Begin polling for response (Drive folder, file pattern: response-MACHINE-*)
+    pollForRemoteLinks(machineName);
+  } catch(e){
+    toast('שגיאה בשליחה: ' + (e.message || e));
+  }
+}
+
+let _pollingActive = false;
+async function pollForRemoteLinks(machineName){
+  if(_pollingActive) return;
+  _pollingActive = true;
+  const startTime = Date.now();
+  const TIMEOUT = 90 * 1000;  // give up after 90 seconds
+  try {
+    while(Date.now() - startTime < TIMEOUT){
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        if(!driveFolderId) await ensureDriveFolder();
+        const q = encodeURIComponent(`'${driveFolderId}' in parents and name contains 'response-${machineName}-' and trashed=false`);
+        const r = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=5');
+        const j = await r.json();
+        if(j.files && j.files.length){
+          // Read newest
+          const newest = j.files[0];
+          if(new Date(newest.modifiedTime).getTime() > startTime - 5000){
+            const r2 = await apiFetch(`https://www.googleapis.com/drive/v3/files/${newest.id}?alt=media`);
+            const data = await r2.json();
+            // Delete the file from Drive after consuming
+            try { await apiFetch(`https://www.googleapis.com/drive/v3/files/${newest.id}`, {method:'DELETE'}); } catch(_){}
+            displayRemoteLinkResponse(machineName, data);
+            return;
+          }
+        }
+      } catch(e){ console.warn('poll error', e); }
+    }
+    toast(`לא התקבל קישור מ-${machineName} תוך 90 שניות. ייתכן שהמחשב לא פעיל / Claude לא מותקן.`);
+  } finally {
+    _pollingActive = false;
+  }
+}
+
+function displayRemoteLinkResponse(machineName, data){
+  const card = document.createElement('div');
+  card.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--white);border:1px solid var(--border);padding:20px;z-index:300;max-width:480px;width:92vw;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:12px;';
+  if(data.ok && data.url){
+    card.innerHTML = `
+      <div style="font-size:14px;font-weight:700">🔗 קישור רמוט קונטרול</div>
+      <div style="font-size:12px;color:var(--muted);direction:rtl">יעד: ${escapeHtml(machineName)}</div>
+      <a href="${escapeAttr(data.url)}" target="_blank" rel="noopener" style="background:var(--slate);color:#fff;padding:12px;text-align:center;font-size:14px;font-weight:700;text-decoration:none;direction:ltr;word-break:break-all">${escapeHtml(data.url)}</a>
+      <div style="font-size:11px;color:var(--muted);direction:rtl">לחץ על הקישור כדי להתחבר ב-claude.ai לסשן שרץ ב-${escapeHtml(machineName)}.</div>
+      <div style="display:flex;gap:6px">
+        <button class="mc-btn" onclick="navigator.clipboard.writeText('${escapeAttr(data.url)}'); toast('הועתק');" style="flex:1">העתק</button>
+        <button class="mc-btn primary" onclick="this.parentElement.parentElement.remove()" style="flex:1">סגור</button>
+      </div>`;
+  } else {
+    card.innerHTML = `
+      <div style="font-size:14px;font-weight:700;color:var(--red)">❌ הקישור לא נוצר</div>
+      <div style="font-size:12px;color:var(--muted);direction:rtl">יעד: ${escapeHtml(machineName)}</div>
+      <div style="font-size:12px;direction:rtl">${escapeHtml(data.error || 'שגיאה לא ידועה')}</div>
+      <button class="mc-btn primary" onclick="this.parentElement.remove()">סגור</button>`;
+  }
+  document.body.appendChild(card);
+}
 
 async function sendRemoteCtrl(){
   const text = (document.getElementById('rcc-text').value || '').trim();
