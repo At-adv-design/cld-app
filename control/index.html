@@ -113,7 +113,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .cmd-card{background:var(--white);border:1px solid var(--border);padding:18px;display:flex;flex-direction:column;gap:10px;width:100%;max-width:480px;}
 .cmd-card h3{font-size:14px;font-weight:700;color:var(--text);}
 .cmd-target{font-size:12px;color:var(--muted);font-weight:600;}
-.cmd-textarea{width:100%;min-height:100px;padding:10px;font-family:inherit;font-size:13px;background:var(--bg);border:1px solid var(--border);color:var(--text);resize:vertical;direction:rtl;}
+.cmd-textarea{width:100%;min-height:100px;padding:10px;font-family:Consolas,monospace;font-size:13px;background:var(--bg);border:1px solid var(--border);color:var(--text);resize:vertical;direction:ltr;text-align:left;unicode-bidi:plaintext;}
 .cmd-actions{display:flex;gap:8px;justify-content:flex-end;}
 
 /* TOAST */
@@ -527,18 +527,22 @@ function renderMachines(heartbeats){
       </div>`;
     return;
   }
+  // Local per-browser alias overrides (in addition to the displayName
+  // baked in by heartbeat.ps1 from aliases.json). User can rename a
+  // machine just for THIS browser by clicking its name.
+  const localAliases = JSON.parse(localStorage.getItem('controlMachineAliases') || '{}');
   list.innerHTML = heartbeats.map(hb => {
     const status = classifyStatus(hb.lastSeen);
     const dot = `<span class="mc-status-dot ${status}"></span>`;
     const id = hb.machineName || '';
-    const display = hb.displayName || id || '(ללא שם)';
+    const display = localAliases[id] || hb.displayName || id || '(ללא שם)';
     const showId = display !== id && id;
     return `
       <div class="machine-card ${status}">
         <div class="mc-head">
           ${dot}
           <div style="flex:1;min-width:0">
-            <div class="mc-name">${escapeHtml(display)}</div>
+            <div class="mc-name" onclick="renameMachine('${escapeAttr(id)}')" style="cursor:pointer" title="לחץ לשנות שם תצוגה">${escapeHtml(display)} <span style="font-size:10px;color:var(--muted);font-weight:400;margin-inline-start:4px">✏️</span></div>
             ${showId ? `<div style="font-size:10px;color:var(--muted);font-family:monospace;direction:ltr;text-align:right;margin-top:2px">${escapeHtml(id)}</div>` : ''}
           </div>
           <div class="mc-status-label ${status}">${statusLabel(status)}</div>
@@ -558,6 +562,22 @@ function renderMachines(heartbeats){
   }).join('');
 }
 
+window.renameMachine = function(machineId){
+  const aliases = JSON.parse(localStorage.getItem('controlMachineAliases') || '{}');
+  const cur = aliases[machineId] || '';
+  const next = prompt('שם תצוגה חדש למחשב ' + machineId + ':\n(ריק = החזר לברירת המחדל)', cur);
+  if(next === null) return;
+  if(next.trim() === ''){
+    delete aliases[machineId];
+    toast('שם תצוגה הוסר');
+  } else {
+    aliases[machineId] = next.trim();
+    toast('שם תצוגה נשמר (בדפדפן הזה)');
+  }
+  localStorage.setItem('controlMachineAliases', JSON.stringify(aliases));
+  loadHeartbeats();
+};
+
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -574,12 +594,23 @@ async function sendCommand(){
   const text = (document.getElementById('cmd-text').value || '').trim();
   if(!text){ toast('יש לכתוב הוראה'); return; }
   if(!_commandTarget) return;
+  if(!accessToken){
+    toast('להזנת הוראה צריך להתחבר עם Google. לחץ על הסמל בכותרת.');
+    return;
+  }
   try {
     await writeCommand(_commandTarget, text);
-    toast('ההוראה נשלחה');
+    toast('ההוראה נשמרה ב-Drive');
     closeCmdModal();
   } catch(e){
-    toast('שגיאה: ' + (e.message || e));
+    const msg = String(e.message || e);
+    // Detect common failure: drive folder write blocked because of token
+    // scope or because no machine is yet polling for commands.
+    if(msg.includes('403') || msg.includes('insufficient')){
+      toast('שגיאת הרשאה. ייתכן שהtoken חסר drive scope.');
+    } else {
+      toast('שגיאה: ' + msg);
+    }
   }
 }
 function openTranscripts(machineName){
