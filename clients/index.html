@@ -1188,11 +1188,19 @@ async function api(action, payload){
   const onProgress = payload && payload._onProgress;
   if(typeof onProgress === 'function'){
     const sendBody = JSON.stringify(Object.assign({}, body, {_onProgress: undefined}));
+    // Try XHR first (gives upload progress). If it errors (commonly:
+    // Apps Script 302 redirect that XHR can't follow on iOS PWA, or
+    // long-running script that exceeds XHR's implicit timeout), fall
+    // back to a plain fetch() — which handles redirects natively and
+    // is more reliable for Apps Script web apps. We lose the % progress
+    // bar in the fallback, but the upload still completes.
+    let xhrErrored = false;
     try {
-      return await new Promise((resolve, reject) => {
+      const xhrResult = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', CONFIG.API_URL);
         xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+        xhr.timeout = 5 * 60 * 1000; // 5 min — Apps Script can be slow
         xhr.upload.onprogress = (e) => {
           if(e.lengthComputable){
             const pct = Math.round((e.loaded / e.total) * 100);
@@ -1207,9 +1215,36 @@ async function api(action, payload){
             else resolve(j);
           } catch(_){ reject(new Error('תגובה לא תקינה מהשרת')); }
         };
-        xhr.onerror = () => reject(new Error('אין חיבור לאינטרנט — נסה שוב'));
+        xhr.onerror = () => { xhrErrored = true; reject(new Error('XHR_FAILED')); };
+        xhr.ontimeout = () => { xhrErrored = true; reject(new Error('XHR_TIMEOUT')); };
         xhr.send(sendBody);
       });
+      if(_bgTok && typeof bgEnd === 'function') bgEnd(_bgTok);
+      return xhrResult;
+    } catch(xhrErr){
+      // Bubble up real server errors (the XHR completed but server said no)
+      if(!xhrErrored){
+        if(_bgTok && typeof bgEnd === 'function') bgEnd(_bgTok);
+        throw xhrErr;
+      }
+      // XHR failed at the network layer — try fetch() as fallback.
+      // Show the user that we're retrying so they don't think we lost the file.
+      onProgress(99); // pretend almost-done so the bar doesn't sit at 0
+    }
+    // Fallback: plain fetch() — Apps Script handles redirects natively here.
+    try {
+      const r = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
+        body: sendBody,
+        redirect: 'follow',
+      });
+      const j = await r.json();
+      if(!j.ok) throw new Error(j.error || 'שגיאה לא ידועה');
+      onProgress(100);
+      return j;
+    } catch(fetchErr){
+      throw new Error('שגיאה בהעלאה — נסה שוב (' + (fetchErr.message||'') + ')');
     } finally {
       if(_bgTok && typeof bgEnd === 'function') bgEnd(_bgTok);
     }
