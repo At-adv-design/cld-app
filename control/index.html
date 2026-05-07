@@ -235,6 +235,19 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
       </div>
     </div>
 
+    <!-- Remote-control links rubric — persistent panel showing the most
+         recent /remote-control URLs returned from each machine. New links
+         get added to the top; older ones stay until manually deleted.
+         Persisted in localStorage so they survive refresh. -->
+    <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="section-title">🔗 קישורי רמוט קונטרול</span>
+        <button onclick="addRemoteLinkManually()" style="background:var(--bg);border:1px solid var(--border);padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text);border-radius:4px">+ הוסף ידנית</button>
+        <button onclick="clearRemoteLinks()" style="background:transparent;border:1px solid var(--border);padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--muted);border-radius:4px;margin-inline-start:auto">נקה</button>
+      </div>
+      <div id="remote-links-list" class="muted-line" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
     <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px">
       <span class="section-title">פעילות אחרונה ב-cld-app</span>
       <div id="recent-commits" class="muted-line">טוען…</div>
@@ -692,7 +705,78 @@ async function pollForRemoteLinks(machineName){
   }
 }
 
+/* ============================================================
+   REMOTE-CONTROL LINKS RUBRIC
+   ============================================================ */
+const REMOTE_LINKS_KEY = 'control_remote_links_v1';
+const REMOTE_LINKS_MAX = 20;
+
+function loadRemoteLinks(){
+  try { return JSON.parse(localStorage.getItem(REMOTE_LINKS_KEY) || '[]'); }
+  catch(_){ return []; }
+}
+function saveRemoteLinks(arr){
+  try { localStorage.setItem(REMOTE_LINKS_KEY, JSON.stringify(arr.slice(0, REMOTE_LINKS_MAX))); } catch(_){}
+}
+function addRemoteLink(machineName, url, source){
+  if(!url) return;
+  const links = loadRemoteLinks();
+  // Skip if same URL already at the top (dedupe rapid duplicates)
+  if(links[0] && links[0].url === url) return;
+  links.unshift({machineName: machineName||'(לא ידוע)', url, source: source||'auto', ts: Date.now()});
+  saveRemoteLinks(links);
+  renderRemoteLinks();
+}
+function removeRemoteLinkAt(idx){
+  const links = loadRemoteLinks();
+  links.splice(idx, 1);
+  saveRemoteLinks(links);
+  renderRemoteLinks();
+}
+function clearRemoteLinks(){
+  if(!confirm('לנקות את כל הקישורים?')) return;
+  saveRemoteLinks([]);
+  renderRemoteLinks();
+}
+function addRemoteLinkManually(){
+  const url = prompt('הדבק את ה-URL של רמוט קונטרול:');
+  if(!url) return;
+  const machineName = prompt('שם המחשב (אופציונלי):', '');
+  addRemoteLink(machineName || '(ידני)', url.trim(), 'manual');
+  toast('קישור נשמר');
+}
+function renderRemoteLinks(){
+  const host = document.getElementById('remote-links-list');
+  if(!host) return;
+  const links = loadRemoteLinks();
+  if(!links.length){
+    host.innerHTML = '<div style="font-size:12px;color:var(--muted);font-style:italic;padding:6px 0">אין עדיין קישורים. לחץ 🔗 קישור רמוט על מחשב כדי לקבל אחד, או "+ הוסף ידנית".</div>';
+    return;
+  }
+  host.innerHTML = links.map((l, idx) => {
+    const ago = fmtAgo(l.ts);
+    return `
+      <div style="background:var(--white);border:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:6px;border-radius:4px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(l.machineName||'')}</span>
+          <span style="font-size:10px;color:var(--muted)">${ago}${l.source==='manual'?' • ידני':''}</span>
+          <button onclick="removeRemoteLinkAt(${idx})" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px" title="הסר">×</button>
+        </div>
+        <a href="${escapeAttr(l.url)}" target="_blank" rel="noopener" style="background:var(--slate);color:#fff;padding:8px 10px;text-align:center;font-size:12px;font-weight:700;text-decoration:none;direction:ltr;word-break:break-all;border-radius:3px">${escapeHtml(l.url)}</a>
+        <div style="display:flex;gap:6px">
+          <button class="mc-btn" onclick="navigator.clipboard.writeText('${escapeAttr(l.url)}'); toast('הועתק');" style="flex:1">העתק</button>
+          <a class="mc-btn primary" href="${escapeAttr(l.url)}" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none">פתח</a>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function displayRemoteLinkResponse(machineName, data){
+  // Save to the persistent rubric — even if the user dismisses the modal
+  // the link stays accessible at the bottom of the dashboard.
+  if(data && data.ok && data.url){
+    addRemoteLink(machineName, data.url, 'auto');
+  }
   const card = document.createElement('div');
   card.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--white);border:1px solid var(--border);padding:20px;z-index:300;max-width:480px;width:92vw;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:12px;';
   if(data.ok && data.url){
@@ -987,6 +1071,7 @@ async function init(){
   }
   await loadHeartbeats();
   loadRecentCommits();
+  renderRemoteLinks();
   setInterval(loadHeartbeats, REFRESH_INTERVAL);
 }
 
