@@ -5134,12 +5134,18 @@ function _renderSignaturesSectionBody(){
     // approach across mobile, desktop, and PWA standalone — a same-origin
     // blob: URL does not trigger Google sign-in prompts the way
     // drive.google.com URLs do.
+    // Use a native <a target="_blank"> so browser handles the click —
+    // no JS, no modal, no event bubbling concerns. Files are uploaded
+    // with ANYONE_WITH_LINK so /view loads without auth.
+    const driveUrl = useId ? `https://drive.google.com/file/d/${esc(useId)}/view` : '';
     return `
       <div style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap">
-        <div onclick="event.stopPropagation();_openSignatureDoc('${esc(sigKey)}')" style="flex:1;min-width:0;cursor:pointer" title="לחץ לפתיחת המסמך">
-          <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${esc(s.text || (f && f.name) || 'מסמך')}</div>
+        ${driveUrl ? `<a href="${driveUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:1;min-width:0;text-decoration:none;color:inherit;cursor:pointer" title="לחץ לפתיחת המסמך בטאב חדש">
+          <div style="font-size:13px;font-weight:600;color:var(--slate);text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
-        </div>
+        </a>` : `<div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--muted)">📄 ${esc(s.text || (f && f.name) || 'מסמך')} (אין קישור)</div>
+        </div>`}
         ${statusBadge}
         ${actionBtns}
         <button type="button" onclick="event.stopPropagation();_removeSignatureDoc(${idx})" title="מחק" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;pointer-events:auto;flex-shrink:0">${ICON.trash||'×'}</button>
