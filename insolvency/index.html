@@ -106,31 +106,32 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
   cursor:pointer;
   pointer-events:auto;
 }
-/* Right-side controls live in a vertical stack: top row = icon buttons,
-   bottom row = the cards-count badge. flex-direction:column gives us the
-   "icons on top, count below" layout the user asked for. */
-.hdr-right{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+/* Right-side controls: icons row at TOP of header, counter at the BOTTOM
+   edge of the header. justify-content:space-between with the header
+   height (96px) pushes them apart vertically. */
+.hdr-right{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;height:88px;padding:4px 0;}
 .hdr-row-top,.hdr-row-bottom{display:flex;gap:6px;align-items:center;}
 .hdr-row-bottom:empty{display:none;}
-/* Cards-count badge (#total-count) — restyled now that it lives on its
-   own row beneath the icons. */
+/* Cards-count badge — pinned to the bottom edge of the header. */
 .hdr-count{
-  font-size:12px;font-weight:700;
+  font-size:13px;font-weight:700;
   color:var(--slate);background:transparent;
   border:1px dashed var(--border);
-  padding:0 10px;height:24px;
-  display:inline-flex;align-items:center;gap:5px;
+  padding:0 12px;height:26px;
+  display:inline-flex;align-items:center;gap:6px;
   flex-shrink:0;border-radius:4px;
   letter-spacing:.2px;
 }
 .hdr-count::before{
-  content:"";width:6px;height:6px;border-radius:50%;background:var(--slate);
+  content:"";width:7px;height:7px;border-radius:50%;background:var(--slate);
   display:inline-block;
 }
-.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:32px;height:32px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:4px;}
-.hdr-btn svg{width:15px;height:15px;}
+/* Larger header buttons — easier to tap on mobile. Bumped from 32→38px
+   per user request 2026-05-07. */
+.hdr-btn{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:0;min-width:38px;height:38px;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:5px;}
+.hdr-btn svg{width:18px;height:18px;}
 .hdr-btn:active{background:var(--border);}
-.avatar{width:32px;height:32px;border-radius:4px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
+.avatar{width:38px;height:38px;border-radius:5px;background:var(--slate);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer;overflow:hidden;}
 .avatar img{width:100%;height:100%;object-fit:cover;}
 
 /* TABS */
@@ -1390,15 +1391,16 @@ body.focus-mode-active{overflow:hidden;}
     <div style="display:flex;align-items:center;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
       <button onclick="closeDriveBrowser()" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit"><span style="display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span>חזרה</span></span></button>
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:700">תיקיית הלקוח</div>
-        <div id="drive-breadcrumb" style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;direction:rtl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div style="font-size:15px;font-weight:700">תיקיית הלקוח</div>
+        <div id="drive-breadcrumb" style="font-size:14px;color:var(--muted);font-weight:600;margin-top:3px;direction:rtl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
       </div>
-      <button onclick="refreshDriveBrowser()" title="רענן" style="background:var(--bg);border:1px solid var(--border);width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;color:var(--slate)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <button onclick="refreshDriveBrowser()" title="רענן" style="background:var(--bg);border:1px solid var(--border);width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;color:var(--slate);border-radius:5px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
     </div>
-    <!-- Path navigator (clickable folder chain) -->
-    <div id="drive-path" style="padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0;direction:rtl"></div>
+    <!-- Path navigator (clickable folder chain) — larger font for easier
+         navigation per user request 2026-05-07. -->
+    <div id="drive-path" style="padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--muted);font-weight:600;flex-shrink:0;direction:rtl"></div>
     <!-- Body: file/folder list -->
     <div id="drive-list" style="flex:1;overflow-y:auto;padding:8px 14px 16px"></div>
   </div>
@@ -6538,7 +6540,8 @@ async function renderDriveCurrent(){
   if(pb){
     pb.innerHTML = _driveStack.map((s,i)=>{
       const last = i===_driveStack.length-1;
-      return `<span onclick="driveNavigateTo(${i+1})" style="cursor:${last?'default':'pointer'};color:${last?'var(--text)':'var(--slate)'};font-weight:${last?'700':'600'}">${esc(s.name)}</span>${last?'':' <span style="color:var(--border)">›</span>'}`;
+      // Larger padding + font for easier tap targets per user request 2026-05-07
+      return `<span onclick="driveNavigateTo(${i+1})" style="cursor:${last?'default':'pointer'};color:${last?'var(--text)':'var(--slate)'};font-weight:${last?'700':'600'};padding:4px 8px;font-size:14px">${esc(s.name)}</span>${last?'':' <span style="color:var(--border);font-size:16px">›</span>'}`;
     }).join('');
   }
   // Show loading state
