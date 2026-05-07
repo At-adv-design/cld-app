@@ -623,15 +623,20 @@ input,textarea,button{font-family:inherit;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 .toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  position:fixed;bottom:32px;left:50%;transform:translateX(-50%);
   background:var(--slate);color:#fff;
-  padding:10px 16px;font-size:13px;font-weight:500;
-  z-index:300;opacity:0;transition:opacity .2s, transform .2s;
-  pointer-events:none;max-width:90vw;text-align:center;
+  padding:14px 22px;font-size:15px;font-weight:700;
+  z-index:700;opacity:0;transition:opacity .25s, transform .25s;
+  pointer-events:none;max-width:92vw;text-align:center;
+  border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);
+  display:inline-flex;align-items:center;gap:10px;
 }
-.toast.shown{opacity:1;transform:translateX(-50%) translateY(-4px);}
+.toast.shown{opacity:1;transform:translateX(-50%) translateY(-6px);}
 .toast.error{background:var(--red);}
-.toast.success{background:var(--green);}
+.toast.success{background:#1a7a45;}
+.toast::before{content:"";display:none;}
+.toast.success::before{content:"✓";display:inline-flex;width:24px;height:24px;background:rgba(255,255,255,.25);border-radius:50%;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+.toast.error::before{content:"!";display:inline-flex;width:24px;height:24px;background:rgba(255,255,255,.25);border-radius:50%;align-items:center;justify-content:center;font-size:16px;font-weight:900}
 
 .report-detail{display:none;flex-direction:column;}
 .report-detail.shown{display:flex;}
@@ -1095,18 +1100,23 @@ function _bgEl(){
   if(el) return el;
   el = document.createElement('div');
   el.id = 'bg-activity-bar';
-  el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:600;background:transparent;pointer-events:none;display:none';
+  // Increased from 3px → 5px for better visibility per user 2026-05-07.
+  // Color: vibrant orange (the brand accent) — instantly recognizable as "something is happening".
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:5px;z-index:600;background:rgba(0,0,0,.05);pointer-events:none;display:none;box-shadow:0 1px 3px rgba(0,0,0,.15)';
   el.innerHTML =
-    '<div id="bg-activity-fill" style="height:100%;width:0%;background:var(--slate);transition:width .25s ease"></div>' +
+    '<div id="bg-activity-fill" style="height:100%;width:0%;background:var(--orange,#c8620a);transition:width .25s ease"></div>' +
     '<div id="bg-activity-anim" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">' +
-      '<div style="position:absolute;top:0;left:0;height:100%;width:30%;background:linear-gradient(90deg,transparent,var(--slate),transparent);animation:bgIndeterm 1.2s linear infinite"></div>' +
+      '<div style="position:absolute;top:0;left:0;height:100%;width:30%;background:linear-gradient(90deg,transparent,var(--orange,#c8620a),transparent);animation:bgIndeterm 1.2s linear infinite"></div>' +
     '</div>' +
-    '<div id="bg-activity-label" style="position:fixed;top:5px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:600;font-family:inherit;padding:2px 8px;border-radius:3px;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;display:none;pointer-events:none"></div>';
+    '<div id="bg-activity-label" style="position:fixed;top:9px;left:50%;transform:translateX(-50%);background:var(--orange,#c8620a);color:#fff;font-size:12px;font-weight:700;font-family:inherit;padding:4px 12px;border-radius:14px;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;display:none;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.2)"></div>';
   document.body.appendChild(el);
   if(!document.getElementById('bg-activity-keyframes')){
     const st = document.createElement('style');
     st.id = 'bg-activity-keyframes';
-    st.textContent = '@keyframes bgIndeterm { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }';
+    st.textContent = '@keyframes bgIndeterm { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }' +
+      '@keyframes uplPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.7}}' +
+      '@keyframes uplFadeGreen{0%{background:var(--white)}100%{background:#dff5e0}}' +
+      '@keyframes uplShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-3px)}40%,80%{transform:translateX(3px)}}';
     document.head.appendChild(st);
   }
   return el;
@@ -1284,12 +1294,15 @@ function showLoading(on){ isLoading=!!on; $('loading').classList.toggle('shown',
 let _toastTimer=null;
 function toast(msg, type){
   const el=$('toast');
-  el.textContent=msg;
+  // Wrap text in span so the ::before icon stays separate
+  el.innerHTML = '<span>' + esc(msg) + '</span>';
   el.classList.remove('error','success');
   if(type) el.classList.add(type);
   el.classList.add('shown');
   clearTimeout(_toastTimer);
-  _toastTimer=setTimeout(()=>el.classList.remove('shown'), 2400);
+  // Stay longer on success/error so client clearly reads it
+  const stayMs = (type === 'success' || type === 'error') ? 4000 : 2400;
+  _toastTimer=setTimeout(()=>el.classList.remove('shown'), stayMs);
 }
 
 /* ─── LOGIN ─── */
@@ -1988,9 +2001,15 @@ function openSignatureViewer(idx){
       <div style="background:var(--white);padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:12px;font-weight:700;color:var(--text)">חתימה</div>
         <canvas id="sig-canvas" width="600" height="120" style="background:var(--bg);border:1.5px dashed var(--border);border-radius:6px;width:100%;touch-action:none;cursor:crosshair"></canvas>
-        <div id="sig-submit-progress" style="display:none;flex-direction:column;gap:4px">
-          <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:600;color:var(--muted)">שולח חתימה…</span><span id="sig-submit-pct" style="font-size:11px;font-weight:600;color:var(--muted)">0%</span></div>
-          <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div id="sig-submit-bar" style="height:100%;width:0%;background:var(--slate);transition:width .15s ease"></div></div>
+        <div id="sig-submit-progress" style="display:none;flex-direction:column;gap:6px;padding:8px;background:var(--orange-bg,#fff6ec);border:2px solid var(--orange,#c8620a);border-radius:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--orange,#c8620a)">
+              <span id="sig-submit-icon" style="display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;animation:uplPulse 1.2s ease-in-out infinite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+              <span id="sig-submit-stage">שולח חתימה לעורך הדין…</span>
+            </span>
+            <span id="sig-submit-pct" style="font-size:14px;font-weight:800;color:var(--orange,#c8620a)">0%</span>
+          </div>
+          <div style="height:8px;background:var(--bg);border-radius:5px;overflow:hidden;border:1px solid var(--border)"><div id="sig-submit-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange,#c8620a),#e89b5c);transition:width .25s ease;border-radius:5px"></div></div>
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="_sigClearCanvas()" style="background:var(--bg);border:1px solid var(--border);padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer">נקה</button>
@@ -2058,10 +2077,12 @@ async function _sigSubmit(){
   const progBox = document.getElementById('sig-submit-progress');
   const progBar = document.getElementById('sig-submit-bar');
   const progPct = document.getElementById('sig-submit-pct');
+  const progStage = document.getElementById('sig-submit-stage');
   btn.disabled = true; btn.textContent = 'שולח…';
   if(progBox){ progBox.style.display = 'flex'; }
   if(progBar) progBar.style.width = '8%';
-  if(progPct) progPct.textContent = 'שולח…';
+  if(progPct) progPct.textContent = '8%';
+  if(progStage) progStage.textContent = 'מכין את החתימה…';
   try{
     const dataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
     // Use the plain fetch path (no _onProgress) — the payload is small
@@ -2069,6 +2090,8 @@ async function _sigSubmit(){
     // signed-modal stayed open). Fetch follows redirects natively which
     // is what Apps Script web apps need (302 → script.googleusercontent).
     if(progBar) progBar.style.width = '40%';
+    if(progPct) progPct.textContent = '40%';
+    if(progStage) progStage.textContent = 'שולח לעורך הדין…';
     const r = await api('submitSignature', {
       token: currentUser.token,
       reqId: s.id,
@@ -2077,10 +2100,22 @@ async function _sigSubmit(){
       signedAt: Date.now()
     });
     if(progBar) progBar.style.width = '100%';
-    if(progPct) progPct.textContent = 'מעבד…';
+    if(progPct) progPct.textContent = '100%';
+    if(progStage) progStage.textContent = 'שומר ב-Drive…';
     if(r && r.ok){
-      toast('המסמך נחתם — תודה!','success');
-      closeSignatureViewer();
+      // Show success state inside the modal before closing
+      if(progBox){
+        progBox.style.borderColor = '#1a7a45';
+        progBox.style.background = '#dff5e0';
+      }
+      if(progStage){ progStage.textContent = '✓ נחתם ונשלח בהצלחה!'; progStage.style.color = '#1a7a45'; }
+      if(progPct){ progPct.textContent = '✓'; progPct.style.color = '#1a7a45'; }
+      const sigIcon = document.getElementById('sig-submit-icon');
+      if(sigIcon){ sigIcon.style.color = '#1a7a45'; sigIcon.style.animation = 'none'; sigIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg>'; }
+      if(progBar) progBar.style.background = '#1a7a45';
+      toast('המסמך נחתם בהצלחה — תודה!','success');
+      // Hold the success state for 1.5s before closing so the client sees it
+      setTimeout(() => { closeSignatureViewer(); }, 1500);
       // Refresh signatures list
       try {
         if(typeof loadAll === 'function') await loadAll();
@@ -2088,17 +2123,29 @@ async function _sigSubmit(){
         else if(typeof renderSignatures === 'function') renderSignatures();
       } catch(_){}
     } else {
-      // Server responded but not ok — surface the error
       const msg = (r && r.error) || 'שגיאה לא ידועה מהשרת';
+      if(progBox){ progBox.style.borderColor = '#b01010'; progBox.style.background = '#fdecec'; }
+      if(progStage){ progStage.textContent = 'שגיאה: ' + msg; progStage.style.color = '#b01010'; }
       toast('שגיאה: ' + msg,'error');
       console.error('submitSignature failed', r);
     }
   }catch(e){
     console.error('submitSignature exception', e);
+    if(progBox){ progBox.style.borderColor = '#b01010'; progBox.style.background = '#fdecec'; }
+    if(progStage){ progStage.textContent = 'שגיאה: ' + (e.message || e); progStage.style.color = '#b01010'; }
     toast('שגיאה: ' + (e.message || e),'error');
   }finally{
     btn.disabled = false; btn.textContent = 'חתום ושלח';
-    if(progBox) progBox.style.display = 'none';
+    // Don't auto-hide on success — closeSignatureViewer takes care of it.
+    // For errors, hide after 4s so the client reads the message.
+    if(progBox && progBox.style.borderColor === 'rgb(176, 16, 16)'){
+      setTimeout(() => {
+        progBox.style.display = 'none';
+        progBox.style.borderColor = ''; progBox.style.background = '';
+        if(progStage){ progStage.style.color = ''; }
+        if(progPct){ progPct.style.color = ''; }
+      }, 4000);
+    }
   }
 }
 /* Per-question open state. Persist across re-renders, not across reloads. */
@@ -2501,8 +2548,8 @@ $('file-input').addEventListener('change', async (e)=>{
           mimeType: 'application/pdf',
           dataBase64,
           _onProgress: (pct) => _updateUploadProgress(upId, pct),
-        }).then(()=>{ _removeUploadProgress(upId); loadData(true); })
-          .catch(err=>{ _removeUploadProgress(upId); toast('שגיאה בהעלאה: '+(err.message||''),'error'); });
+        }).then(()=>{ _removeUploadProgress(upId, true); loadData(true); })
+          .catch(err=>{ _removeUploadProgress(upId, false); toast('שגיאה בהעלאה: '+(err.message||''),'error'); });
         return;
       }
       // pdf-lib not loaded — fall back to uploading each image separately
@@ -2537,8 +2584,8 @@ $('file-input').addEventListener('change', async (e)=>{
         mimeType: mime.startsWith('image/') ? 'image/jpeg' : mime,
         dataBase64,
         _onProgress: (pct) => _updateUploadProgress(upId, pct),
-      }).then(()=>{ _removeUploadProgress(upId); loadData(true); })
-        .catch(err=>{ _removeUploadProgress(upId); toast('שגיאה בהעלאה: '+(err.message||''),'error'); });
+      }).then(()=>{ _removeUploadProgress(upId, true); loadData(true); })
+        .catch(err=>{ _removeUploadProgress(upId, false); toast('שגיאה בהעלאה: '+(err.message||''),'error'); });
     }
   }catch(err){
     showLoading(false);
@@ -2650,8 +2697,6 @@ function blobToBase64(blob){
    card is removed and the real file pill takes its place. */
 function _showUploadProgress(fileName, ctx){
   const upId = 'upl_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-  // Locate the req-card's upload-progress-host (added in buildReqCard).
-  // Fallback: pin to a top-of-app overlay if we can't find the host.
   let host = ctx && ctx.reqId
     ? document.querySelector(`[data-req-id="${ctx.reqId}"] .upload-progress-host`)
     : null;
@@ -2661,37 +2706,91 @@ function _showUploadProgress(fileName, ctx){
     if(!host){
       host = document.createElement('div');
       host.id = 'uploads-overlay';
-      host.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:6px;width:min(94vw,420px);';
+      host.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:600;display:flex;flex-direction:column;gap:8px;width:min(96vw,440px);';
       document.body.appendChild(host);
     }
   }
   const card = document.createElement('div');
   card.id = 'upl-' + upId;
+  // Bigger + bolder + more visible — clients should NEVER doubt the upload is happening.
   card.style.cssText = inline
-    ? 'margin-top:6px;padding:6px 8px;background:var(--white);border:1px solid var(--border);border-radius:5px'
-    : 'padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.06)';
+    ? 'margin-top:10px;padding:12px 14px;background:var(--white);border:2px solid var(--orange,#c8620a);border-radius:8px;box-shadow:0 2px 8px rgba(200,98,10,.15);transition:background .4s'
+    : 'padding:14px 16px;background:var(--white);border:2px solid var(--orange,#c8620a);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.18);transition:background .4s';
   card.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
-      <div style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">${esc(fileName)}</div>
-      <div id="upl-pct-${upId}" style="font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0">מעלה… 0%</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div id="upl-icon-${upId}" style="width:32px;height:32px;border-radius:50%;background:var(--orange,#c8620a);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;animation:uplPulse 1.4s ease-in-out infinite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fileName)}</div>
+        <div id="upl-stage-${upId}" style="font-size:12px;font-weight:600;color:var(--orange,#c8620a);margin-top:2px">מעלה לשרת…</div>
+      </div>
+      <div id="upl-pct-${upId}" style="font-size:14px;font-weight:800;color:var(--orange,#c8620a);flex-shrink:0;min-width:42px;text-align:left">0%</div>
     </div>
-    <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
-      <div id="upl-bar-${upId}" style="height:100%;width:0%;background:var(--slate);transition:width .15s ease"></div>
+    <div style="height:8px;background:var(--bg);border-radius:5px;overflow:hidden;border:1px solid var(--border)">
+      <div id="upl-bar-${upId}" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange,#c8620a),#e89b5c);transition:width .25s ease;border-radius:5px"></div>
     </div>`;
   host.appendChild(card);
   return upId;
 }
 function _updateUploadProgress(upId, pct){
-  const bar = document.getElementById('upl-bar-'+upId);
-  const lbl = document.getElementById('upl-pct-'+upId);
+  const bar   = document.getElementById('upl-bar-'+upId);
+  const lbl   = document.getElementById('upl-pct-'+upId);
+  const stage = document.getElementById('upl-stage-'+upId);
   if(bar) bar.style.width = pct + '%';
-  if(lbl) lbl.textContent = pct >= 100 ? 'שומר…' : ('מעלה… ' + pct + '%');
+  if(lbl) lbl.textContent = pct + '%';
+  if(stage){
+    if(pct < 100) stage.textContent = 'מעלה לשרת…';
+    else if(pct === 100) stage.textContent = 'שומר ב-Drive…';
+    else stage.textContent = 'מעבד…';
+  }
 }
-function _removeUploadProgress(upId){
-  const card = document.getElementById('upl-'+upId);
-  if(card) card.remove();
-  const overlay = document.getElementById('uploads-overlay');
-  if(overlay && !overlay.children.length) overlay.remove();
+function _removeUploadProgress(upId, success){
+  const card  = document.getElementById('upl-'+upId);
+  const icon  = document.getElementById('upl-icon-'+upId);
+  const lbl   = document.getElementById('upl-pct-'+upId);
+  const stage = document.getElementById('upl-stage-'+upId);
+  if(!card){
+    const overlay = document.getElementById('uploads-overlay');
+    if(overlay && !overlay.children.length) overlay.remove();
+    return;
+  }
+  if(success === false){
+    // Error state — red flash + shake, then remove after 3s
+    card.style.borderColor = '#b01010';
+    card.style.background = '#fdecec';
+    card.style.animation = 'uplShake .4s ease';
+    if(icon){ icon.style.background = '#b01010'; icon.style.animation = 'none'; icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'; }
+    if(stage){ stage.textContent = 'שגיאה — נסה שוב'; stage.style.color = '#b01010'; }
+    if(lbl) lbl.style.color = '#b01010';
+    setTimeout(() => {
+      card.remove();
+      const overlay = document.getElementById('uploads-overlay');
+      if(overlay && !overlay.children.length) overlay.remove();
+    }, 3000);
+    return;
+  }
+  // Success state — green checkmark + flash, then remove after 2s
+  card.style.borderColor = '#1a7a45';
+  card.style.background = '#dff5e0';
+  if(icon){ icon.style.background = '#1a7a45'; icon.style.animation = 'none'; icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>'; }
+  if(stage){ stage.textContent = '✓ הועלה בהצלחה — ממתין לאישור עורך הדין'; stage.style.color = '#1a7a45'; }
+  if(lbl){ lbl.textContent = '✓'; lbl.style.color = '#1a7a45'; }
+  const bar = document.getElementById('upl-bar-'+upId);
+  if(bar){ bar.style.width = '100%'; bar.style.background = '#1a7a45'; }
+  setTimeout(() => {
+    card.style.transition = 'opacity .5s ease, max-height .5s ease, padding .5s ease, margin .5s ease';
+    card.style.opacity = '0';
+    card.style.maxHeight = '0';
+    card.style.padding = '0';
+    card.style.margin = '0';
+    card.style.overflow = 'hidden';
+    setTimeout(() => {
+      card.remove();
+      const overlay = document.getElementById('uploads-overlay');
+      if(overlay && !overlay.children.length) overlay.remove();
+    }, 500);
+  }, 2000);
 }
 
 /* ─── HISTORY ─── */
