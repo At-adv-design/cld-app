@@ -645,9 +645,7 @@ function closeRemoteCtrlModal(){ document.getElementById('rcc-overlay').classLis
 
 async function requestRemoteLink(machineName){
   if(!accessToken){
-    if(confirm('צריך להתחבר עם Google כדי לקבל קישור רמוט.\nרוצה להתחבר עכשיו?')){
-      doLogin();
-    }
+    promptForAuth();
     return;
   }
   try {
@@ -722,9 +720,7 @@ async function sendRemoteCtrl(){
   if(!text){ toast('יש לכתוב prompt'); return; }
   if(!_remoteCtrlTarget) return;
   if(!accessToken){
-    if(confirm('צריך להתחבר עם Google כדי להפעיל רמוט.\nרוצה להתחבר עכשיו?')){
-      doLogin();
-    }
+    promptForAuth();
     return;
   }
   // Build target list: either a single machine, or all known machines
@@ -761,9 +757,7 @@ async function sendCommand(){
   if(!text){ toast('יש לכתוב הוראה'); return; }
   if(!_commandTarget) return;
   if(!accessToken){
-    if(confirm('צריך להתחבר עם Google כדי לשלוח הוראה.\nרוצה להתחבר עכשיו?')){
-      doLogin();
-    }
+    promptForAuth();
     return;
   }
   try {
@@ -793,6 +787,41 @@ function toast(msg){
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => { t.remove(); }, 2400);
+}
+
+/* When the user wants to send a command but isn't authenticated, show a
+   modal that explains the cleanest path: log into insolvency first
+   (which has /insolvency/ in the OAuth client's authorized redirect
+   URIs), then come back. /control/ likely isn't in the URI list yet, so
+   doLogin() directly from here would fail with redirect_uri_mismatch. */
+function promptForAuth(){
+  let modal = document.getElementById('auth-prompt-modal');
+  if(modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'auth-prompt-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:var(--white);border:1px solid var(--border);padding:22px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:14px;direction:rtl">
+      <div style="font-size:16px;font-weight:700;color:var(--text)">צריך להתחבר עם Google</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">
+        כדי לשלוח הוראות / לקבל קישור רמוט צריך טוקן של Google. הדרך הקלה והאמינה — להתחבר דרך אפליקציית סולוונסי שכבר מוגדרת ב-Google Cloud Console:
+        <ol style="margin-top:10px;padding-inline-start:20px;line-height:1.8">
+          <li>פתח את <a href="../insolvency/" target="_blank" style="color:var(--blue);font-weight:700">סולוונסי</a> בלשונית חדשה</li>
+          <li>תתחבר שם עם Google (אם עוד לא)</li>
+          <li>תחזור לכאן ותרענן (Ctrl+Shift+R)</li>
+          <li>ה-control יזהה אוטומטית שאתה מחובר ויאפשר לשלוח הוראות</li>
+        </ol>
+      </div>
+      <div style="font-size:11px;color:var(--muted);background:var(--bg);padding:8px 10px;border:1px solid var(--border)">
+        <b>למה לא ישירות?</b> ה-OAuth Client ב-Cloud Console מוגדר להחזיר טוקן רק לכתובות מאושרות. סולוונסי כבר ברשימה; control עדיין לא. סולוונסי + control חולקים localStorage אז ה-token בא חינם.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="document.getElementById('auth-prompt-modal').remove()" class="mc-btn">סגור</button>
+        <a href="../insolvency/" target="_blank" class="mc-btn primary" style="text-decoration:none;text-align:center;display:inline-block">פתח סולוונסי</a>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 /* ============================================================
