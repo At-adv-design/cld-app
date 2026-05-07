@@ -6125,11 +6125,30 @@ function _renderInquiriesForContext(ctx){
   const pending = all.filter(iq => !iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
   const done    = all.filter(iq =>  iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
   const items   = pending.concat(done);
+  if(!_custState.inqExpanded) _custState.inqExpanded = {};
   return items.map(iq=>{
     const dt = _fmtInqDate(iq.ts);
     const replyText = (iq.reply||'').trim();
     const replyDt = replyText ? _fmtInqDate(iq.replyTs) : '';
     const isDone = !!iq.done;
+    const isExpanded = !!_custState.inqExpanded[iq.id];
+
+    // DONE + COLLAPSED — render as a thin one-line row showing only:
+    // subject (context), date sent, date handled. Click to expand.
+    // Per user request 2026-05-07.
+    if(isDone && !isExpanded){
+      const subject = (iq.context||'').toString().trim() || 'כללית';
+      const handledDt = iq.doneTs ? _fmtInqDate(iq.doneTs) : (iq.replyTs ? _fmtInqDate(iq.replyTs) : '');
+      return `<div data-inq-id="${esc(iq.id)}" onclick="_toggleInqExpand('${esc(iq.id)}')"
+        style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted);direction:rtl"
+        title="לחץ להרחבה">
+        <span style="color:var(--muted);font-size:10px">▸</span>
+        <span style="font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${esc(subject)}</span>
+        <span title="נשלח">📥 ${dt}</span>
+        ${handledDt ? `<span title="טופל">✓ ${handledDt}</span>` : ''}
+      </div>`;
+    }
+
     const replyBlock = replyText
       ? `<div style="margin-top:8px;padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:5px">
            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
@@ -6155,20 +6174,32 @@ function _renderInquiriesForContext(ctx){
       ? `<button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}',true)" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">החזר לטיפול</button>`
       : `<button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}')" style="background:var(--slate);color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">סמן כטופל</button>`;
     const deleteBtn = `<button onclick="event.stopPropagation();deleteInquiry(${_custState.rowNum},'${esc(iq.id)}')" style="background:transparent;border:1px solid var(--red);color:var(--red);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">מחק</button>`;
+    // Allow collapsing back if expanded done item
+    const collapseBtn = (isDone && isExpanded)
+      ? `<button onclick="event.stopPropagation();_toggleInqExpand('${esc(iq.id)}')" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">צמצם</button>`
+      : '';
     return `<div data-inq-id="${esc(iq.id)}" style="border:${cardBorder};background:${cardBg};border-radius:6px;padding:9px 11px;margin-bottom:8px;${isDone?'opacity:.78':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
-        <span style="font-size:11px;font-weight:700;color:${headColor}">${headLabel}</span>
+        <span style="font-size:11px;font-weight:700;color:${headColor}">${headLabel}${iq.context?' • '+esc(iq.context):''}</span>
         <span style="font-size:10px;color:var(--muted)">${dt}</span>
       </div>
       <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(iq.message||'')}</div>
       ${replyBlock}
-      <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:6px">
+      <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap">
+        ${collapseBtn}
         ${deleteBtn}
         ${actionBtn}
       </div>
     </div>`;
   }).join('');
 }
+
+window._toggleInqExpand = function(inquiryId){
+  if(!_custState) return;
+  if(!_custState.inqExpanded) _custState.inqExpanded = {};
+  _custState.inqExpanded[inquiryId] = !_custState.inqExpanded[inquiryId];
+  if(typeof renderCustomerArea === 'function') renderCustomerArea();
+};
 async function sendInquiryReply(rowNum, inquiryId){
   const ta = document.getElementById('inq-reply-'+inquiryId);
   const text = (ta && ta.value || '').trim();
@@ -9849,11 +9880,19 @@ async function markInquiryDone(rowNum, inquiryId, undo){
   const iq = list.find(x=>x.id===inquiryId);
   if(!iq) return;
   iq.done = !undo;
+  // Stamp the handle/un-handle time so the collapsed-row view can show
+  // "טופל בתאריך X". On 'undo' (החזר לטיפול) clear the timestamp.
+  if(!undo) iq.doneTs = Date.now();
+  else delete iq.doneTs;
   // Mirror into _custState so the open customer card reflects the change
   // immediately without needing a full reload.
   if(_custState && _custState.rowNum === rowNum){
     const localIq = (_custState.inquiries||[]).find(x=>x.id===inquiryId);
-    if(localIq) localIq.done = !undo;
+    if(localIq){
+      localIq.done = !undo;
+      if(!undo) localIq.doneTs = iq.doneTs;
+      else delete localIq.doneTs;
+    }
   }
   // Write back to sheet column EF
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/EF${rowNum}?valueInputOption=RAW`;
