@@ -4930,9 +4930,9 @@ function renderCustomerArea(){
   })();
 
   const infoBadge = (() => {
-    const total = (_custState.infoQs||[]).length;
-    const answered = (_custState.infoQs||[]).filter(q=>(q.answer||'').trim()).length;
-    // ALL non-done inquiries (any context) — per user spec 2026-05-07.
+    // Pending = neither inquiries nor Q&As marked done.
+    const total = (_custState.infoQs||[]).filter(q => !q.done).length;
+    const answered = (_custState.infoQs||[]).filter(q => !q.done && (q.answer||'').trim()).length;
     const inquiryCount = (_custState.inquiries||[]).filter(iq => !iq.done).length;
     const parts = [];
     if(inquiryCount) parts.push('<span style="color:var(--orange);font-weight:700">'+inquiryCount+' פניות מהלקוח</span>');
@@ -6127,24 +6127,15 @@ function _fmtInqDate(ts){
 }
 function _renderInquiriesForContext(ctx){
   if(!_custState) return '';
-  // Show ALL inquiries for this context (both pending and done) so the
-  // history stays visible. Pending first (newest first), then done.
-  // Special case: ctx === '*' (or 'השלמת פרטים') means "show every
-  // inquiry regardless of context" — per user spec 2026-05-07: all
-  // client inquiries belong in the השלמת פרטים section, like questions
-  // FROM the client paralleling our questions TO the client.
   const showAll = (ctx === '*' || ctx === 'השלמת פרטים');
   const all = showAll
     ? (_custState.inquiries||[])
     : (_custState.inquiries||[]).filter(iq => (iq.context||'') === ctx);
-  if(!all.length) return '';
-  // Pending first (newest sent at top). Done LAST, sorted by handle time
-  // (most-recently-handled at top, oldest-handled at bottom). Falls back
-  // to send time / replyTs when doneTs is missing on legacy entries.
-  const pending = all.filter(iq => !iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
-  const doneSortKey = iq => iq.doneTs || iq.replyTs || iq.ts || 0;
-  const done    = all.filter(iq =>  iq.done).sort((a,b) => doneSortKey(b) - doneSortKey(a));
-  const items   = pending.concat(done);
+  // PENDING ONLY here. Done items are now rendered together with done
+  // Q&As at the bottom of השלמת פרטים — see _renderDoneItemsCombined
+  // called from _renderInfoQAList. Per user spec 2026-05-07.
+  const items = all.filter(iq => !iq.done).sort((a,b) => (b.ts||0)-(a.ts||0));
+  if(!items.length) return '';
   if(!_custState.inqExpanded) _custState.inqExpanded = {};
   return items.map(iq=>{
     const dt = _fmtInqDate(iq.ts);
@@ -6266,41 +6257,183 @@ function _inqEditReply(inquiryId){
 
 function _renderInfoQAList(){
   if(!_custState) return '';
-  const inquiriesHtml = _renderInquiriesForContext('השלמת פרטים');
+  const pendingInquiriesHtml = _renderInquiriesForContext('השלמת פרטים');
   const list = _custState.infoQs || [];
-  if(!list.length){
-    return inquiriesHtml + '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו שאלות. הקלד שאלות בעמודה CW או לחץ "+ הוסף שאלה".</div>';
-  }
+  // Q&A entries split by done flag. Done ones move to the combined
+  // "handled" block at the bottom alongside handled inquiries.
+  const pendingQAs = list.map((q,idx) => ({q,idx})).filter(o => !o.q.done);
   if(!_custState.infoQAOpen) _custState.infoQAOpen = {};
-  return inquiriesHtml + list.map((q, idx) => {
-    const id = q.id || ('qidx-'+idx);
-    const text = q.question || q.text || '';
-    const answer = q.answer || '';
-    const has = !!answer.trim();
-    // Auto-expand any question that has an answer — otherwise the lawyer has
-    // to click each green card to reveal what the client wrote, and easily
-    // misses answers entirely. Explicit collapse via toggle still wins (we
-    // store false in infoQAOpen).
-    const explicit = _custState.infoQAOpen[id];
-    const isOpen = explicit === undefined ? has : !!explicit;
-    return `
-      <div class="qa-card-l ${isOpen?'open':''} ${has?'has-answer':''}" data-qid="${esc(id)}">
-        <div class="qa-head-l" onclick="toggleInfoQA('${esc(id)}')">
-          <input type="text" class="qa-q-input" placeholder="טקסט השאלה..."
-            value="${esc(text)}"
-            onclick="event.stopPropagation()"
-            oninput="updateInfoQuestion('${esc(id)}',${idx},this.value)"/>
-          <button class="qa-del" onclick="event.stopPropagation();removeInfoQuestion('${esc(id)}',${idx})" title="מחק שאלה">${ICON.trash}</button>
-          <svg class="qa-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-        <div class="qa-body-l">
-          ${has ? `<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px">תשובת הלקוח${q.answeredAt?' • '+new Date(q.answeredAt).toLocaleDateString('he-IL'):''}</div>` : ''}
-          <textarea class="qa-a-input" placeholder="תשובה (אופציונלי — הלקוח ימלא, או רשום ישירות אם הוא עונה בטלפון)"
-            oninput="updateInfoAnswer('${esc(id)}',${idx},this.value)">${esc(answer)}</textarea>
-        </div>
-      </div>`;
-  }).join('');
+
+  let html = pendingInquiriesHtml;
+
+  if(pendingQAs.length){
+    html += pendingQAs.map(({q,idx}) => {
+      const id = q.id || ('qidx-'+idx);
+      const text = q.question || q.text || '';
+      const answer = q.answer || '';
+      const has = !!answer.trim();
+      const explicit = _custState.infoQAOpen[id];
+      const isOpen = explicit === undefined ? has : !!explicit;
+      // 'סמן כטופל' button — only relevant when there's an answer to mark
+      // off. Per user spec 2026-05-07: handled Q&A becomes a thin row in
+      // the combined done block, like handled inquiries.
+      const markDoneBtn = has ? `
+        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+          <button onclick="event.stopPropagation();markInfoQADone(${idx})" style="background:var(--slate);color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">סמן כטופל</button>
+        </div>` : '';
+      return `
+        <div class="qa-card-l ${isOpen?'open':''} ${has?'has-answer':''}" data-qid="${esc(id)}">
+          <div class="qa-head-l" onclick="toggleInfoQA('${esc(id)}')">
+            <input type="text" class="qa-q-input" placeholder="טקסט השאלה..."
+              value="${esc(text)}"
+              onclick="event.stopPropagation()"
+              oninput="updateInfoQuestion('${esc(id)}',${idx},this.value)"/>
+            <button class="qa-del" onclick="event.stopPropagation();removeInfoQuestion('${esc(id)}',${idx})" title="מחק שאלה">${ICON.trash}</button>
+            <svg class="qa-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div class="qa-body-l">
+            ${has ? `<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px">תשובת הלקוח${q.answeredAt?' • '+new Date(q.answeredAt).toLocaleDateString('he-IL'):''}</div>` : ''}
+            <textarea class="qa-a-input" placeholder="תשובה (אופציונלי — הלקוח ימלא, או רשום ישירות אם הוא עונה בטלפון)"
+              oninput="updateInfoAnswer('${esc(id)}',${idx},this.value)">${esc(answer)}</textarea>
+            ${markDoneBtn}
+          </div>
+        </div>`;
+    }).join('');
+  } else if(!pendingInquiriesHtml){
+    html += '<div style="font-size:11px;color:var(--muted);font-style:italic;padding:6px 0">עדיין לא הוגדרו שאלות. הקלד שאלות בעמודה CW או לחץ "+ הוסף שאלה".</div>';
+  }
+
+  // Combined "handled" block at the bottom — done inquiries + done Q&As
+  // mixed and sorted by doneTs descending.
+  html += _renderDoneItemsCombined();
+
+  return html;
 }
+
+/* Render thin rows for every handled item — both inquiries (iq.done)
+   and Q&As (q.done) — combined and sorted by doneTs descending.
+   Click a row to expand to the full content. */
+function _renderDoneItemsCombined(){
+  if(!_custState) return '';
+  if(!_custState.inqExpanded) _custState.inqExpanded = {};
+  const inquiries = (_custState.inquiries||[]).filter(iq => iq.done);
+  const qas = (_custState.infoQs||[])
+    .map((q,idx) => ({q, idx}))
+    .filter(o => o.q.done);
+  if(!inquiries.length && !qas.length) return '';
+
+  const items = []
+    .concat(inquiries.map(iq => ({
+      kind: 'inq',
+      id: iq.id,
+      doneTs: iq.doneTs || iq.replyTs || iq.ts || 0,
+      data: iq
+    })))
+    .concat(qas.map(o => ({
+      kind: 'qa',
+      id: o.q.id || ('qidx-'+o.idx),
+      idx: o.idx,
+      doneTs: o.q.doneTs || o.q.answeredAt || 0,
+      data: o.q
+    })));
+  items.sort((a,b) => b.doneTs - a.doneTs);
+
+  let out = '<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px"><div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:6px">טופלו</div>';
+  for(const it of items){
+    const isExpanded = !!_custState.inqExpanded[it.id];
+    if(it.kind === 'inq'){
+      out += _renderDoneInquiryRow(it.data, isExpanded);
+    } else {
+      out += _renderDoneQARow(it.data, it.idx, isExpanded);
+    }
+  }
+  out += '</div>';
+  return out;
+}
+
+function _renderDoneInquiryRow(iq, isExpanded){
+  const dt = _fmtInqDate(iq.ts);
+  const subject = (iq.context||'').toString().trim() || 'כללית';
+  const handledDt = iq.doneTs ? _fmtInqDate(iq.doneTs) : (iq.replyTs ? _fmtInqDate(iq.replyTs) : '');
+  if(!isExpanded){
+    return `<div data-inq-id="${esc(iq.id)}" onclick="event.stopPropagation();_toggleInqExpand('${esc(iq.id)}')"
+      style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted);direction:rtl"
+      title="לחץ להרחבה">
+      <span style="color:var(--muted);font-size:10px">▸</span>
+      <span style="font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">פניה: ${esc(subject)}</span>
+      <span title="נשלח">📥 ${dt}</span>
+      ${handledDt ? `<span title="טופל">✓ ${handledDt}</span>` : ''}
+    </div>`;
+  }
+  // Expanded — full inquiry card
+  const replyText = (iq.reply||'').trim();
+  const replyDt = replyText ? _fmtInqDate(iq.replyTs) : '';
+  const replyBlock = replyText
+    ? `<div style="margin-top:8px;padding:8px 10px;background:var(--white);border:1px solid var(--border);border-radius:5px">
+         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
+           <span style="font-size:11px;font-weight:700;color:var(--green)">תשובת המשרד</span>
+           <span style="font-size:10px;color:var(--muted)">${replyDt}</span>
+         </div>
+         <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(replyText)}</div>
+       </div>`
+    : '';
+  return `<div data-inq-id="${esc(iq.id)}" style="border:1px solid var(--border);background:var(--bg);border-radius:6px;padding:9px 11px;margin-bottom:8px;opacity:.85">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--muted)">פניה (טופלה) • ${esc(subject)}</span>
+      <span style="font-size:10px;color:var(--muted)">${dt}</span>
+    </div>
+    <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${esc(iq.message||'')}</div>
+    ${replyBlock}
+    <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap">
+      <button onclick="event.stopPropagation();_toggleInqExpand('${esc(iq.id)}')" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">צמצם</button>
+      <button onclick="event.stopPropagation();deleteInquiry(${_custState.rowNum},'${esc(iq.id)}')" style="background:transparent;border:1px solid var(--red);color:var(--red);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">מחק</button>
+      <button onclick="event.stopPropagation();markInquiryDone(${_custState.rowNum},'${esc(iq.id)}',true)" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">החזר לטיפול</button>
+    </div>
+  </div>`;
+}
+
+function _renderDoneQARow(q, idx, isExpanded){
+  const id = q.id || ('qidx-'+idx);
+  const qText = q.question || q.text || '(שאלה ללא טקסט)';
+  const aText = q.answer || '';
+  const sentDt = q.createdAt ? _fmtInqDate(q.createdAt) : '';
+  const handledDt = q.doneTs ? _fmtInqDate(q.doneTs) : (q.answeredAt ? _fmtInqDate(q.answeredAt) : '');
+  if(!isExpanded){
+    return `<div data-inq-id="${esc(id)}" onclick="event.stopPropagation();_toggleInqExpand('${esc(id)}')"
+      style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted);direction:rtl"
+      title="לחץ להרחבה">
+      <span style="color:var(--muted);font-size:10px">▸</span>
+      <span style="font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">שאלה: ${esc(qText)}</span>
+      ${sentDt ? `<span title="נשאל">📥 ${sentDt}</span>` : ''}
+      ${handledDt ? `<span title="טופל">✓ ${handledDt}</span>` : ''}
+    </div>`;
+  }
+  return `<div data-inq-id="${esc(id)}" style="border:1px solid var(--border);background:var(--bg);border-radius:6px;padding:9px 11px;margin-bottom:8px;opacity:.85">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">שאלה (טופלה)</div>
+    <div style="font-size:13px;color:var(--text);font-weight:700;margin-bottom:6px">${esc(qText)}</div>
+    ${aText ? `<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:3px">תשובת הלקוח${q.answeredAt?' • '+new Date(q.answeredAt).toLocaleDateString('he-IL'):''}</div><div style="font-size:13px;color:var(--text);white-space:pre-wrap;background:var(--white);padding:6px 8px;border:1px solid var(--border);border-radius:4px">${esc(aText)}</div>` : ''}
+    <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap">
+      <button onclick="event.stopPropagation();_toggleInqExpand('${esc(id)}')" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">צמצם</button>
+      <button onclick="event.stopPropagation();markInfoQADone(${idx}, true)" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">החזר לטיפול</button>
+    </div>
+  </div>`;
+}
+
+window.markInfoQADone = function(idx, undo){
+  if(!_custState) return;
+  const list = _custState.infoQs || [];
+  if(idx < 0 || idx >= list.length) return;
+  const q = list[idx];
+  q.done = !undo;
+  if(!undo) q.doneTs = Date.now();
+  else delete q.doneTs;
+  // Persist via existing save path (column CW)
+  if(typeof saveInfoQuestions === 'function') saveInfoQuestions(false);
+  if(typeof renderCustomerArea === 'function') renderCustomerArea();
+  if(typeof showToast === 'function'){
+    showToast(undo ? 'הוחזר לטיפול' : 'סומן כטופל','ok');
+  }
+};
 function toggleInfoQA(id){
   if(!_custState) return;
   if(!_custState.infoQAOpen) _custState.infoQAOpen = {};
