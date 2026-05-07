@@ -5136,7 +5136,7 @@ function _renderSignaturesSectionBody(){
     // drive.google.com URLs do.
     return `
       <div style="display:flex;align-items:center;gap:6px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap">
-        <div onclick="event.stopPropagation();_openSignatureDoc('${esc(sigKey)}', this)" style="flex:1;min-width:0;cursor:pointer" title="לחץ לפתיחת המסמך בחלון חדש">
+        <div onclick="event.stopPropagation();_openSignatureDoc('${esc(sigKey)}')" style="flex:1;min-width:0;cursor:pointer" title="לחץ לפתיחת המסמך">
           <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${esc(s.text || (f && f.name) || 'מסמך')}</div>
           ${dateText?`<div style="font-size:10px;color:var(--muted);font-weight:500">${dateText}</div>`:''}
         </div>
@@ -5146,73 +5146,48 @@ function _renderSignaturesSectionBody(){
       </div>`;
   };
 
-  // Open a signature document in a NEW WINDOW via blob URL.
-  // Strategy: open a target window IMMEDIATELY in the same click event
-  // (so popup blockers don't fire), then once the PDF is fetched as a
-  // blob, navigate that window to the blob: URL. If pop-up was blocked,
-  // fall back to a temporary <a> tag click.
-  window._openSignatureDoc = async function(sigKey, srcEl){
+  // Open a signature document in a FULL-SCREEN MODAL with a Drive
+  // iframe — same pattern that works reliably in the clients app.
+  // The files are uploaded with ANYONE_WITH_LINK permission so the
+  // /preview URL renders without auth.
+  window._openSignatureDoc = function(sigKey){
     if(!_custState) return;
     const sig = (_custState.signatures || []).find((s, idx) =>
       (s.id || ('sig'+idx)) === sigKey);
-    const f = sig && sig.files && sig.files[0];
+    if(!sig){ showToast('המסמך לא נמצא', 'err'); return; }
+    const f = sig.files && sig.files[0];
     const fileId = f && (f.signedFileId || f.id);
-    if(!fileId){ showToast('אין מזהה קובץ למסמך','err'); return; }
-    if(!accessToken){ showToast('צריך להתחבר ל-Google','err'); return; }
+    if(!fileId){ showToast('אין מזהה קובץ למסמך', 'err'); return; }
 
-    // CRITICAL: open the new window SYNCHRONOUSLY inside the click handler.
-    // Browsers only allow window.open during user gesture. If we wait for
-    // the fetch to finish, the popup blocker kills it.
-    const win = window.open('', '_blank');
-    if(win){
-      try {
-        win.document.write('<html><head><meta charset="utf-8"><title>טוען...</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a1c;color:#fff;font-family:system-ui">טוען מסמך...</body></html>');
-      } catch(_){}
+    let modal = document.getElementById('insolv-sig-modal');
+    if(!modal){
+      modal = document.createElement('div');
+      modal.id = 'insolv-sig-modal';
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);display:flex;flex-direction:column';
+      modal.innerHTML = `
+        <div style="background:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #ccc;flex-shrink:0">
+          <div id="insolv-sig-modal-title" style="flex:1;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          <a id="insolv-sig-modal-newtab" href="#" target="_blank" rel="noopener" style="background:#eee;border:1px solid #ccc;padding:6px 12px;border-radius:5px;font-family:inherit;font-size:12px;text-decoration:none;color:#333">פתח בטאב חדש</a>
+          <button id="insolv-sig-modal-close" style="background:#eee;border:1px solid #ccc;padding:6px 12px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px">סגור</button>
+        </div>
+        <iframe id="insolv-sig-modal-frame" style="flex:1;border:none;background:#1a1a1c;width:100%" allow="autoplay"></iframe>`;
+      modal.querySelector('#insolv-sig-modal-close').onclick = () => { modal.style.display = 'none'; modal.querySelector('#insolv-sig-modal-frame').src = 'about:blank'; };
+      // ESC closes
+      document.addEventListener('keydown', (e) => {
+        if(e.key === 'Escape' && modal.style.display !== 'none'){
+          modal.style.display = 'none';
+          modal.querySelector('#insolv-sig-modal-frame').src = 'about:blank';
+        }
+      });
+      document.body.appendChild(modal);
     }
-
-    if(srcEl){ srcEl.style.opacity = '0.5'; }
-
-    try {
-      const r = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
-        { headers: { Authorization: 'Bearer ' + accessToken } }
-      );
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-
-      if(win && !win.closed){
-        // Navigate the pre-opened window to the blob URL
-        win.location.href = url;
-      } else {
-        // Popup was blocked: fall back to <a> click in the SAME window
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => a.remove(), 100);
-      }
-
-      // Revoke the blob URL after 60s to free memory (the new tab's
-      // PDF viewer caches the doc, so revoking after open is safe).
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 60000);
-    } catch(e){
-      const msg = String(e.message || e);
-      showToast('שגיאה בפתיחת המסמך: ' + msg, 'err');
-      if(win && !win.closed){
-        try {
-          win.document.body.innerHTML = '<div style="padding:20px;text-align:center"><div style="color:#ff6b6b;margin-bottom:12px">שגיאה: ' + msg + '</div><a href="https://drive.google.com/file/d/' + encodeURIComponent(fileId) + '/view" style="color:#fff;background:#444;padding:8px 16px;text-decoration:none;border-radius:4px">נסה דרך Drive</a></div>';
-        } catch(_){}
-      }
-    } finally {
-      if(srcEl){ srcEl.style.opacity = ''; }
-    }
+    modal.querySelector('#insolv-sig-modal-title').textContent = sig.text || (f && f.name) || 'מסמך';
+    modal.querySelector('#insolv-sig-modal-frame').src = `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+    modal.querySelector('#insolv-sig-modal-newtab').href = `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`;
+    modal.style.display = 'flex';
   };
 
-  // Legacy alias — old call sites still reference this name.
+  // Legacy alias.
   window._toggleSigPreview = window._openSignatureDoc;
 
   let html = '';
