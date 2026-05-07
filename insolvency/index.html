@@ -5567,15 +5567,22 @@ function _renderSupplDocsList(){
       });
     const myReject   = rejections.find(rj => rj.reqId === stableId);
     const isApproved = (r.status === 'approved') || myApproved.length > 0;
+    // Build the approved-file's data object for revertApprovedFile()
+    // (one button per row; if multi-file, reverts the first/merged one).
+    const firstApproved = myApproved[0];
+    const approvedRowActions = isApproved ? `
+      <button class="req-icon-btn req-submit-btn" onclick="submitApprovedReq('${esc(r.id)}')" title="העבר לתיקיית הלקוח והסר מהרשימה">${ICON.arrowUp}</button>
+      ${firstApproved ? `<button class="req-icon-btn" onclick="revertApprovedFile(${_jsArg(firstApproved)})" title="בטל אישור — הקובץ חוזר ל-pending" style="color:var(--orange)">${ICON.refresh||'↺'}</button>` : ''}
+      <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה לחלוטין" style="color:var(--red)">${ICON.trash}</button>
+    ` : `
+      <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה">${ICON.trash}</button>
+    `;
     return `
       <div class="req-block ${isApproved?'approved':''}" data-id="${esc(r.id)}">
         <div class="req-row">
           <input type="text" placeholder="תיאור הדרישה..." value="${esc(r.text||'')}"
             oninput="updateSupplDocText('${esc(r.id)}',this.value)"/>
-          ${isApproved
-            ? `<button class="req-icon-btn req-submit-btn" onclick="submitApprovedReq('${esc(r.id)}')" title="העבר לתיקייה והסר מהרשימה">${ICON.arrowUp}</button>`
-            : `<button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה">${ICON.trash}</button>`
-          }
+          ${approvedRowActions}
         </div>
         ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
       </div>`;
