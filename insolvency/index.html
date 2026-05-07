@@ -4540,6 +4540,17 @@ async function loadCustomerPending(){
     // EE signatures — list of signature documents. Same shape as docs:
     //   [{id, text, files:[{id, name, url, ts, signedAt?}], status?}]
     if(Array.isArray(res.signatures)) _custState.signatures = res.signatures;
+    // EF inquiries — client-sent inquiries. Without this refresh, a NEW
+    // inquiry submitted while the customer-area is open would never
+    // appear (we'd be stuck showing the snapshot from initial open).
+    // Per user feedback 2026-05-07.
+    if(Array.isArray(res.inquiries)){
+      _custState.inquiries = res.inquiries;
+      // Mirror to allClients cache so the dashboard-level counter +
+      // panel see fresh state too.
+      const cInList2 = allClients.find(x => x.rowNum === _custState.rowNum);
+      if(cInList2) cInList2.inquiries = res.inquiries;
+    }
     _custState.pendingLoading = false;
     renderCustomerArea();
   }catch(err){
