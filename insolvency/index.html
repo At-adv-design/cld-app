@@ -101,16 +101,20 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
   left:25%;        /* center of the left half (0%-50%) */
   top:50%;
   transform:translate(-50%, -50%);
-  height:90px;
+  height:100px;    /* per user request 2026-05-07: bumped 90 -> 100 */
   object-fit:contain;
   cursor:pointer;
   pointer-events:auto;
 }
-/* Right-side controls: icons row at TOP of header, counter at the BOTTOM
-   edge of the header. justify-content:space-between with the header
-   height (96px) pushes them apart vertically. */
-.hdr-right{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;height:88px;padding:4px 0;}
-.hdr-row-top,.hdr-row-bottom{display:flex;gap:6px;align-items:center;}
+/* Right-side controls: icons row at TOP of header, counter row at the
+   BOTTOM edge — centered horizontally inside the right half of the
+   header per user request 2026-05-07. The right half is ~50% of header
+   width; bottom row uses justify-content:center within hdr-right
+   itself, since hdr-right naturally lives in the right half because
+   the absolute logo is anchored at left:25%. */
+.hdr-right{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;height:92px;padding:4px 0;}
+.hdr-row-top{display:flex;gap:6px;align-items:center;}
+.hdr-row-bottom{display:flex;gap:6px;align-items:center;justify-content:center;align-self:stretch;}
 .hdr-row-bottom:empty{display:none;}
 /* Cards-count badge — pinned to the bottom edge of the header. */
 .hdr-count{
@@ -1134,21 +1138,24 @@ body.focus-mode-active{overflow:hidden;}
         <button class="hdr-btn" id="inquiries-hdr-btn" onclick="openInquiriesPanel()" style="display:none">
           <span id="inquiries-hdr-badge" style="display:none"></span>
         </button>
-        <button id="pending-approvals-badge" onclick="jumpToFirstPending()" style="display:none">
-          <span id="pending-approvals-count">0</span>
-        </button>
         <button class="hdr-btn" onclick="toggleTheme()" title="החלף מצב" style="display:inline-flex;align-items:center;justify-content:center">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-moon" style="width:14px;height:14px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="theme-sun" style="display:none;width:14px;height:14px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         </button>
         <div class="avatar" id="user-avatar" onclick="signOut()"></div>
       </div>
-      <!-- Bottom row: cards-count badge, sits beneath the icons. -->
+      <!-- Bottom row: counters (cards count + pending approvals) — sits at
+           the bottom edge of the header, centered. Per user request
+           2026-05-07: counters belong below the icons, near the middle
+           of the right half. -->
       <div class="hdr-row-bottom">
         <span class="hdr-count" id="total-count">טוען...</span>
+        <button id="pending-approvals-badge" onclick="jumpToFirstPending()" style="display:none">
+          <span id="pending-approvals-count">0</span>
+        </button>
       </div>
     </div>
-    <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:90px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
+    <img src="../logo.png" alt="אבי טל ושות׳" id="header-logo" style="height:100px;object-fit:contain;cursor:pointer;" onerror="this.style.display='none'" onclick="onLogoTap()">
   </div>
   <div class="header-spacer"></div>
 
