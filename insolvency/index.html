@@ -4852,7 +4852,10 @@ function renderCustomerArea(){
   // counter in the app header (give or take stale data sync).
   const _docsActionCount = (_custState.pending||[]).filter(x => x.category === 'docs').length;
   const _reportsActionCount = (_custState.pending||[]).filter(x => x.category === 'reports').length;
-  const _infoActionCount = (_custState.inquiries||[]).filter(iq => !iq.done && (iq.context||'') === 'השלמת פרטים').length
+  // Per user spec 2026-05-07: every non-done inquiry counts toward
+  // השלמת פרטים, regardless of original context. Inquiries are now
+  // rendered in this section as a catch-all (questions FROM client).
+  const _infoActionCount = (_custState.inquiries||[]).filter(iq => !iq.done).length
                          + (_custState.pending||[]).filter(x => x.category === 'info').length;
   const _signaturesActionCount = (_custState.signatures||[])
     .filter(s => {
@@ -4877,9 +4880,10 @@ function renderCustomerArea(){
   const infoBadge = (() => {
     const total = (_custState.infoQs||[]).length;
     const answered = (_custState.infoQs||[]).filter(q=>(q.answer||'').trim()).length;
-    const inquiryCount = (_custState.inquiries||[]).filter(iq => !iq.done && (iq.context||'') === 'השלמת פרטים').length;
+    // ALL non-done inquiries (any context) — per user spec 2026-05-07.
+    const inquiryCount = (_custState.inquiries||[]).filter(iq => !iq.done).length;
     const parts = [];
-    if(inquiryCount) parts.push('<span style="color:var(--orange);font-weight:700">'+inquiryCount+' פניות חדשות</span>');
+    if(inquiryCount) parts.push('<span style="color:var(--orange);font-weight:700">'+inquiryCount+' פניות מהלקוח</span>');
     if(total) parts.push(total+' שאלות');
     if(answered) parts.push('<span style="color:var(--green);font-weight:700">'+answered+' עם תשובה</span>');
     return parts.join(' • ');
@@ -6073,7 +6077,14 @@ function _renderInquiriesForContext(ctx){
   if(!_custState) return '';
   // Show ALL inquiries for this context (both pending and done) so the
   // history stays visible. Pending first (newest first), then done.
-  const all = (_custState.inquiries||[]).filter(iq => (iq.context||'') === ctx);
+  // Special case: ctx === '*' (or 'השלמת פרטים') means "show every
+  // inquiry regardless of context" — per user spec 2026-05-07: all
+  // client inquiries belong in the השלמת פרטים section, like questions
+  // FROM the client paralleling our questions TO the client.
+  const showAll = (ctx === '*' || ctx === 'השלמת פרטים');
+  const all = showAll
+    ? (_custState.inquiries||[])
+    : (_custState.inquiries||[]).filter(iq => (iq.context||'') === ctx);
   if(!all.length) return '';
   const pending = all.filter(iq => !iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
   const done    = all.filter(iq =>  iq.done).sort((a,b)=>(b.ts||0)-(a.ts||0));
