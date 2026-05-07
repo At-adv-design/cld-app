@@ -77,7 +77,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* HEADER — sticky like leads/clients/potential. Auto-hide animation
    (translateY via --shell-offset) is shared with tabs/filters so they
    slide together when scrolling down. */
-.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:flex-start;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(31,30,27,0.06);transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1), height .2s ease, padding .2s ease;will-change:transform;}
+.header{background:var(--white);height:96px;padding:0 16px;display:flex;align-items:center;justify-content:flex-start;position:sticky;top:0;z-index:100;transform:translateY(var(--shell-offset, 0px));transition:transform .22s cubic-bezier(.22,.61,.36,1), height .2s ease, padding .2s ease;will-change:transform;}
 /* Search-mode: when the user is typing in the search box, collapse the
    header + tabs so the cards list takes the full screen above the
    on-screen keyboard. The search-sticky bar pins to top:0 (was 137px
@@ -202,6 +202,18 @@ body.search-mode .search-sticky{top:0;z-index:99;background:var(--white);box-sha
 .cust-section-leading-icon svg{width:15px;height:15px;}
 .cust-section-title-text{font-size:13px;font-weight:700;color:var(--slate);}
 .cust-section-badge{font-size:10px;font-weight:500;color:var(--muted);}
+/* Action-count badge: small red pill next to the section title showing
+   how many pending actions are inside this card. Matches the global
+   header counter style (slate dot, but red here to call attention). */
+.cust-section-action-count{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--red);color:#fff;
+  font-size:10px;font-weight:700;
+  min-width:18px;height:18px;border-radius:10px;
+  padding:0 5px;
+  flex-shrink:0;
+  margin-inline-end:6px;
+}
 .cust-section-chev{
   width:14px;height:14px;color:var(--muted);
   transition:transform .15s ease;flex-shrink:0;
@@ -4819,11 +4831,15 @@ function renderCustomerArea(){
     info:    ICON.question,
     creds:   ICON.customer,
   };
-  const sect = (key, title, badge, contentHtml) => `
+  // Optional 5th arg: actionCount — small red pill next to the title
+  // showing how many pending actions live in this card. Linked to the
+  // global header counter (sum of all cards' action counts ≈ pending).
+  const sect = (key, title, badge, contentHtml, actionCount) => `
     <div class="cust-section ${isOpen(key)?'open':''}" data-cust-key="${key}">
       <div class="cust-section-head" data-cust-key="${key}">
         <div class="cust-section-head-left">
           ${sectIcon[key] ? `<span class="cust-section-leading-icon">${sectIcon[key]}</span>` : ''}
+          ${actionCount && actionCount > 0 ? `<span class="cust-section-action-count" title="פעולות שמחכות לטיפול">${actionCount}</span>` : ''}
           <span class="cust-section-title-text">${title}</span>
           ${badge?`<span class="cust-section-badge">${badge}</span>`:''}
         </div>
@@ -4831,6 +4847,21 @@ function renderCustomerArea(){
       </div>
       <div class="cust-section-body">${contentHtml}</div>
     </div>`;
+
+  // Per-section action counts. Sum of these matches the global pending
+  // counter in the app header (give or take stale data sync).
+  const _docsActionCount = (_custState.pending||[]).filter(x => x.category === 'docs').length;
+  const _reportsActionCount = (_custState.pending||[]).filter(x => x.category === 'reports').length;
+  const _infoActionCount = (_custState.inquiries||[]).filter(iq => !iq.done && (iq.context||'') === 'השלמת פרטים').length
+                         + (_custState.pending||[]).filter(x => x.category === 'info').length;
+  const _signaturesActionCount = (_custState.signatures||[])
+    .filter(s => {
+      const f = (s.files && s.files[0]) || null;
+      const isSigned = !!(s.signedAt || (f && f.signedAt));
+      const isApproved = !!s.approved;
+      // signed-but-not-approved = an action item for the lawyer (review + approve)
+      return isSigned && !isApproved;
+    }).length;
 
   const docsBadge = (() => {
     const r = (_custState.supplDocs||[]).length;
@@ -4886,7 +4917,7 @@ function renderCustomerArea(){
       </div>
     ` : ''}
 
-    ${(_custState.stage !== 'pre_order' && _custState.stage !== 'commercial') ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody()) : ''}
+    ${(_custState.stage !== 'pre_order' && _custState.stage !== 'commercial') ? sect('reports', 'מסמכים לדוחות', _reportsBadge(), _renderReportDocsSectionsBody(), _reportsActionCount) : ''}
 
     ${(_custState.stage === 'pre_order') ? sect('questionnaire', 'שאלון בקשת צו פתיחת הליכים', _custState.questData ? '<span style="color:var(--green);font-weight:700">מלא</span>' : '<span style="color:var(--muted)">ריק</span>', `
       ${_custState.questData ? `<div style="font-size:12px;color:var(--text);margin-bottom:10px;padding:8px 10px;background:var(--bg);border:1px solid var(--border)">
@@ -4900,14 +4931,14 @@ function renderCustomerArea(){
     ${sect('docs', 'השלמת מסמכים', docsBadge, `
       ${_renderSupplDocsList()}
       <button class="req-add-btn" onclick="addSupplDocRow()" style="margin-top:6px">+ הוסף שדה</button>
-    `)}
+    `, _docsActionCount)}
 
     ${sect('info', 'השלמת פרטים (שאלות ללקוח)', infoBadge, `
       ${_renderInfoQAList()}
       <button class="req-add-btn" onclick="addInfoQuestion()" style="margin-top:6px">+ הוסף שאלה</button>
-    `)}
+    `, _infoActionCount)}
 
-    ${sect('signatures', 'מסמכים לחתימה', _signaturesBadge(), _renderSignaturesSectionBody())}
+    ${sect('signatures', 'מסמכים לחתימה', _signaturesBadge(), _renderSignaturesSectionBody(), _signaturesActionCount)}
 
     ${sect('drive', 'תיקיית מסמכים — Google Drive', '', `
       <button class="cust-folder-btn" onclick="openCustomerDriveFolder(${_custState.rowNum})">
