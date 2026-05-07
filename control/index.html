@@ -663,7 +663,19 @@ async function requestRemoteLink(machineName){
   }
   try {
     await writeCommand(machineName, '/remote-control', 'remote-control-link');
-    toast(`בקשה נשלחה ל-${machineName}. הקישור יופיע פה תוך כדקה.`);
+    toast(`בקשה נשלחה ל-${machineName}. ראה למטה ברובריקה "קישורי רמוט"`);
+    // Scroll to the remote-links rubric so the user knows where the link
+    // will appear. Highlight it briefly.
+    const rubric = document.getElementById('remote-links-list');
+    if(rubric){
+      rubric.scrollIntoView({behavior:'smooth', block:'center'});
+      const wrap = rubric.parentElement;
+      if(wrap){
+        wrap.style.transition = 'box-shadow .3s';
+        wrap.style.boxShadow = '0 0 0 3px var(--orange)';
+        setTimeout(() => { wrap.style.boxShadow = ''; }, 1800);
+      }
+    }
     // Begin polling for response (Drive folder, file pattern: response-MACHINE-*)
     pollForRemoteLinks(machineName);
   } catch(e){
@@ -699,7 +711,25 @@ async function pollForRemoteLinks(machineName){
         }
       } catch(e){ console.warn('poll error', e); }
     }
-    toast(`לא התקבל קישור מ-${machineName} תוך 90 שניות. ייתכן שהמחשב לא פעיל / Claude לא מותקן.`);
+    // Show a persistent error card in the rubric instead of just a toast.
+    const host = document.getElementById('remote-links-list');
+    if(host){
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--red-bg);border:1px solid var(--red);padding:10px;display:flex;flex-direction:column;gap:6px;direction:rtl;font-size:12px;border-radius:4px';
+      card.innerHTML = `
+        <div style="font-weight:700;color:var(--red)">לא התקבל קישור מ-${escapeHtml(machineName)}</div>
+        <div style="color:var(--text);line-height:1.6">סיבות אפשריות:</div>
+        <ul style="padding-inline-start:18px;margin:0;color:var(--muted);line-height:1.6">
+          <li>heartbeat.ps1 לא יכול לקרוא Drive (clasp credentials פגומים — "invalid_rapt"). תרוץ <code>fix-clasp-auth.bat</code> מ-dedicated-files</li>
+          <li>המחשב כבוי / scheduled task לא רץ</li>
+          <li>Claude Code לא מותקן ב-cd-app באותו מחשב</li>
+        </ul>
+        <div style="color:var(--text);line-height:1.6;margin-top:4px"><b>חלופה זמנית:</b> במחשב היעד תפתח Claude, תריץ /remote-control, ותעתיק את ה-URL — אחר כך לחץ "+ הוסף ידנית" כאן.</div>
+        <button onclick="this.parentElement.remove()" class="mc-btn" style="align-self:flex-end">סגור</button>`;
+      host.insertBefore(card, host.firstChild);
+    } else {
+      toast(`לא התקבל קישור מ-${machineName} תוך 90 שניות.`);
+    }
   } finally {
     _pollingActive = false;
   }
