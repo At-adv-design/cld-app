@@ -129,6 +129,39 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .empty-state .e-sub{font-size:12px;color:var(--muted);}
 .spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--slate);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* PULL-TO-REFRESH indicator. Anchored to top of viewport, hidden by
+   default. JS shows it during pull and animates the spinner while
+   loading. */
+#ptr-indicator{
+  position:fixed;top:0;left:50%;transform:translate(-50%,calc(-100% + var(--ptr-pull, 0px)));
+  z-index:700;
+  background:var(--white);border:1px solid var(--border);
+  padding:8px 14px;display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:600;color:var(--slate);
+  border-radius:0 0 4px 4px;
+  pointer-events:none;
+  transition:transform .18s cubic-bezier(.22,.61,.36,1);
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+#ptr-indicator.dragging{transition:none;}
+#ptr-indicator .arrow{
+  width:14px;height:14px;
+  transition:transform .2s ease;
+}
+#ptr-indicator.ready .arrow{transform:rotate(180deg);}
+#ptr-indicator.loading .arrow{display:none;}
+#ptr-indicator.loading .spinner-mini{
+  display:inline-block !important;
+}
+#ptr-indicator .spinner-mini{
+  display:none;
+  width:12px;height:12px;
+  border:2px solid var(--border);
+  border-top-color:var(--slate);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
 </style>
 </head>
 <body>
@@ -150,6 +183,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     </button>
     <button onclick="doSwitchAccount()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline">כניסה עם חשבון אחר</button>
   </div>
+</div>
+
+<!-- PULL-TO-REFRESH indicator (hidden by default, slides down during pull) -->
+<div id="ptr-indicator">
+  <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+  <span class="spinner-mini"></span>
+  <span class="ptr-text">משוך לרענון</span>
 </div>
 
 <!-- APP -->
@@ -490,23 +530,29 @@ function renderMachines(heartbeats){
   list.innerHTML = heartbeats.map(hb => {
     const status = classifyStatus(hb.lastSeen);
     const dot = `<span class="mc-status-dot ${status}"></span>`;
+    const id = hb.machineName || '';
+    const display = hb.displayName || id || '(ללא שם)';
+    const showId = display !== id && id;
     return `
       <div class="machine-card ${status}">
         <div class="mc-head">
           ${dot}
-          <div class="mc-name">${hb.machineName || '(ללא שם)'}</div>
+          <div style="flex:1;min-width:0">
+            <div class="mc-name">${escapeHtml(display)}</div>
+            ${showId ? `<div style="font-size:10px;color:var(--muted);font-family:monospace;direction:ltr;text-align:right;margin-top:2px">${escapeHtml(id)}</div>` : ''}
+          </div>
           <div class="mc-status-label ${status}">${statusLabel(status)}</div>
         </div>
         <div class="mc-meta">
-          <div class="row"><span class="key">משתמש</span><span class="val">${hb.user || '—'}</span></div>
+          <div class="row"><span class="key">משתמש</span><span class="val">${escapeHtml(hb.user || '—')}</span></div>
           <div class="row"><span class="key">פעיל אחרון</span><span class="val">${fmtAgo(hb.lastSeen)}</span></div>
           ${hb.currentTask ? `<div class="row"><span class="key">משימה נוכחית</span><span class="val" title="${escapeHtml(hb.currentTask)}">${escapeHtml(hb.currentTask)}</span></div>` : ''}
           ${hb.lastCommit ? `<div class="row"><span class="key">קומיט אחרון</span><span class="val">${escapeHtml(hb.lastCommit.slice(0,30))}</span></div>` : ''}
-          ${hb.version ? `<div class="row"><span class="key">גרסת control</span><span class="val">${escapeHtml(hb.version)}</span></div>` : ''}
+          ${hb.version ? `<div class="row"><span class="key">גרסה</span><span class="val">${escapeHtml(hb.version)}</span></div>` : ''}
         </div>
         <div class="mc-actions">
-          <button class="mc-btn primary" onclick="openCmdModal('${escapeAttr(hb.machineName)}')">הוראה</button>
-          <button class="mc-btn" onclick="openTranscripts('${escapeAttr(hb.machineName)}')">היסטוריה</button>
+          <button class="mc-btn primary" onclick="openCmdModal('${escapeAttr(id)}')">הוראה</button>
+          <button class="mc-btn" onclick="openTranscripts('${escapeAttr(id)}')">היסטוריה</button>
         </div>
       </div>`;
   }).join('');
@@ -703,6 +749,86 @@ async function init(){
 }
 
 init();
+
+/* ============================================================
+   PULL-TO-REFRESH (touch gesture)
+   ============================================================
+   Drag down from the top of the page → triggers loadHeartbeats().
+   - Only activates when scrollY === 0 (we're at the top).
+   - Visual indicator slides down with the finger, flips arrow + text
+     once the user has pulled past the threshold.
+   - On release past threshold, fires the refresh and shows a spinner. */
+(function attachPullToRefresh(){
+  const PULL_THRESHOLD = 70;        // px to trigger refresh
+  const PULL_MAX_VISUAL = 90;       // cap on how far the indicator slides
+  const indicator = document.getElementById('ptr-indicator');
+  if(!indicator) return;
+  const textEl = indicator.querySelector('.ptr-text');
+
+  let startY = 0;
+  let pulling = false;
+  let dragDistance = 0;
+
+  function setPull(px){
+    indicator.style.setProperty('--ptr-pull', px + 'px');
+    indicator.classList.toggle('ready', px >= PULL_THRESHOLD);
+    if(textEl){
+      textEl.textContent = px >= PULL_THRESHOLD ? 'שחרר לרענון' : 'משוך לרענון';
+    }
+  }
+  function reset(){
+    indicator.classList.remove('dragging','ready','loading');
+    indicator.style.setProperty('--ptr-pull','0px');
+    if(textEl) textEl.textContent = 'משוך לרענון';
+    pulling = false;
+    dragDistance = 0;
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    // Only start a pull when we're at the very top of the document
+    if(window.scrollY > 0) return;
+    if(indicator.classList.contains('loading')) return;
+    if(!e.touches || !e.touches[0]) return;
+    startY = e.touches[0].clientY;
+    pulling = true;
+    dragDistance = 0;
+  }, {passive:true});
+
+  document.addEventListener('touchmove', (e) => {
+    if(!pulling) return;
+    if(!e.touches || !e.touches[0]) return;
+    const delta = e.touches[0].clientY - startY;
+    if(delta <= 0){
+      // User scrolling up — abandon the pull
+      reset();
+      return;
+    }
+    // Apply rubber-band: half the actual delta to make the pull feel weighty
+    dragDistance = Math.min(PULL_MAX_VISUAL, delta * 0.5);
+    indicator.classList.add('dragging');
+    setPull(dragDistance);
+  }, {passive:true});
+
+  async function onEnd(){
+    if(!pulling) return;
+    pulling = false;
+    indicator.classList.remove('dragging');
+    if(dragDistance >= PULL_THRESHOLD){
+      // Trigger refresh — leave the indicator visible at threshold while loading
+      indicator.style.setProperty('--ptr-pull', PULL_THRESHOLD + 'px');
+      indicator.classList.add('loading');
+      if(textEl) textEl.textContent = 'מרענן…';
+      try { await loadHeartbeats(); }
+      catch(_){}
+      // small delay so the user can see the spinner briefly even on fast nets
+      setTimeout(reset, 350);
+    } else {
+      reset();
+    }
+  }
+  document.addEventListener('touchend', onEnd, {passive:true});
+  document.addEventListener('touchcancel', onEnd, {passive:true});
+})();
 </script>
 </body>
 </html>
