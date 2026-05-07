@@ -5538,17 +5538,20 @@ function _renderSupplDocsList(){
 
   const idForReq = r => r.id && !String(r.id).startsWith('tmp-') ? r.id : ('r0-'+_hashReqId(r.text||''));
   const matchedReqIds = new Set();
-  const reqsHtml = required.map(r => {
+  if(!_custState.inqExpanded) _custState.inqExpanded = {};
+
+  // Build a per-requirement struct so we can split into pending/approved
+  // and render the approved ones as collapsed thin rows at the bottom —
+  // mirroring the השלמת פרטים pattern (pending on top, handled in a
+  // 'טופלו' block at the bottom). Per user spec 2026-05-07.
+  const enriched = required.map(r => {
     const stableId = idForReq(r);
-    const myPending  = pending.filter(p  => p.reqId === stableId);
+    const myPending = pending.filter(p => p.reqId === stableId);
     myPending.forEach(p => matchedReqIds.add(p.reqId));
-    // Approved entries: prefer the merged PDF (multi-file requirements),
-    // otherwise the individual approved files (single-file or per-file).
     const myApproved = required
       .filter(x => x.id === stableId)
       .flatMap(x => {
         if(x.mergedPdfId && x.status === 'approved'){
-          // Merged PDF — single approved entry showing requirement-named file
           return [{
             fileId: x.mergedPdfId,
             name: x.mergedPdfName || ((x.text || 'מסמך') + '.pdf'),
@@ -5567,10 +5570,14 @@ function _renderSupplDocsList(){
       });
     const myReject   = rejections.find(rj => rj.reqId === stableId);
     const isApproved = (r.status === 'approved') || myApproved.length > 0;
-    // Build the approved-file's data object for revertApprovedFile()
-    // (one button per row; if multi-file, reverts the first/merged one).
+    return { r, stableId, myPending, myApproved, myReject, isApproved };
+  });
+
+  const renderFullRow = ({r, stableId, myPending, myApproved, myReject, isApproved}, opts={}) => {
     const firstApproved = myApproved[0];
+    const collapseBtn = opts.collapseBtn ? `<button class="req-icon-btn" onclick="event.stopPropagation();_toggleInqExpand('${esc(stableId)}')" title="צמצם" style="color:var(--muted)">▾</button>` : '';
     const approvedRowActions = isApproved ? `
+      ${collapseBtn}
       <button class="req-icon-btn req-submit-btn" onclick="submitApprovedReq('${esc(r.id)}')" title="העבר לתיקיית הלקוח והסר מהרשימה">${ICON.arrowUp}</button>
       ${firstApproved ? `<button class="req-icon-btn" onclick="revertApprovedFile(${_jsArg(firstApproved)})" title="בטל אישור — הקובץ חוזר ל-pending" style="color:var(--orange)">${ICON.refresh||'↺'}</button>` : ''}
       <button class="req-icon-btn" onclick="removeSupplDocRow('${esc(r.id)}')" title="מחק דרישה לחלוטין" style="color:var(--red)">${ICON.trash}</button>
@@ -5586,7 +5593,41 @@ function _renderSupplDocsList(){
         </div>
         ${_renderReqAttachments({pending:myPending, approved:myApproved, rejection:myReject})}
       </div>`;
-  }).join('');
+  };
+
+  // 1. Pending (or rejected, or not-yet-approved) → full rows on top
+  const pendingItems = enriched.filter(e => !e.isApproved);
+  const reqsHtml = pendingItems.map(e => renderFullRow(e)).join('');
+
+  // 2. Approved → thin collapsed rows in a 'טופלו' block at the bottom.
+  //    Click a row to expand inline. Sort by approvedAt desc.
+  const approvedItems = enriched.filter(e => e.isApproved);
+  approvedItems.sort((a,b) => {
+    const ta = (a.myApproved[0] && a.myApproved[0].approvedAt) || 0;
+    const tb = (b.myApproved[0] && b.myApproved[0].approvedAt) || 0;
+    return tb - ta;
+  });
+  let doneHtml = '';
+  if(approvedItems.length){
+    doneHtml = '<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px"><div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:6px">טופלו</div>';
+    for(const e of approvedItems){
+      const isExpanded = !!_custState.inqExpanded[e.stableId];
+      if(isExpanded){
+        doneHtml += renderFullRow(e, {collapseBtn:true});
+      } else {
+        const fileName = (e.myApproved[0] && e.myApproved[0].name) || (e.r.text || 'מסמך');
+        const apprDt = (e.myApproved[0] && e.myApproved[0].approvedAt) ? _fmtInqDate(e.myApproved[0].approvedAt) : '';
+        doneHtml += `<div onclick="event.stopPropagation();_toggleInqExpand('${esc(e.stableId)}')"
+          style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted);direction:rtl"
+          title="לחץ להרחבה">
+          <span style="color:var(--muted);font-size:10px">▸</span>
+          <span style="font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${esc(e.r.text || fileName)}</span>
+          ${apprDt ? `<span title="אושר">✓ ${apprDt}</span>` : '<span>✓</span>'}
+        </div>`;
+      }
+    }
+    doneHtml += '</div>';
+  }
 
   // Orphan pending files: client uploaded a doc whose reqId doesn't match any
   // current requirement (requirement was deleted/renamed after upload). Without
@@ -5603,7 +5644,7 @@ function _renderSupplDocsList(){
       </div>`;
   }
 
-  return reqsHtml + orphanHtml;
+  return reqsHtml + orphanHtml + doneHtml;
 }
 
 function updateSupplDocText(id, val){
