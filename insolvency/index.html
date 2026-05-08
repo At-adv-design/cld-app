@@ -5106,13 +5106,17 @@ function renderCustomerArea(){
     ${sect('creds', 'שם משתמש וסיסמה ללקוח', credsBadge, `
       <div class="cust-creds">
         <input type="text" class="cust-input" id="cust-username" placeholder="שם משתמש (ת.ז)" value="${esc(_custState.username||'')}" inputmode="numeric"/>
-        <input type="text" class="cust-input" id="cust-password" placeholder="סיסמה" value="${esc(_custState.password||'')}"/>
+        <input type="text" class="cust-input" id="cust-password" placeholder="${_custState.password ? '••••••• (סיסמה קיימת — מלא חדשה כדי להחליף)' : 'סיסמה חדשה'}"/>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <button class="cust-save-btn" onclick="saveCustomerCreds()" style="flex:1;min-width:140px">שמור פרטי כניסה</button>
+        <button class="cust-save-btn" onclick="generateTempPasswordAndSend()" style="flex:1;min-width:170px;background:var(--orange);color:#fff" title="יוצר סיסמה אקראית, שומר hash, ושולח ב-WhatsApp">צור סיסמה אוטומטית + שלח</button>
       </div>
       <label class="cust-active-toggle" style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--slate);user-select:none">
         <input type="checkbox" id="cust-active" ${_custState.active?'checked':''} onchange="toggleCustomerActive(this.checked)" style="width:18px;height:18px;accent-color:var(--slate);cursor:pointer"/>
         <span>אפשר ללקוח להיכנס לאפליקציה</span>
       </label>
-      <button class="cust-save-btn" onclick="saveCustomerCreds()" style="margin-top:10px">שמור פרטי כניסה</button>
+      <div id="cust-temp-pwd-banner" style="display:none;margin-top:12px;padding:12px;background:#fff7e6;border:1px solid #ffb86b;border-radius:8px"></div>
     `)}
 
     ${sect('stage', 'שלב הלקוח', _stageBadge, `
@@ -6877,26 +6881,120 @@ async function setClientStage(rowNum, stage){
   }
 }
 
+/* ── Admin password management — calls clients Apps Script (auth.js) ──
+   Routes through admin_createClientPassword which hashes the password
+   server-side (PBKDF2-SHA256) before storing. Plain passwords never
+   touch the sheet. */
+async function _customerApiAdmin(action, extra){
+  if(!CUSTOMER_API_URL) throw new Error('Apps Script API לא מוגדר');
+  if(!accessToken) throw new Error('צריך להתחבר ל-Google כדי לבצע פעולות אדמין');
+  const body = Object.assign({action, lawyerToken: accessToken}, extra || {});
+  const res = await fetch(CUSTOMER_API_URL, {
+    method:'POST',
+    body: JSON.stringify(body),
+    redirect:'follow'
+  });
+  const j = await res.json();
+  if(!j.ok) throw new Error(j.error || 'שגיאה לא ידועה מ-API');
+  return j;
+}
+
 async function saveCustomerCreds(){
   if(!_custState) return;
-  const u=document.getElementById('cust-username').value.trim();
-  const p=document.getElementById('cust-password').value.trim();
-  _custState.username=u; _custState.password=p;
+  const u = document.getElementById('cust-username').value.trim();
+  const p = document.getElementById('cust-password').value;
+  if(!u){ showToast('הזן שם משתמש (ת.ז)','err'); return; }
+  // Empty password = update username only (or active flag) — the API
+  // accepts password? as optional. But we require at least one of them
+  // to make sense.
+  if(!p && u === (_custState.username||'').trim()){
+    showToast('אין מה לשמור','err'); return;
+  }
   showToast('שומר...');
   try{
-    // Two parallel writes — username to CR, password to CS
-    const urlU=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CR${_custState.rowNum}?valueInputOption=RAW`;
-    const urlP=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CS${_custState.rowNum}?valueInputOption=RAW`;
-    await Promise.all([
-      apiFetch(urlU,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[u]]})}),
-      apiFetch(urlP,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[p]]})}),
-    ]);
-    // Update local cache
-    const c=allClients.find(x=>x.rowNum===_custState.rowNum);
-    if(c){ c.customerUsername=u; c.customerPassword=p; }
-    showToast('פרטי כניסה נשמרו','ok');
+    const r = await _customerApiAdmin('admin_createClientPassword', {
+      rowNum: _custState.rowNum,
+      username: u,
+      password: p || undefined,  // undefined → server generates one
+    });
+    _custState.username = r.username || u;
+    _custState.password = '';   // never keep plain pwd in memory
+    const c = allClients.find(x=>x.rowNum===_custState.rowNum);
+    if(c){ c.customerUsername = _custState.username; c.customerPassword = ''; }
+    document.getElementById('cust-password').value = '';
+    if(r.tempPassword){
+      _showTempPasswordBanner(r.tempPassword, _custState.username);
+    }
+    showToast('פרטי כניסה נשמרו (סיסמה hashed בשרת)','ok');
   }catch(e){
-    showToast(e.message||'שגיאה בשמירה','err');
+    showToast(e.message || 'שגיאה בשמירה','err');
+  }
+}
+
+async function generateTempPasswordAndSend(){
+  if(!_custState) return;
+  const u = (document.getElementById('cust-username').value || _custState.username || '').trim();
+  if(!u){ showToast('קודם הזן שם משתמש (ת.ז)','err'); return; }
+  showToast('יוצר סיסמה זמנית...');
+  try{
+    const r = await _customerApiAdmin('admin_createClientPassword', {
+      rowNum: _custState.rowNum,
+      username: u,
+      // no password — server generates one
+    });
+    _custState.username = r.username || u;
+    _custState.password = '';
+    const c = allClients.find(x=>x.rowNum===_custState.rowNum);
+    if(c){ c.customerUsername = _custState.username; c.customerPassword = ''; }
+    document.getElementById('cust-password').value = '';
+    _showTempPasswordBanner(r.tempPassword, _custState.username);
+    showToast('סיסמה זמנית נוצרה — לחץ "שלח ב-WhatsApp" כדי למסור ללקוח','ok');
+  }catch(e){
+    showToast(e.message || 'שגיאה ביצירה','err');
+  }
+}
+
+function _showTempPasswordBanner(tempPwd, username){
+  const banner = document.getElementById('cust-temp-pwd-banner');
+  if(!banner) return;
+  const c = allClients.find(x=>x.rowNum === (_custState && _custState.rowNum));
+  const phoneRaw = (c && c.phoneRaw) || (c && c.phone) || '';
+  banner.innerHTML = `
+    <div style="font-weight:700;color:#7a4a00;margin-bottom:6px">סיסמה זמנית — מוצגת פעם אחת בלבד</div>
+    <div style="font-family:ui-monospace,'Courier New',monospace;font-size:18px;letter-spacing:1px;background:#fff;padding:8px 10px;border:1px dashed #c98750;border-radius:5px;margin:4px 0;direction:ltr;text-align:center;user-select:all">${esc(tempPwd)}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <button onclick="navigator.clipboard.writeText('${esc(tempPwd)}').then(()=>showToast('הסיסמה הועתקה','ok'))" style="flex:1;padding:8px;background:var(--slate);color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600">העתק</button>
+      <button onclick="_sendTempPasswordWA('${esc(tempPwd)}','${esc(username)}','${esc(phoneRaw)}')" style="flex:1;padding:8px;background:#25D366;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600">שלח ב-WhatsApp</button>
+      <button onclick="document.getElementById('cust-temp-pwd-banner').style.display='none'" style="padding:8px 12px;background:transparent;border:1px solid var(--border);border-radius:5px;cursor:pointer;font-family:inherit">סגור</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">חשוב: לאחר סגירה לא תוכל לראות את הסיסמה שוב. רק הלקוח יוכל להשתמש בה כדי להיכנס.</div>
+  `;
+  banner.style.display = 'block';
+}
+
+async function _sendTempPasswordWA(tempPwd, username, phoneRaw){
+  if(!phoneRaw){ showToast('אין מספר טלפון לשלוח אליו','err'); return; }
+  const portalUrl = 'https://at-adv-design.github.io/cld-app/clients/';
+  const message = 'שלום, נפתח עבורך חשבון בפורטל הלקוחות של משרד עו"ד אבי טל ושות\'.\n\n' +
+                  'תעודת זהות: ' + username + '\n' +
+                  'סיסמה זמנית: ' + tempPwd + '\n\n' +
+                  'קישור לפורטל: ' + portalUrl + '\n\n' +
+                  'בכניסה הראשונה תתבקש להחליף את הסיסמה.';
+  try{
+    if(typeof sendWhatsAppMessage === 'function'){
+      await sendWhatsAppMessage(phoneRaw, message);
+      showToast('נשלח ב-WhatsApp','ok');
+    } else if(typeof sigSendWA === 'function'){
+      await sigSendWA(phoneRaw, message);
+      showToast('נשלח ב-WhatsApp','ok');
+    } else {
+      // Fallback — open WhatsApp web with prefilled message
+      const intl = phoneRaw.replace(/\D/g, '').replace(/^0/, '972');
+      window.open('https://wa.me/' + intl + '?text=' + encodeURIComponent(message), '_blank');
+      showToast('פתחתי WhatsApp Web — שלח ידנית','ok');
+    }
+  }catch(e){
+    showToast('כשל בשליחת WA: ' + (e.message||e),'err');
   }
 }
 
@@ -7411,13 +7509,23 @@ function showLoadingOverlay(show){
 
 async function toggleCustomerActive(checked){
   if(!_custState) return;
-  _custState.active=!!checked;
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CT${_custState.rowNum}?valueInputOption=USER_ENTERED`;
-  const opts={method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[checked?'TRUE':'FALSE']]})};
-  const c=allClients.find(x=>x.rowNum===_custState.rowNum);
-  if(c) c.customerActive=!!checked;
+  _custState.active = !!checked;
+  const c = allClients.find(x=>x.rowNum===_custState.rowNum);
+  if(c) c.customerActive = !!checked;
   showToast(checked?'חיבור הופעל':'חיבור הושבת','ok');
-  apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'אישור חיבור לקוח'));
+  // Prefer the admin endpoint (writes audit log + goes through hashed-auth
+  // backend). Fall back to direct Sheet write if the API rejects (older
+  // deployment without admin endpoints).
+  try{
+    await _customerApiAdmin('admin_setClientActive', {
+      rowNum: _custState.rowNum,
+      active: !!checked
+    });
+  }catch(_){
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/CT${_custState.rowNum}?valueInputOption=USER_ENTERED`;
+    const opts = {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[[checked?'TRUE':'FALSE']]})};
+    apiFetch(url,opts).catch(()=>enqueueWrite(url,opts,'אישור חיבור לקוח'));
+  }
 }
 
 /* === Explanation editor (the half-sheet that opens on "?") === */
