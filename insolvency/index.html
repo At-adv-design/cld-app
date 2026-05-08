@@ -3038,8 +3038,12 @@ function parseClient(row,rowNum){
   const isUrgent=overdueCount>0||docsHighUrgent||injUrgent||srvUrgent;
   const isWarning=!isUrgent&&(docsLowUrgent||srvWarning||docsReminder||reminder);
 
+  // Filter-only flag: any date in AE → "בטיפול" filter shows the row,
+  // regardless of docsDone / docsHighUrgent. Card badge still uses
+  // docsLowUrgent (hierarchical).
+  const docsHasAE=!!aeDate;
   return{rowNum,name,caseNum:g(C_CASE),phone:g(C_PHONE),reports,reportStatus,overdueCount,
-    docsList,docsDone,docsHighUrgent,docsLowUrgent,docsReminder,docsAGRaw,
+    docsList,docsDone,docsHighUrgent,docsLowUrgent,docsHasAE,docsReminder,docsAGRaw,
     // Raw values used by the inline edit buttons in each section
     docsAERaw, docsDaysRaw, injStartRaw, injDaysRaw, alRaw, bgRaw, bdRaw, srvDeadline,
     customerUsername, customerPassword, customerActive, reportDocs, supplDocs, infoQs,
@@ -3339,7 +3343,7 @@ function applyFilters(){
     }
     if(fReport!=='all'&&c.overdueCount!==fReport)return false;
     if(fDocs==='urgent'&&!c.docsHighUrgent)return false;
-    if(fDocs==='warning'&&!c.docsLowUrgent)return false;
+    if(fDocs==='warning'&&!c.docsHasAE)return false;
     if(fInj==='urgent'&&!c.injUrgent)return false;
     if(fInj==='active'&&!c.injActive)return false;
     if(fSrv==='urgent'&&!c.srvUrgent)return false;
