@@ -952,6 +952,7 @@ body.focus-mode-active{overflow:hidden;}
         <div class="chip active" id="fs-all" onclick="setF('srv','all')">הכל</div>
         <div class="chip red" id="fs-urgent" onclick="setF('srv','urgent')" data-icon="fire">דחוף</div>
         <div class="chip orange" id="fs-warning" onclick="setF('srv','warning')">בטיפול</div>
+        <div class="chip orange" id="fs-temp-active" onclick="setF('srv','temp-active')">פעיל זמני</div>
       </div>
       <div class="filter-row">
         <span class="filter-label">עיכוב הליכים:</span>
@@ -1706,7 +1707,7 @@ const C_AL=37,C_AZ=51;
 // BA = list of documents the client must provide for filing reports.
 // Read+written exactly like docsList (column AC) — same UI block, same flow.
 const C_REPORT_DOCS=52;
-const C_BG=58,C_BH=59,C_BI=60;
+const C_BE=56,C_BF=57,C_BG=58,C_BH=59,C_BI=60;
 const C_BV=73,C_BW=74,C_BX=75;  // BV=meeting date, BW=start time, BX=end time
 // Customer-area columns. Filled in by the lawyer in the "customer area"
 // modal; read by the customer-facing app to know what's required.
@@ -2465,6 +2466,11 @@ function parseClient(row,rowNum){
   const srvDeadline=bg45?(String(bg45.getDate()).padStart(2,'0')+'/'+String(bg45.getMonth()+1).padStart(2,'0')+'/'+String(bg45.getFullYear()).slice(2)):'';
   const srvWarning=!serviceDone&&bgDate&&bgDate<today&&!(bg45&&bg45<today);
   const srvUrgent=!serviceDone&&bg45&&bg45<today;
+  // Filter-only flags (don't affect card badge):
+  //   srvHasBE       → "בטיפול" filter: any date in BE
+  //   srvTempActive  → "פעיל זמני" filter: any date in BF AND BI ≠ "בוצע"
+  const srvHasBE=!!parseDate(g(C_BE));
+  const srvTempActive=!!parseDate(g(C_BF))&&!serviceDone;
 
   // REMINDER
   const reminder=g(C_AZ)==='TRUE';
@@ -2516,7 +2522,7 @@ function parseClient(row,rowNum){
     // List of documents the client needs to provide for the reports section.
     // Same shape as docsList (free-form text the user edits).
     reportDocsList:g(C_REPORT_DOCS),
-    injUrgent,serviceDone,srvWarning,srvUrgent,reminder,isUrgent,isWarning,
+    injUrgent,serviceDone,srvWarning,srvUrgent,srvHasBE,srvTempActive,reminder,isUrgent,isWarning,
     // AL: end-date of "עיכוב הליכים" (delay of proceedings). Render as a
     // small badge inside the section if present.
     injEndDate:alDate?(String(alDate.getDate()).padStart(2,'0')+'/'+String(alDate.getMonth()+1).padStart(2,'0')+'/'+String(alDate.getFullYear()).slice(2)):'',
@@ -2599,7 +2605,7 @@ function setF(type,val){
   else if(type==='inj')fInj=val;
   else if(type==='srv')fSrv=val;
   let activeEl=null;
-  ['all','urgent','warning'].forEach(v=>{
+  ['all','urgent','warning','temp-active'].forEach(v=>{
     const el=document.getElementById('f'+type[0]+'-'+v);
     if(el){ el.classList.toggle('active',v===val); if(v===val) activeEl=el; }
   });
@@ -2706,7 +2712,8 @@ function applyFilters(){
     if(fDocs==='warning'&&!c.docsHasAE)return false;
     if(fInj==='urgent'&&!c.injUrgent)return false;
     if(fSrv==='urgent'&&!c.srvUrgent)return false;
-    if(fSrv==='warning'&&!c.srvWarning)return false;
+    if(fSrv==='warning'&&!c.srvHasBE)return false;
+    if(fSrv==='temp-active'&&!c.srvTempActive)return false;
     return true;
   });
   renderCards(filtered);
