@@ -75,12 +75,52 @@ function _ensureFolder(parent, name){
   return parent.createFolder(name);
 }
 
+// ── Audit log ──────────────────────────────────────────────────────
+// Appends one row to a sheet named "audit_log" in the same spreadsheet.
+// Created on first call. Never throws.
+function _audit(action, identity, detail){
+  try{
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sh = ss.getSheetByName('audit_log');
+    if(!sh){
+      sh = ss.insertSheet('audit_log');
+      sh.appendRow(['timestamp','action','identity','detail']);
+    }
+    sh.appendRow([new Date(), action, identity || '', JSON.stringify(detail || {}).substring(0, 1000)]);
+  }catch(_){}
+}
+
+// ── Login rate limiting (per-username) ─────────────────────────────
+const RATE_LIMIT_MAX       = 5;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+function _loginRateState(username){
+  const key = 'rl:' + username;
+  const raw = PropertiesService.getScriptProperties().getProperty(key);
+  return raw ? JSON.parse(raw) : {n: 0, t: 0};
+}
+function _loginRateBlocked(state){
+  return state.n >= RATE_LIMIT_MAX && (Date.now() - state.t) <= RATE_LIMIT_WINDOW_MS;
+}
+function _loginRateBump(username, state){
+  state.n += 1; state.t = Date.now();
+  PropertiesService.getScriptProperties().setProperty('rl:' + username, JSON.stringify(state));
+}
+function _loginRateReset(username){
+  PropertiesService.getScriptProperties().deleteProperty('rl:' + username);
+}
+
 // ── Login / Self-Registration ──────────────────────────────────────
 // First call with a new ID creates the account automatically.
 function handleLogin(body){
   const username = (body.username||'').toString().trim();
   const password = (body.password||'').toString().trim();
   if(!username || !password) throw new Error('הזן מספר תעודת זהות וסיסמה');
+
+  const rate = _loginRateState(username);
+  if(_loginRateBlocked(rate)){
+    _audit('login_blocked_rate_limit', username, {attempts: rate.n});
+    throw new Error('יותר מדי ניסיונות. נסה שוב בעוד 15 דקות.');
+  }
 
   const sheet = _sheet();
   const data  = sheet.getDataRange().getValues();
@@ -90,12 +130,18 @@ function handleLogin(body){
     const u = (data[i][COL.CR_USER-1]||'').toString().trim();
     if(u !== username) continue;
     const stored = (data[i][COL.CS_PASS-1]||'').toString();
-    if(!_verifyPassword(password, stored)) throw new Error('סיסמה שגויה');
+    if(!_verifyPassword(password, stored)){
+      _loginRateBump(username, rate);
+      _audit('login_failed', username, {row: i+1, attempts: rate.n + 1});
+      throw new Error('סיסמה שגויה');
+    }
+    _loginRateReset(username);
     // Auto-upgrade legacy plain-text passwords to hashed format on login.
     if(!_isHashedFormat(stored)){
       try{ sheet.getRange(i+1, COL.CS_PASS).setValue(_hashPassword(password)); }catch(_){}
     }
     const name = (data[i][COL.NAME-1]||'').toString().trim();
+    _audit('login_success', username, {row: i+1});
     return {
       user:{
         rowNum:   i+1,
@@ -114,6 +160,8 @@ function handleLogin(body){
   sheet.getRange(newRowNum, COL.CS_PASS).setValue(_hashPassword(password));
   sheet.getRange(newRowNum, COL.CT_ACTIVE).setValue('TRUE');
   sheet.getRange(newRowNum, COL.CX_STAGE).setValue('pre_order');
+  _loginRateReset(username);
+  _audit('register_success', username, {row: newRowNum});
   return {
     user:{
       rowNum:   newRowNum,
@@ -174,6 +222,7 @@ function handleUploadFile(p){
     if(req.status==='pending'||req.status==='rejected') req.status='uploaded';
     cell.setValue(JSON.stringify(list));
   }
+  _audit('uploadFile', t.username || ('#'+t.rowNum), {category: p.category||'docs', reqId: p.reqId, fileId: file.getId(), name: fname});
   return {fileId:file.getId(), fileUrl:file.getUrl(), fileName:fname};
 }
 
@@ -190,6 +239,7 @@ function handleSubmitAnswer(p){
   req.status     = 'uploaded';
   req.answeredAt = Date.now();
   cell.setValue(JSON.stringify(list));
+  _audit('submitAnswer', t.username || ('#'+t.rowNum), {reqId: p.reqId});
   return {ok:true};
 }
 
@@ -209,6 +259,7 @@ function handleRemoveFile(p){
     req.files.splice(idx,1);
     if(!req.files.length&&req.status==='uploaded') req.status='pending';
     cell.setValue(JSON.stringify(list));
+    _audit('removeFile', t.username || ('#'+t.rowNum), {category: p.category||'docs', reqId: p.reqId, fileId: p.fileId});
   }
   return {ok:true};
 }
@@ -228,6 +279,7 @@ function handleSaveQuestionnaire(p){
     if(fullName) sheet.getRange(t.rowNum, COL.NAME).setValue(fullName);
   }
   try{ _saveQuestToSheet(clientName, p.data); }catch(e){Logger.log('Sheet save failed:'+e);}
+  _audit('saveQuestionnaire', t.username || ('#'+t.rowNum), {keys: Object.keys(p.data||{}).length});
   return {ok:true};
 }
 
@@ -249,6 +301,7 @@ function handleSendInquiry(p){
   if(Array.isArray(p.slots)&&p.slots.length) entry.slots=p.slots;
   list.push(entry);
   cell.setValue(JSON.stringify(list));
+  _audit('sendInquiry', t.username || ('#'+t.rowNum), {context: entry.context, msgLen: (entry.message||'').length, slots: (entry.slots||[]).length});
   return {ok:true};
 }
 
