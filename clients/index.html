@@ -2465,33 +2465,24 @@ async function sendInquiry(){
   const msg = ($('inquiry-text').value || '').trim();
   if(!msg){ toast('יש לכתוב הודעה לפני השליחה', 'error'); return; }
   const ctx = _inquiryContextOverride || _inquiryContext();
-  const clientName = (currentUser && currentUser.name) ? currentUser.name : 'לקוח';
-  const fullMsg = 'פניה מ' + clientName + ' בעניין ' + ctx + ':\n' + msg;
   const btn = $('inquiry-send-btn');
   btn.disabled = true;
   btn.textContent = 'שולח…';
   try{
-    const instance = '7103130952';
-    const token    = '8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0';
-    const phone    = '972528713692';
-    const url = `https://api.green-api.com/waInstance${instance}/sendMessage/${token}`;
-    const res = await fetch(url, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({chatId: phone + '@c.us', message: fullMsg})
-    });
-    const json = await res.json();
-    if(json.idMessage || res.ok){
-      // Also save to sheet via Apps Script
-      if(currentUser && currentUser.token){
-        api('sendInquiry', {token: currentUser.token, context: ctx, message: msg}).catch(()=>{});
-      }
+    if(!currentUser || !currentUser.token){
+      throw new Error('אינך מחובר — התחבר מחדש ונסה שוב');
+    }
+    // Apps Script: saves to CZ_INQUIRIES + sends WA to lawyer server-side.
+    // Green API credentials live in Script Properties, never in this file.
+    const r = await api('sendInquiry', {token: currentUser.token, context: ctx, message: msg});
+    if(r && r.ok){
       toast('הפניה נשלחה בהצלחה', 'success');
       closeInquiryModal();
     } else {
-      throw new Error(json.message || 'שגיאה בשליחה');
+      throw new Error((r && r.error) || 'שגיאה בשליחה');
     }
   } catch(err){
+    console.warn('sendInquiry failed:', err);
     toast('שגיאה בשליחת הפניה — נסה שוב', 'error');
     btn.disabled = false;
     btn.textContent = 'שלח';

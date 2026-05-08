@@ -1145,7 +1145,48 @@ function handleSendInquiry(p){
   if(Array.isArray(p.slots) && p.slots.length) entry.slots = p.slots;
   list.push(entry);
   cell.setValue(JSON.stringify(list));
-  return {ok: true};
+
+  // Best-effort WhatsApp notification to the lawyer. Sheet save is the
+  // must-succeed; WA failure is logged but doesn't fail the request.
+  let waSent = false, waError = '';
+  try{
+    const clientName = t.username || ('row ' + t.rowNum);
+    const fullMsg = 'פניה מ' + clientName + ' בעניין ' + entry.context + ':\n' + entry.message;
+    _greenApiSendWhatsApp(LAWYER_NOTIFY_PHONE, fullMsg);
+    waSent = true;
+  }catch(e){
+    waError = String(e && e.message || e);
+    try{ _audit('sendInquiry_wa_failed', t.username || ('#'+t.rowNum), {error: waError}); }catch(_){}
+  }
+  return {ok: true, waSent: waSent, waError: waError || undefined};
+}
+
+// Lawyer's phone for inquiry notifications — sent via Green API
+// credentials in Script Properties (server-side only).
+const LAWYER_NOTIFY_PHONE = '972528713692';
+
+// Internal helper — server-side Green API send. Reads credentials from
+// Script Properties; throws on missing config or HTTP error.
+function _greenApiSendWhatsApp(phone, message){
+  const ph = (phone||'').toString().replace(/\D/g,'');
+  const msg = (message||'').toString();
+  if(!ph || !msg) throw new Error('missing phone or message');
+  const intl = ph.startsWith('0') ? '972' + ph.substring(1) : ph;
+  const props = PropertiesService.getScriptProperties();
+  const inst  = props.getProperty('GREEN_API_INSTANCE');
+  const tok   = props.getProperty('GREEN_API_TOKEN');
+  if(!inst || !tok){ throw new Error('green api not configured (set Script Properties GREEN_API_INSTANCE + GREEN_API_TOKEN)'); }
+  const url = 'https://api.green-api.com/waInstance' + inst + '/sendMessage/' + tok;
+  const resp = UrlFetchApp.fetch(url, {
+    method: 'POST',
+    contentType: 'application/json; charset=utf-8',
+    payload: JSON.stringify({chatId: intl + '@c.us', message: msg}),
+    muteHttpExceptions: true
+  });
+  const code = resp.getResponseCode();
+  const txt  = resp.getContentText();
+  if(code >= 300) throw new Error('green api ' + code + ': ' + txt.substring(0, 300));
+  return JSON.parse(txt);
 }
 
 // ג”€ג”€ג”€ Action: createCalendarEvent ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€

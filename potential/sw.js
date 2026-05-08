@@ -1,5 +1,5 @@
 // Service worker for the POTENTIAL CLIENTS portal — aggressive auto-update.
-const CACHE_NAME = 'at-potential-v3';
+const CACHE_NAME = 'at-potential-v4';
 const ASSETS = [
   './manifest.json',
   '../logo.png',

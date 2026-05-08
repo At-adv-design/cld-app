@@ -8175,8 +8175,8 @@ async function editDateField(rowNum, colLetter, label, currentValue){
 }
 
 // ── INSOLVENCY MEETING DIALOG (same as leads) ────────────────────────────
-const GREEN_API_INSTANCE = '7103130952';
-const GREEN_API_TOKEN = '8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0';
+// Green API credentials live ONLY in Apps Script Script Properties (server-side).
+// All WhatsApp sends go through the secure backend proxy `_sendWhatsAppViaBackend`.
 
 function sendCollectionWA(name, phone){
   if(!phone) return;
@@ -8188,8 +8188,6 @@ function sendCollectionWA(name, phone){
 
 async function _sendInsMeetingWhatsApp(name, phone, dateStr, timeStr){
   if(!phone) return;
-  // Same template as leads/_sendMeetingConfirmation — new office address
-  // (Markus 5 חיפה) + Waze link + confirmation request.
   const [d,m,y] = dateStr.split('/').map(Number);
   const dShort = `${d}/${m}/${String(y).slice(2)}`;
   const msg =
@@ -8198,28 +8196,14 @@ async function _sendInsMeetingWhatsApp(name, phone, dateStr, timeStr){
     `\n` +
     `אם נתקעים בלי וויז תתקשרו בבקשה למשרד 048251453 ונדריך אתכם \n` +
     `*אשרו שקיבלתם בהודעה חוזרת בבקשה*`;
-  // Try the secure backend (Apps Script proxy) first; if it fails for any
-  // reason — missing permission, network blip, scope not granted — fall
-  // back to the direct Green API call so the meeting confirmation still
-  // reaches the client. The fallback uses the legacy constants kept in
-  // source until backend auth is fully wired.
-  let backendOk = false;
   try{
     if(typeof _sendWhatsAppViaBackend === 'function'){
       const r = await _sendWhatsAppViaBackend(phone, msg);
-      if(r && r.ok){ backendOk = true; }
-      else console.warn('[mtgWA] backend failed, falling back to direct Green API:', r && r.error);
+      if(!(r && r.ok)) console.warn('[mtgWA] backend send failed:', r && r.error);
+    } else {
+      console.warn('[mtgWA] _sendWhatsAppViaBackend not available');
     }
-  }catch(e){ console.warn('[mtgWA] backend exception, falling back:', e); }
-  if(backendOk) return;
-  try{
-    const p = phone.replace(/\D/g,'');
-    const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
-    const utf8Body = new TextEncoder().encode(JSON.stringify({chatId:`${intl}@c.us`, message:msg}));
-    const r2 = await fetch(`https://api.green-api.com/waInstance${GREEN_API_INSTANCE}/sendMessage/${GREEN_API_TOKEN}`,
-      { method:'POST', headers:{'Content-Type':'application/json; charset=utf-8'}, body: utf8Body });
-    if(!r2.ok) console.warn('[mtgWA] direct Green API failed:', r2.status, await r2.text());
-  }catch(e){ console.warn('[mtgWA] direct Green API exception:', e); }
+  }catch(e){ console.warn('[mtgWA] backend exception:', e); }
 }
 
 async function _createCalendarEventDirect(summary, startIso, endIso, description){

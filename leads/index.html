@@ -923,6 +923,26 @@ const SHEET_ID='19v-4WBpUPjuswhQ84Y7mHULT39k2W9UJ5JqtdDpLtSM';
 const SCOPES='https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar';
 const REDIRECT=location.origin+location.pathname;
 
+// Apps Script Web App URL — backend proxy for sendWhatsApp (Green API
+// credentials live in Script Properties, never in client source).
+const CUSTOMER_API_URL = 'https://script.google.com/macros/s/AKfycbw1P975QBAQ1EaZ84ps6kGkn37jHJOWL64D9yqcwLhOjCpUcIEcGbpNipmkPf8vrjwJgw/exec';
+
+async function _sendWhatsAppViaBackend(phone, message){
+  try{
+    if(!CUSTOMER_API_URL){ return {ok:false, error:'CUSTOMER_API_URL not set'}; }
+    if(!accessToken){ return {ok:false, error:'no accessToken'}; }
+    const r = await fetch(CUSTOMER_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({action:'sendWhatsApp', accessToken: accessToken, phone, message})
+    });
+    const text = await r.text();
+    let data; try{ data = JSON.parse(text); }catch(_){ return {ok:false, error:'non-JSON response: ' + text.substring(0,200)}; }
+    return data;
+  }catch(e){
+    return {ok:false, error: String(e.message||e)};
+  }
+}
+
 // Sheet status values stored in column V (per-row)
 const STATUS_ACTIVE='';        // empty cell = active (default)
 const STATUS_CONTINUE='continue';
@@ -4269,13 +4289,9 @@ async function _sendMeetingConfirmation(name, phone, dateStr, timeStr){
     `אם נתקעים בלי וויז תתקשרו בבקשה למשרד 048251453 ונדריך אתכם \n` +
     `*אשרו שקיבלתם בהודעה חוזרת בבקשה*`;
   try{
-    const resp = await fetch(
-      'https://api.green-api.com/waInstance7103130952/sendMessage/8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0',
-      { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({chatId:`${intl}@c.us`, message:msg}) }
-    );
-    const r = await resp.json();
-    if(r.idMessage) console.log('WA sent:', r.idMessage);
+    const r = await _sendWhatsAppViaBackend(phone, msg);
+    if(r && r.ok){ console.log('WA sent via backend'); }
+    else { console.warn('[mtgWA] backend send failed:', r && r.error); }
   }catch(e){ console.warn('WA send failed:', e); }
 }
 

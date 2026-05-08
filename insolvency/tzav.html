@@ -6156,8 +6156,8 @@ async function editDateField(rowNum, colLetter, label, currentValue){
 }
 
 // ── INSOLVENCY MEETING DIALOG (same as leads) ────────────────────────────
-const GREEN_API_INSTANCE = '7103130952';
-const GREEN_API_TOKEN = '8c558acb025f40e59bf2fb2a24e0b3e0a5a5771b4dc343fda0';
+// Green API credentials live ONLY in Apps Script Script Properties (server-side).
+// All WhatsApp sends go through the secure backend proxy `_sendWhatsAppViaBackend`.
 
 function sendCollectionWA(name, phone){
   if(!phone) return;
@@ -6167,19 +6167,32 @@ function sendCollectionWA(name, phone){
   window.open(`https://wa.me/${intl}?text=${msg}`, '_blank');
 }
 
+async function _sendWhatsAppViaBackend(phone, message){
+  try{
+    if(!CUSTOMER_API_URL){ return {ok:false, error:'CUSTOMER_API_URL not set'}; }
+    if(typeof accessToken === 'undefined' || !accessToken){ return {ok:false, error:'no accessToken'}; }
+    const r = await fetch(CUSTOMER_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({action:'sendWhatsApp', accessToken: accessToken, phone, message})
+    });
+    const text = await r.text();
+    let data; try{ data = JSON.parse(text); }catch(_){ return {ok:false, error:'non-JSON response: ' + text.substring(0,200)}; }
+    return data;
+  }catch(e){
+    return {ok:false, error: String(e.message||e)};
+  }
+}
+
 async function _sendInsMeetingWhatsApp(name, phone, dateStr, timeStr){
   if(!phone) return;
-  const p = phone.replace(/\D/g,'');
-  const intl = p.startsWith('0') ? '972'+p.slice(1) : p;
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const [d,m,y] = dateStr.split('/').map(Number);
   const dow = new Date(y,m-1,d).getDay();
   const msg = `◇ שלום ${name},\nנקבעה לך פגישה עם עורך דין אבי טל\nיום ${days[dow]} ${dateStr} בשעה ${timeStr}.\nכתובת: שדרות העצמאות 7, כפר סבא (קניון ערים).\nלאישור/שינוי: 04-8251453`;
   try{
-    await fetch(`https://api.green-api.com/waInstance${GREEN_API_INSTANCE}/sendMessage/${GREEN_API_TOKEN}`,
-      { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({chatId:`${intl}@c.us`, message:msg}) });
-  }catch(e){ console.warn('WA send failed:', e); }
+    const r = await _sendWhatsAppViaBackend(phone, msg);
+    if(!(r && r.ok)) console.warn('[mtgWA] backend send failed:', r && r.error);
+  }catch(e){ console.warn('[mtgWA] backend exception:', e); }
 }
 
 async function _createCalendarEventDirect(summary, startIso, endIso, description){
