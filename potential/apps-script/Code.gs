@@ -60,14 +60,14 @@ function _parseObj(raw){
   try{ return JSON.parse(raw); }catch(_){return null;}
 }
 function _makeToken(rowNum, username){
-  return Utilities.base64Encode(rowNum+':'+username+':'+SHEET_ID.slice(-6));
+  return _jwtSign({rowNum: rowNum, username: String(username || '').trim()});
 }
 function _verifyToken(token){
-  try{
-    const decoded = Utilities.newBlob(Utilities.base64Decode(token)).getDataAsString();
-    const parts   = decoded.split(':');
-    return {rowNum: parseInt(parts[0],10), username: parts[1]};
-  }catch(_){return null;}
+  const payload = _jwtVerify(token);
+  if(!payload) return null;
+  const rowNum = parseInt(payload.rowNum, 10);
+  if(!rowNum || rowNum < 2) return null;
+  return {rowNum: rowNum, username: payload.username || ''};
 }
 function _ensureFolder(parent, name){
   const it = parent.getFoldersByName(name);
@@ -88,28 +88,30 @@ function handleLogin(body){
   // Search for existing user (skip header row)
   for(let i=1; i<data.length; i++){
     const u = (data[i][COL.CR_USER-1]||'').toString().trim();
-    const p = (data[i][COL.CS_PASS-1]||'').toString().trim();
-    if(u===username && p===password){
-      const name  = (data[i][COL.NAME-1]||'').toString().trim();
-      return {
-        user:{
-          rowNum:   i+1,
-          name:     name||username,
-          username: username,
-          token:    _makeToken(i+1, username),
-          stage:    'pre_order',
-          isNew:    false,
-        }
-      };
+    if(u !== username) continue;
+    const stored = (data[i][COL.CS_PASS-1]||'').toString();
+    if(!_verifyPassword(password, stored)) throw new Error('סיסמה שגויה');
+    // Auto-upgrade legacy plain-text passwords to hashed format on login.
+    if(!_isHashedFormat(stored)){
+      try{ sheet.getRange(i+1, COL.CS_PASS).setValue(_hashPassword(password)); }catch(_){}
     }
-    // Same ID, wrong password
-    if(u===username && p!==password) throw new Error('סיסמה שגויה');
+    const name = (data[i][COL.NAME-1]||'').toString().trim();
+    return {
+      user:{
+        rowNum:   i+1,
+        name:     name||username,
+        username: username,
+        token:    _makeToken(i+1, username),
+        stage:    'pre_order',
+        isNew:    false,
+      }
+    };
   }
 
-  // New user — register by appending a row
+  // New user — register by appending a row. Hash the password before storing.
   const newRowNum = data.length + 1;
   sheet.getRange(newRowNum, COL.CR_USER).setValue(username);
-  sheet.getRange(newRowNum, COL.CS_PASS).setValue(password);
+  sheet.getRange(newRowNum, COL.CS_PASS).setValue(_hashPassword(password));
   sheet.getRange(newRowNum, COL.CT_ACTIVE).setValue('TRUE');
   sheet.getRange(newRowNum, COL.CX_STAGE).setValue('pre_order');
   return {
