@@ -2448,7 +2448,9 @@ function parseClient(row,rowNum){
   const docsDone=g(C_DOCS_AH).includes('בוצע');
   const docsReminder=g(C_DOCS_AI)==='TRUE';
   const docsHighUrgent=!docsDone&&agDate&&agDate<=in7;
-  const docsLowUrgent=!docsDone&&!docsHighUrgent&&aeDate&&aeDate<today&&(!agDate||agDate>in7);
+  // "בטיפול" = יש תאריך כלשהו בעמודה AE (התחיל). שמירה על היררכיה: docsDone
+  // (הסתיים) ו-docsHighUrgent (דחוף) גוברים.
+  const docsLowUrgent=!docsDone&&!docsHighUrgent&&!!aeDate;
 
   // INJUNCTION
   const alDate=parseDate(g(C_AL));
