@@ -2,6 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://accounts.google.com https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://script.google.com https://script.googleusercontent.com https://raw.githubusercontent.com; frame-src 'self' https://drive.google.com https://docs.google.com https://accounts.google.com https://*.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2651,7 +2653,14 @@ function fetchUserInfo(){
 function restoreAvatar(){setAvatar(localStorage.getItem('ip'),localStorage.getItem('in'));}
 function setAvatar(pic,name){
   const av=document.getElementById('user-avatar');if(!av)return;
-  av.innerHTML=pic?`<img src="${pic}">`:(name||'U')[0].toUpperCase();
+  if(pic && /^https:\/\//i.test(pic)){
+    av.innerHTML='';
+    const img=document.createElement('img');
+    img.src=pic;
+    av.appendChild(img);
+  } else {
+    av.textContent=(name||'U')[0].toUpperCase();
+  }
 }
 
 // Tag = first 3 + last 3 letters of the email's local part (or name as fallback).
@@ -3280,7 +3289,7 @@ window.openPendingPanel = function(){
           <div onclick="document.getElementById('pending-panel-modal').remove();openCustomerArea(${p.c.rowNum})" style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--white)'">
             <div style="flex:1;min-width:0">
               <div style="font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.c.name||'')}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.c.phone||''}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(p.c.phone||'')}</div>
             </div>
             ${p.pendingFiles ? `<span style="font-size:11px;font-weight:700;color:#fff;background:var(--orange);padding:3px 8px;border-radius:3px">${p.pendingFiles} קבצים</span>` : ''}
             ${p.openInquiries ? `<span style="font-size:11px;font-weight:700;color:#fff;background:var(--red);padding:3px 8px;border-radius:3px">${p.openInquiries} פניות</span>` : ''}
@@ -3533,9 +3542,9 @@ function renderCards(clients){
       if(s==='done'){topLine=lbl;botLine=dateStr;}
       else if(s==='progress'){topLine=lbl;botLine=dateStr!=='—'?dateStr:'';}
       else{topLine=lbl;botLine=dateStr;}
-      return`<div class="report-cell ${cls}" title="${c.reports[i]||''}">
-        <span style="font-size:6px;font-weight:700;line-height:1">${topLine}</span>
-        <span style="font-size:6px;font-weight:400;line-height:1">${botLine||'&nbsp;'}</span>
+      return`<div class="report-cell ${cls}" title="${esc(c.reports[i]||'')}">
+        <span style="font-size:6px;font-weight:700;line-height:1">${esc(topLine)}</span>
+        <span style="font-size:6px;font-weight:400;line-height:1">${botLine?esc(botLine):'&nbsp;'}</span>
       </div>`;
     }).join('');
 
@@ -4063,9 +4072,9 @@ function toggleExpand(rowNum){
   applyFilters();
 }
 
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 // Escape for inline JS string literals (used by inline onclick handlers).
-function ej(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function ej(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'\\r').replace(/</g,'\\u003c');}
 // Open WhatsApp chat with a phone number. Strips non-digits and prefixes Israel
 // country code (972) if the number starts with 0. wa.me opens WhatsApp app on
 // mobile or web on desktop.
