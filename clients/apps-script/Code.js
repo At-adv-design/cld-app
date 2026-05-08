@@ -14,6 +14,20 @@
  *   - removeFile         { token, category, reqId, fileId }
  *   - saveQuestionnaire  { token, data }           ג† NEW
  *   - getQuestionnaire   { token }                 ג† NEW
+ *
+ * Lawyer-only admin endpoints (require lawyerToken = Google OAuth):
+ *   - admin_createClientPassword { lawyerToken, rowNum, username, password? }
+ *   - admin_resetClientPassword  { lawyerToken, rowNum, username, password? }
+ *   - admin_setClientActive      { lawyerToken, rowNum, active }
+ *   - admin_listClientCredentials{ lawyerToken }
+ * Client self-service:
+ *   - changeMyPassword { token, oldPassword, newPassword }
+ *
+ * Security (added 2026-05-08, see auth.js):
+ *   - Passwords: PBKDF2-SHA256 (100k iter + 16-byte salt) in column CS.
+ *   - Session tokens: signed HS256 JWTs, 24h TTL. Secret in Script Properties.
+ *   - First-time setup (from the editor): run _adminAuthBootstrap then
+ *     _adminMigrateAllPasswords.
  */
 
 // ג”€ג”€ג”€ CONFIG ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
@@ -60,6 +74,11 @@ function doPost(e){
     else if(action === 'rejectSignature')     result = handleRejectSignature(body);
     else if(action === 'recordHeartbeat')     result = handleRecordHeartbeat(body);
     else if(action === 'listHeartbeats')      result = handleListHeartbeats(body);
+    else if(action === 'admin_createClientPassword') result = handleAdmin_createClientPassword(body);
+    else if(action === 'admin_resetClientPassword')  result = handleAdmin_resetClientPassword(body);
+    else if(action === 'admin_setClientActive')      result = handleAdmin_setClientActive(body);
+    else if(action === 'admin_listClientCredentials')result = handleAdmin_listClientCredentials(body);
+    else if(action === 'changeMyPassword')           result = handleAdmin_changeMyPassword(body);
     else throw new Error('Unknown action: ' + action);
     return ContentService.createTextOutput(JSON.stringify(Object.assign({ok:true}, result)))
       .setMimeType(ContentService.MimeType.JSON);
@@ -80,14 +99,22 @@ function _sheet(){ return SpreadsheetApp.openById(SHEET_ID).getSheets()[0]; }
 function _findRowByCreds(username, password){
   const sheet = _sheet();
   const data = sheet.getDataRange().getValues();
+  const target = String(username || '').trim();
+  if(!target) return null;
   for(let i=1; i<data.length; i++){
     const row = data[i];
     const u = (row[COL.CR_USER-1] || '').toString().trim();
-    const p = (row[COL.CS_PASS-1] || '').toString().trim();
+    if(u !== target) continue;
     const active = (row[COL.CT_ACTIVE-1] || '').toString().toUpperCase().trim();
-    if(u && u === username.trim() && p === password.trim() && active === 'TRUE'){
-      return {rowNum: i+1, row};
+    if(active !== 'TRUE') continue;
+    const stored = (row[COL.CS_PASS-1] || '').toString();
+    if(!_verifyPassword(password, stored)) continue;
+    // If the stored value was still legacy plain-text, opportunistically
+    // upgrade to the hashed format on this successful login.
+    if(!_isHashedFormat(stored)){
+      try{ sheet.getRange(i+1, COL.CS_PASS).setValue(_hashPassword(String(password))); }catch(_){}
     }
+    return {rowNum: i+1, row};
   }
   return null;
 }
@@ -437,14 +464,14 @@ function _ensureFolder(parent, name){
 }
 
 function _makeToken(rowNum, username){
-  return Utilities.base64Encode(rowNum + ':' + username + ':' + SHEET_ID.slice(-6));
+  return _jwtSign({rowNum: rowNum, username: String(username || '').trim()});
 }
 function _verifyToken(token){
-  try{
-    const decoded = Utilities.newBlob(Utilities.base64Decode(token)).getDataAsString();
-    const parts = decoded.split(':');
-    return {rowNum: parseInt(parts[0],10), username: parts[1]};
-  }catch(_){ return null; }
+  const payload = _jwtVerify(token);
+  if(!payload) return null;
+  const rowNum = parseInt(payload.rowNum, 10);
+  if(!rowNum || rowNum < 2) return null;
+  return {rowNum: rowNum, username: payload.username || ''};
 }
 
 // ג”€ג”€ג”€ Action: login ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
